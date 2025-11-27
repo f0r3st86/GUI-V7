@@ -86,8 +86,9 @@ export const ProjectionsTab: React.FC = () => {
     const payment = calculateProjectedPayment();
 
     // Calculate future value of balance with payments
+    // The FV represents the remaining balance after nper payments, which is the payoff amount
     const fv = calculateFV(rate, nper, -payment, selectedLoanData.principal);
-    return fv + payment; // Add one more payment for exit month
+    return fv;
   };
 
   // Get calculated exit value
@@ -108,7 +109,11 @@ export const ProjectionsTab: React.FC = () => {
       case 'YTM Sell Solve':
         const desiredYield = parseFloat(exitSettings.ytmDesired) || 12;
         const months = parseInt(exitSettings.endMonth) - parseInt(exitSettings.startMonth) + 1;
-        return calculatePV(desiredYield, months, calculateProjectedPayment(), calculatePayInFull());
+        const monthlyPmt = calculateProjectedPayment();
+        const finalPayoff = calculatePayInFull();
+        // Calculate present value: what to sell loan for today to achieve desired yield
+        // With positive payments (cash inflows) and positive final payoff
+        return calculatePV(desiredYield, months, monthlyPmt, finalPayoff);
       case 'Liquidation':
         const liquidationMonths = parseInt(exitSettings.liquidationMonths) || 12;
         let balance = selectedLoanData.principal;

@@ -141,7 +141,8 @@ export const calculatePMT = (
 
 /**
  * Calculate FV (Excel FV function equivalent)
- * FV = PV * (1 + rate)^nper - Payment * [((1 + rate)^nper - 1) / rate]
+ * FV = PV * (1 + rate)^nper + Payment * [((1 + rate)^nper - 1) / rate]
+ * Note: Use negative payment for loan paydown scenarios
  */
 export const calculateFV = (
   annualRate: number,
@@ -155,7 +156,7 @@ export const calculateFV = (
     return pv + payment * nper;
   }
 
-  const fv = pv * Math.pow(1 + rate, nper) - payment * ((Math.pow(1 + rate, nper) - 1) / rate);
+  const fv = pv * Math.pow(1 + rate, nper) + payment * ((Math.pow(1 + rate, nper) - 1) / rate);
   return fv;
 };
 
