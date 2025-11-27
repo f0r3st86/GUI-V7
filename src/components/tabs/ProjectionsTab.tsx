@@ -215,6 +215,28 @@ export const ProjectionsTab: React.FC = () => {
     }
   }, [exitSettings, selectedLoanData, collateralList, collateralLoanRelationships, selectedLoan, calculateProjectedPayment, calculatePayInFull, getProjectedRate]);
 
+  // Memoized projected payment value - don't call function in render
+  const projectedPaymentValue = useMemo(() => {
+    try {
+      const value = calculateProjectedPayment();
+      return isFinite(value) ? value : 0;
+    } catch (error) {
+      console.error('Error getting projected payment value:', error);
+      return 0;
+    }
+  }, [calculateProjectedPayment]);
+
+  // Memoized add back value - don't call function in render
+  const addBackValue = useMemo(() => {
+    try {
+      const value = calculateAddBackToExit();
+      return isFinite(value) ? value : 0;
+    } catch (error) {
+      console.error('Error getting add back value:', error);
+      return 0;
+    }
+  }, [calculateAddBackToExit]);
+
   // Build projection grid
   const buildProjectionGrid = useMemo(() => {
     const income: Record<string, Record<number, number>> = {};
@@ -223,7 +245,7 @@ export const ProjectionsTab: React.FC = () => {
 
     const startMonth = parseInt(exitSettings.startMonth) || 1;
     const endMonth = Math.min(Math.max(1, parseInt(exitSettings.endMonth) || 24), 60); // Ensure valid range
-    const monthlyPayment = calculateProjectedPayment();
+    const monthlyPayment = projectedPaymentValue;
     const initialLegal = parseFloat(projSettings.initialLegal) || 0;
     const initialLegalStart = parseInt(projSettings.initialLegalStartMonth) || 1;
     const holdingCosts = parseFloat(projSettings.holdingCosts) || 0;
@@ -261,7 +283,7 @@ export const ProjectionsTab: React.FC = () => {
     }
 
     return { income, expenses, netCashFlow };
-  }, [projSettings, exitSettings, calculateProjectedPayment]);
+  }, [projSettings, exitSettings, projectedPaymentValue]);
 
   const projectionGrid = buildProjectionGrid;
 
@@ -311,10 +333,7 @@ export const ProjectionsTab: React.FC = () => {
               <div className={`mt-2 px-2 py-1 ${styles.readOnlyBg} rounded ${styles.inputBorder} border`}>
                 <span className={`text-xs ${styles.textMuted}`}>Calculated: </span>
                 <span className={`text-sm font-medium ${styles.textYellow}`}>
-                  ${(() => {
-                    const pmt = calculateProjectedPayment();
-                    return (isFinite(pmt) ? pmt : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                  })()}/mo
+                  ${projectedPaymentValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}/mo
                 </span>
               </div>
             </div>
@@ -578,10 +597,7 @@ export const ProjectionsTab: React.FC = () => {
             <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
               <div className={`text-xs ${styles.textMuted} mb-1`}>Add Back Recovery</div>
               <div className={`text-lg font-medium ${styles.textYellow}`}>
-                ${(() => {
-                  const addBack = calculateAddBackToExit();
-                  return (isFinite(addBack) ? addBack : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                })()}
+                ${addBackValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </div>
             </div>
             <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
@@ -589,8 +605,7 @@ export const ProjectionsTab: React.FC = () => {
               <div className={`text-lg font-medium ${styles.textGreen}`}>
                 ${(() => {
                   const exitVal = isFinite(calculatedExitValue) ? calculatedExitValue : 0;
-                  const addBack = calculateAddBackToExit();
-                  const total = exitVal + (isFinite(addBack) ? addBack : 0);
+                  const total = exitVal + addBackValue;
                   return (isFinite(total) ? total : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 })()}
               </div>
