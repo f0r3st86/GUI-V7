@@ -75,13 +75,17 @@ export const ProjectionsTab: React.FC = () => {
   const calculatePayInFull = (): number => {
     const startMonth = parseInt(exitSettings.startMonth) || 1;
     const endMonth = parseInt(exitSettings.endMonth) || 24;
-    const nper = endMonth - startMonth + 1;
+    const nper = Math.max(1, endMonth - startMonth + 1); // Ensure at least 1 month
+
+    // Handle NaN case (during typing when field is empty)
+    if (isNaN(nper) || !isFinite(nper)) return selectedLoanData.principal;
+
     const rate = getProjectedRate();
     const payment = calculateProjectedPayment();
 
     // Calculate future value of balance with payments
     const fv = calculateFV(rate, nper, -payment, selectedLoanData.principal);
-    return fv + payment; // Add one more payment for exit month
+    return isNaN(fv) || !isFinite(fv) ? selectedLoanData.principal : fv + payment; // Add one more payment for exit month
   };
 
   // Get calculated exit value
@@ -101,8 +105,12 @@ export const ProjectionsTab: React.FC = () => {
         return parseFloat(exitSettings.userEnterAmount) || 0;
       case 'YTM Sell Solve':
         const desiredYield = parseFloat(exitSettings.ytmDesired) || 12;
-        const months = parseInt(exitSettings.endMonth) - parseInt(exitSettings.startMonth) + 1;
-        return calculatePV(desiredYield, months, calculateProjectedPayment(), calculatePayInFull());
+        const ytmStartMonth = parseInt(exitSettings.startMonth) || 1;
+        const ytmEndMonth = parseInt(exitSettings.endMonth) || 24;
+        const months = Math.max(1, ytmEndMonth - ytmStartMonth + 1);
+        if (isNaN(months) || !isFinite(months)) return 0;
+        const pvResult = calculatePV(desiredYield, months, calculateProjectedPayment(), calculatePayInFull());
+        return isNaN(pvResult) || !isFinite(pvResult) ? 0 : pvResult;
       case 'Liquidation':
         const liquidationMonths = parseInt(exitSettings.liquidationMonths) || 12;
         let balance = selectedLoanData.principal;
@@ -128,8 +136,16 @@ export const ProjectionsTab: React.FC = () => {
     const expenses: Record<string, Record<number, number>> = {};
     const netCashFlow: Record<string, Record<number, number>> = {};
 
-    const startMonth = parseInt(exitSettings.startMonth) || 1;
-    const endMonth = Math.min(parseInt(exitSettings.endMonth) || 24, 60);
+    const parsedStartMonth = parseInt(exitSettings.startMonth);
+    const parsedEndMonth = parseInt(exitSettings.endMonth);
+    const startMonth = isNaN(parsedStartMonth) ? 1 : parsedStartMonth;
+    const endMonth = Math.min(isNaN(parsedEndMonth) ? 24 : parsedEndMonth, 60);
+
+    // Return empty grid if invalid range
+    if (startMonth > endMonth || startMonth < 1) {
+      return { income, expenses, netCashFlow };
+    }
+
     const monthlyPayment = calculateProjectedPayment();
     const initialLegal = parseFloat(projSettings.initialLegal) || 0;
     const initialLegalStart = parseInt(projSettings.initialLegalStartMonth) || 1;
