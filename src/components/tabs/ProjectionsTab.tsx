@@ -1,5 +1,5 @@
 // ProjectionsTab component - cash flow projections and exit scenarios
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { useTheme, useLoan, useProjection, useExit } from '../../context';
 import { PAYMENT_METHODS, RATE_METHODS, EXIT_METHODS, MONTH_NAMES_SHORT } from '../../data';
 import {
@@ -27,8 +27,30 @@ export const ProjectionsTab: React.FC = () => {
     return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;
   }
 
+  // Get projected rate
+  const getProjectedRate = useCallback((): number => {
+    try {
+      let rate = 0;
+      if (projSettings.rateMethod === 'User Enter') {
+        rate = parseFloat(projSettings.userRate) || 0;
+      } else {
+        rate = selectedLoanData.intRate;
+      }
+
+      // Validate rate
+      if (!isFinite(rate) || rate < 0) {
+        return selectedLoanData.intRate;
+      }
+
+      return rate;
+    } catch (error) {
+      console.error('Error in getProjectedRate:', error);
+      return selectedLoanData.intRate;
+    }
+  }, [projSettings.rateMethod, projSettings.userRate, selectedLoanData.intRate]);
+
   // Calculate projected payment based on method
-  const calculateProjectedPayment = (): number => {
+  const calculateProjectedPayment = useCallback((): number => {
     try {
       let result = 0;
       switch (projSettings.paymentMethod) {
@@ -69,40 +91,18 @@ export const ProjectionsTab: React.FC = () => {
       console.error('Error in calculateProjectedPayment:', error);
       return selectedLoanData.pmt;
     }
-  };
-
-  // Get projected rate
-  const getProjectedRate = (): number => {
-    try {
-      let rate = 0;
-      if (projSettings.rateMethod === 'User Enter') {
-        rate = parseFloat(projSettings.userRate) || 0;
-      } else {
-        rate = selectedLoanData.intRate;
-      }
-
-      // Validate rate
-      if (!isFinite(rate) || rate < 0) {
-        return selectedLoanData.intRate;
-      }
-
-      return rate;
-    } catch (error) {
-      console.error('Error in getProjectedRate:', error);
-      return selectedLoanData.intRate;
-    }
-  };
+  }, [projSettings.paymentMethod, projSettings.userPayment, projSettings.amortMonths, projSettings.trailPeriod, projSettings.trailPercentage, selectedLoanData.pmt, selectedLoanData.principal, selectedLoanData.lastImportDate, selectedLoan, paymentRecords, loans, getProjectedRate]);
 
   // Calculate total holding costs
-  const calculateTotalHoldingCosts = (): number => {
+  const calculateTotalHoldingCosts = useCallback((): number => {
     const legalStartMonth = parseInt(projSettings.initialLegalStartMonth) || 0;
     const holdingEndMonth = parseInt(projSettings.holdingCostsEndMonth) || 0;
     const numberOfMonths = Math.max(0, holdingEndMonth - legalStartMonth);
     return numberOfMonths * (parseFloat(projSettings.holdingCosts) || 0);
-  };
+  }, [projSettings.initialLegalStartMonth, projSettings.holdingCostsEndMonth, projSettings.holdingCosts]);
 
   // Calculate add back to exit
-  const calculateAddBackToExit = (): number => {
+  const calculateAddBackToExit = useCallback((): number => {
     try {
       const initialLegal = parseFloat(projSettings.initialLegal) || 0;
       const totalHolding = calculateTotalHoldingCosts();
@@ -119,10 +119,10 @@ export const ProjectionsTab: React.FC = () => {
       console.error('Error in calculateAddBackToExit:', error);
       return 0;
     }
-  };
+  }, [projSettings.initialLegal, projSettings.addBackBasis, projSettings.addBackPercentage, calculateTotalHoldingCosts]);
 
   // Calculate pay in full value
-  const calculatePayInFull = (): number => {
+  const calculatePayInFull = useCallback((): number => {
     try {
       const startMonth = parseInt(exitSettings.startMonth) || 1;
       const endMonth = parseInt(exitSettings.endMonth) || 24;
@@ -149,7 +149,7 @@ export const ProjectionsTab: React.FC = () => {
       console.error('Error in calculatePayInFull:', error);
       return selectedLoanData.principal;
     }
-  };
+  }, [exitSettings.startMonth, exitSettings.endMonth, selectedLoanData.principal, getProjectedRate, calculateProjectedPayment]);
 
   // Get calculated exit value - memoized to prevent recalculation on every render
   const calculatedExitValue = useMemo(() => {
@@ -213,7 +213,7 @@ export const ProjectionsTab: React.FC = () => {
       console.error('Error calculating exit value:', error);
       return 0;
     }
-  }, [exitSettings, selectedLoanData, collateralList, collateralLoanRelationships, selectedLoan, projSettings]);
+  }, [exitSettings, selectedLoanData, collateralList, collateralLoanRelationships, selectedLoan, calculateProjectedPayment, calculatePayInFull, getProjectedRate]);
 
   // Build projection grid
   const buildProjectionGrid = useMemo(() => {
@@ -261,7 +261,7 @@ export const ProjectionsTab: React.FC = () => {
     }
 
     return { income, expenses, netCashFlow };
-  }, [projSettings, exitSettings, selectedLoanData]);
+  }, [projSettings, exitSettings, calculateProjectedPayment]);
 
   const projectionGrid = buildProjectionGrid;
 
