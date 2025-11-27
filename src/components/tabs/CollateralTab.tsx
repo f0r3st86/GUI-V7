@@ -3,12 +3,12 @@ import React from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useTheme, useLoan } from '../../context';
 import { US_STATES } from '../../data';
-import { calculatePerSqft, calculatePerUnit, calculatePerAcre } from '../../utils';
+import { calculatePerSqft } from '../../utils';
 import { DeleteModal } from '../ui';
 import type { Collateral } from '../../types';
 
 export const CollateralTab: React.FC = () => {
-  const { theme, styles } = useTheme();
+  const { styles } = useTheme();
   const {
     selectedLoan,
     collateralList,

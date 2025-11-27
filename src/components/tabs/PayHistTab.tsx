@@ -14,7 +14,6 @@ export const PayHistTab: React.FC = () => {
     setPaymentRecords,
     paymentGridData,
     getFilteredPaymentRecords,
-    getNextPaymentId,
     loans
   } = useLoan();
 

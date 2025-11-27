@@ -21,7 +21,7 @@ interface TableHeadProps {
 }
 
 export const TableHead: React.FC<TableHeadProps> = ({ children, className = '' }) => {
-  const { theme, styles } = useTheme();
+  const { theme } = useTheme();
 
   return (
     <thead className={`sticky top-0 ${theme === 'dark' ? 'bg-zinc-800' : 'bg-gray-100'} ${className}`}>

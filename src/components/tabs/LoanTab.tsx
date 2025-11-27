@@ -1,6 +1,5 @@
 // LoanTab component - displays loan details in 5-column grid layout
 import React from 'react';
-import { AlertCircle } from 'lucide-react';
 import { useTheme, useLoan } from '../../context';
 import { US_STATES } from '../../data';
 import {
@@ -13,8 +12,7 @@ export const LoanTab: React.FC = () => {
   const { styles } = useTheme();
   const {
     selectedLoanData,
-    handleLoanFieldChange,
-    selectedLoan
+    handleLoanFieldChange
   } = useLoan();
 
   if (!selectedLoanData) {
