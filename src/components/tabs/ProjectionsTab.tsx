@@ -111,16 +111,23 @@ export const ProjectionsTab: React.FC = () => {
   }, [projSettings.initialLegal, projSettings.addBackBasis, projSettings.addBackPercentage, totalHoldingCosts]);
 
   // Calculate pay in full value - memoized
+  // This calculates the remaining loan balance at the exit month after making payments
+  // Formula: Balance = Principal * (1+r)^n - Payment * ((1+r)^n - 1) / r
   const payInFullValue = useMemo(() => {
     try {
       if (!selectedLoanData) return 0;
       const startMonth = safeParseInt(exitSettings.startMonth, 1);
       const endMonth = safeParseInt(exitSettings.endMonth, 24);
+      // Number of payments made from startMonth through endMonth
       const nper = Math.max(1, endMonth - startMonth + 1);
       const principal = selectedLoanData.principal || 0;
 
-      const fv = calculateFV(projectedRate, nper, -projectedPayment, principal);
-      return isNaN(fv) || !isFinite(fv) ? principal : fv + projectedPayment;
+      // Calculate remaining balance after nper payments
+      // Payment should be positive in the formula - it reduces the balance
+      const remainingBalance = calculateFV(projectedRate, nper, projectedPayment, principal);
+
+      // Ensure non-negative result (loan can't have negative balance)
+      return isNaN(remainingBalance) || !isFinite(remainingBalance) ? principal : Math.max(0, remainingBalance);
     } catch {
       return selectedLoanData?.principal || 0;
     }
