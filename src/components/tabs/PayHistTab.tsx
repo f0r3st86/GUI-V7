@@ -282,6 +282,7 @@ export const PayHistTab: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* $/Mo Row */}
                   <tr>
                     <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>$/Mo</td>
                     <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
@@ -294,6 +295,36 @@ export const PayHistTab: React.FC = () => {
                       ${trailing3.monthly.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </td>
                   </tr>
+
+                  {/* $/Yr Row */}
+                  <tr>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>$/Yr</td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      ${trailing12.actual.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                    </td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      ${(trailing6.actual * 2).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                    </td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      ${(trailing3.actual * 4).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                    </td>
+                  </tr>
+
+                  {/* Actual Row */}
+                  <tr>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>Actual</td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      ${trailing12.actual.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                    </td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      ${trailing6.actual.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                    </td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      ${trailing3.actual.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                    </td>
+                  </tr>
+
+                  {/* % Cont. Row */}
                   <tr>
                     <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>% Cont.</td>
                     <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${
@@ -313,6 +344,48 @@ export const PayHistTab: React.FC = () => {
                       trailing3.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
                     }`}>
                       {trailing3.percentOfContractual.toFixed(1)}%
+                    </td>
+                  </tr>
+
+                  {/* % Int. Row */}
+                  <tr>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>% Int.</td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      {trailing12.percentOfInterestOnly.toFixed(1)}%
+                    </td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      {trailing6.percentOfInterestOnly.toFixed(1)}%
+                    </td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      {trailing3.percentOfInterestOnly.toFixed(1)}%
+                    </td>
+                  </tr>
+
+                  {/* Mo Pd (Cont.) Row */}
+                  <tr>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>Mo Pd (Cont.)</td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      {trailing12.monthsPaidContractual.toFixed(1)}
+                    </td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      {trailing6.monthsPaidContractual.toFixed(1)}
+                    </td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      {trailing3.monthsPaidContractual.toFixed(1)}
+                    </td>
+                  </tr>
+
+                  {/* Mo Pd (Int.) Row */}
+                  <tr>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>Mo Pd (Int.)</td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      {trailing12.monthsPaidInterest.toFixed(1)}
+                    </td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      {trailing6.monthsPaidInterest.toFixed(1)}
+                    </td>
+                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                      {trailing3.monthsPaidInterest.toFixed(1)}
                     </td>
                   </tr>
                 </tbody>
