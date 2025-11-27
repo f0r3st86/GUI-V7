@@ -11,20 +11,28 @@ import {
 } from '../../utils';
 
 // Safe number parsing helpers to prevent NaN crashes
-const safeParseInt = (value: string, defaultValue: number = 0): number => {
+const safeParseInt = (value: string | undefined | null, defaultValue: number = 0): number => {
+  if (value === undefined || value === null || value === '') return defaultValue;
   const parsed = parseInt(value);
   return isNaN(parsed) || !isFinite(parsed) ? defaultValue : parsed;
 };
 
-const safeParseFloat = (value: string, defaultValue: number = 0): number => {
-  const parsed = parseFloat(value.replace(/[$,]/g, ''));
+const safeParseFloat = (value: string | undefined | null, defaultValue: number = 0): number => {
+  if (value === undefined || value === null || value === '') return defaultValue;
+  const parsed = parseFloat(String(value).replace(/[$,]/g, ''));
   return isNaN(parsed) || !isFinite(parsed) ? defaultValue : parsed;
 };
 
 // Safe number formatter - ensures toLocaleString never receives NaN/Infinity
-const safeFormat = (value: number, options?: Intl.NumberFormatOptions): string => {
-  if (isNaN(value) || !isFinite(value)) return '0';
+const safeFormat = (value: number | undefined | null, options?: Intl.NumberFormatOptions): string => {
+  if (value === undefined || value === null || isNaN(value) || !isFinite(value)) return '0';
   return value.toLocaleString(undefined, options);
+};
+
+// Safe toFixed wrapper
+const safeToFixed = (value: number | undefined | null, digits: number = 2): string => {
+  if (value === undefined || value === null || isNaN(value) || !isFinite(value)) return '0';
+  return value.toFixed(digits);
 };
 
 export const ProjectionsTab: React.FC = () => {
@@ -35,22 +43,44 @@ export const ProjectionsTab: React.FC = () => {
   const { settings: projSettings, updateSetting: updateProjSetting } = useProjection();
   const { settings: exitSettings, updateSetting: updateExitSetting } = useExit();
 
-  if (!selectedLoanData) {
-    return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;
-  }
-
-  // Calculate projected payment based on method
-  const calculateProjectedPayment = (): number => {
+  // Get projected rate - memoized
+  const projectedRate = useMemo(() => {
     try {
+      if (!selectedLoanData) return 0;
+      if (projSettings.rateMethod === 'User Enter') {
+        return safeParseFloat(projSettings.userRate, 0);
+      }
+      return selectedLoanData.intRate || 0;
+    } catch {
+      return 0;
+    }
+  }, [projSettings.rateMethod, projSettings.userRate, selectedLoanData]);
+
+  // Calculate total holding costs - memoized
+  const totalHoldingCosts = useMemo(() => {
+    try {
+      const legalStartMonth = safeParseInt(projSettings.initialLegalStartMonth, 0);
+      const holdingEndMonth = safeParseInt(projSettings.holdingCostsEndMonth, 0);
+      const numberOfMonths = Math.max(0, holdingEndMonth - legalStartMonth);
+      return numberOfMonths * safeParseFloat(projSettings.holdingCosts, 0);
+    } catch {
+      return 0;
+    }
+  }, [projSettings.initialLegalStartMonth, projSettings.holdingCostsEndMonth, projSettings.holdingCosts]);
+
+  // Calculate projected payment - memoized
+  const projectedPayment = useMemo(() => {
+    try {
+      if (!selectedLoanData) return 0;
       switch (projSettings.paymentMethod) {
         case 'Contractual':
           return selectedLoanData.pmt || 0;
         case 'User Enter':
           return safeParseFloat(projSettings.userPayment, 0);
         case 'Interest Payment':
-          return (selectedLoanData.principal || 0) * (getProjectedRate() / 100) / 12;
+          return (selectedLoanData.principal || 0) * (projectedRate / 100) / 12;
         case 'Term Pmt':
-          return calculatePMT(getProjectedRate(), safeParseInt(projSettings.amortMonths, 360), selectedLoanData.principal || 0);
+          return calculatePMT(projectedRate, safeParseInt(projSettings.amortMonths, 360), selectedLoanData.principal || 0);
         case '% of Trail Pmt':
           const trailData = calculateTrailingPayments(
             selectedLoan,
@@ -65,61 +95,46 @@ export const ProjectionsTab: React.FC = () => {
           return selectedLoanData.pmt || 0;
       }
     } catch {
-      return selectedLoanData.pmt || 0;
+      return selectedLoanData?.pmt || 0;
     }
-  };
+  }, [projSettings.paymentMethod, projSettings.userPayment, projSettings.amortMonths, projSettings.trailPeriod, projSettings.trailPercentage, projectedRate, selectedLoanData, selectedLoan, paymentRecords, loans]);
 
-  // Get projected rate
-  const getProjectedRate = (): number => {
-    if (projSettings.rateMethod === 'User Enter') {
-      return safeParseFloat(projSettings.userRate, 0);
-    }
-    return selectedLoanData.intRate || 0;
-  };
-
-  // Calculate total holding costs
-  const calculateTotalHoldingCosts = (): number => {
-    const legalStartMonth = safeParseInt(projSettings.initialLegalStartMonth, 0);
-    const holdingEndMonth = safeParseInt(projSettings.holdingCostsEndMonth, 0);
-    const numberOfMonths = Math.max(0, holdingEndMonth - legalStartMonth);
-    return numberOfMonths * safeParseFloat(projSettings.holdingCosts, 0);
-  };
-
-  // Calculate add back to exit
-  const calculateAddBackToExit = (): number => {
-    const initialLegal = safeParseFloat(projSettings.initialLegal, 0);
-    const totalHolding = calculateTotalHoldingCosts();
-    const basis = projSettings.addBackBasis === 'Initial Only' ? initialLegal : initialLegal + totalHolding;
-    return basis * safeParseFloat(projSettings.addBackPercentage, 0) / 100;
-  };
-
-  // Calculate pay in full value
-  const calculatePayInFull = (): number => {
+  // Calculate add back to exit - memoized
+  const addBackToExit = useMemo(() => {
     try {
+      const initialLegal = safeParseFloat(projSettings.initialLegal, 0);
+      const basis = projSettings.addBackBasis === 'Initial Only' ? initialLegal : initialLegal + totalHoldingCosts;
+      return basis * safeParseFloat(projSettings.addBackPercentage, 0) / 100;
+    } catch {
+      return 0;
+    }
+  }, [projSettings.initialLegal, projSettings.addBackBasis, projSettings.addBackPercentage, totalHoldingCosts]);
+
+  // Calculate pay in full value - memoized
+  const payInFullValue = useMemo(() => {
+    try {
+      if (!selectedLoanData) return 0;
       const startMonth = safeParseInt(exitSettings.startMonth, 1);
       const endMonth = safeParseInt(exitSettings.endMonth, 24);
-      const nper = Math.max(1, endMonth - startMonth + 1); // Ensure at least 1 month
-
-      const rate = getProjectedRate();
-      const payment = calculateProjectedPayment();
+      const nper = Math.max(1, endMonth - startMonth + 1);
       const principal = selectedLoanData.principal || 0;
 
-      // Calculate future value of balance with payments
-      const fv = calculateFV(rate, nper, -payment, principal);
-      return isNaN(fv) || !isFinite(fv) ? principal : fv + payment; // Add one more payment for exit month
+      const fv = calculateFV(projectedRate, nper, -projectedPayment, principal);
+      return isNaN(fv) || !isFinite(fv) ? principal : fv + projectedPayment;
     } catch {
-      return selectedLoanData.principal || 0;
+      return selectedLoanData?.principal || 0;
     }
-  };
+  }, [exitSettings.startMonth, exitSettings.endMonth, projectedRate, projectedPayment, selectedLoanData]);
 
-  // Get calculated exit value
-  const getCalculatedExitValue = (): number => {
+  // Get calculated exit value - memoized
+  const calculatedExitValue = useMemo(() => {
     try {
+      if (!selectedLoanData) return 0;
       switch (exitSettings.method) {
         case 'Pay in Full':
-          return calculatePayInFull();
+          return payInFullValue;
         case 'DPO':
-          return calculatePayInFull() * safeParseFloat(exitSettings.dpoPercentage, 95) / 100;
+          return payInFullValue * safeParseFloat(exitSettings.dpoPercentage, 95) / 100;
         case 'Value Cap':
           const loanCollateral = collateralList.find(c =>
             collateralLoanRelationships[c.id]?.[selectedLoan]
@@ -133,7 +148,7 @@ export const ProjectionsTab: React.FC = () => {
           const ytmStartMonth = safeParseInt(exitSettings.startMonth, 1);
           const ytmEndMonth = safeParseInt(exitSettings.endMonth, 24);
           const months = Math.max(1, ytmEndMonth - ytmStartMonth + 1);
-          const pvResult = calculatePV(desiredYield, months, calculateProjectedPayment(), calculatePayInFull());
+          const pvResult = calculatePV(desiredYield, months, projectedPayment, payInFullValue);
           return isNaN(pvResult) || !isFinite(pvResult) ? 0 : pvResult;
         case 'Liquidation':
           const liquidationMonths = safeParseInt(exitSettings.liquidationMonths, 12);
@@ -141,12 +156,10 @@ export const ProjectionsTab: React.FC = () => {
           if (exitSettings.liquidationAddInterest) {
             balance += selectedLoanData.interest || 0;
           }
-          // Calculate interest accrual during liquidation
-          const monthlyRate = getProjectedRate() / 100 / 12;
+          const monthlyRate = projectedRate / 100 / 12;
           for (let i = 0; i < liquidationMonths; i++) {
             balance += balance * monthlyRate;
           }
-          // Assume recovery at collateral value
           const col = collateralList.find(c => collateralLoanRelationships[c.id]?.[selectedLoan]);
           return col ? safeParseFloat(String(col.ourValue), balance) : balance;
         default:
@@ -155,9 +168,20 @@ export const ProjectionsTab: React.FC = () => {
     } catch {
       return 0;
     }
-  };
+  }, [exitSettings, payInFullValue, projectedPayment, projectedRate, selectedLoanData, selectedLoan, collateralList, collateralLoanRelationships]);
 
-  // Build projection grid
+  if (!selectedLoanData) {
+    return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;
+  }
+
+  // Helper functions for display (these just return the memoized values)
+  const getProjectedRate = () => projectedRate;
+  const calculateProjectedPayment = () => projectedPayment;
+  const calculateTotalHoldingCosts = () => totalHoldingCosts;
+  const calculateAddBackToExit = () => addBackToExit;
+  const getCalculatedExitValue = () => calculatedExitValue;
+
+  // Build projection grid - uses memoized values
   const buildProjectionGrid = useMemo(() => {
     const income: Record<string, Record<number, number>> = {};
     const expenses: Record<string, Record<number, number>> = {};
@@ -172,7 +196,6 @@ export const ProjectionsTab: React.FC = () => {
         return { income, expenses, netCashFlow };
       }
 
-      const monthlyPayment = calculateProjectedPayment();
       const initialLegal = safeParseFloat(projSettings.initialLegal, 0);
       const initialLegalStart = safeParseInt(projSettings.initialLegalStartMonth, 1);
       const holdingCosts = safeParseFloat(projSettings.holdingCosts, 0);
@@ -192,8 +215,8 @@ export const ProjectionsTab: React.FC = () => {
         if (!expenses[year]) expenses[year] = {};
         if (!netCashFlow[year]) netCashFlow[year] = {};
 
-        // Add income (monthly payment)
-        income[year][actualMonth] = (income[year][actualMonth] || 0) + monthlyPayment;
+        // Add income (monthly payment) - use memoized value
+        income[year][actualMonth] = (income[year][actualMonth] || 0) + projectedPayment;
 
         // Add expenses
         let monthExpense = 0;
@@ -213,7 +236,7 @@ export const ProjectionsTab: React.FC = () => {
     } catch {
       return { income, expenses, netCashFlow };
     }
-  }, [projSettings, exitSettings, selectedLoanData]);
+  }, [exitSettings.startMonth, exitSettings.endMonth, projSettings.initialLegal, projSettings.initialLegalStartMonth, projSettings.holdingCosts, projSettings.holdingCostsEndMonth, projectedPayment]);
 
   const projectionGrid = buildProjectionGrid;
 
@@ -292,7 +315,7 @@ export const ProjectionsTab: React.FC = () => {
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 />
                 <p className={`text-xs ${styles.textMuted} mt-1`}>
-                  {(safeParseInt(projSettings.amortMonths, 360) / 12).toFixed(1)} years
+                  {safeToFixed(safeParseInt(projSettings.amortMonths, 360) / 12, 1)} years
                 </p>
               </div>
             )}
@@ -364,7 +387,7 @@ export const ProjectionsTab: React.FC = () => {
               </select>
               <div className={`mt-2 px-2 py-1 ${styles.readOnlyBg} rounded ${styles.inputBorder} border`}>
                 <span className={`text-xs ${styles.textMuted}`}>Effective Rate: </span>
-                <span className={`text-sm font-medium ${styles.textYellow}`}>{getProjectedRate().toFixed(2)}%</span>
+                <span className={`text-sm font-medium ${styles.textYellow}`}>{safeToFixed(getProjectedRate(), 2)}%</span>
               </div>
             </div>
 
@@ -506,7 +529,7 @@ export const ProjectionsTab: React.FC = () => {
             <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
               <div className={`text-xs ${styles.textMuted} mb-1`}>Effective Rate</div>
               <div className={`text-lg font-medium ${styles.textYellow}`}>
-                {getProjectedRate().toFixed(2)}%
+                {safeToFixed(getProjectedRate(), 2)}%
               </div>
             </div>
 
@@ -718,10 +741,10 @@ export const ProjectionsTab: React.FC = () => {
                       <tr key={year} className={index === 0 ? styles.borderColor + ' border-t' : ''}>
                         <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
-                          const amount = yearData[month];
+                          const amount = yearData[month] || 0;
                           return (
                             <td key={month} className={`text-center px-1 py-2 ${amount > 0 ? styles.textGreen : styles.textSecondary}`}>
-                              {amount > 0 ? amount.toFixed(0) : '-'}
+                              {amount > 0 ? safeToFixed(amount, 0) : '-'}
                             </td>
                           );
                         })}
@@ -763,10 +786,10 @@ export const ProjectionsTab: React.FC = () => {
                       <tr key={year} className={index === 0 ? styles.borderColor + ' border-t' : ''}>
                         <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
-                          const amount = yearData[month];
+                          const amount = yearData[month] || 0;
                           return (
                             <td key={month} className={`text-center px-1 py-2 ${amount > 0 ? 'text-red-400' : styles.textSecondary}`}>
-                              {amount > 0 ? amount.toFixed(0) : '-'}
+                              {amount > 0 ? safeToFixed(amount, 0) : '-'}
                             </td>
                           );
                         })}
@@ -804,14 +827,14 @@ export const ProjectionsTab: React.FC = () => {
                     <tr key={year} className={index === 0 ? styles.borderColor + ' border-t' : ''}>
                       <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
-                        const amount = yearData[month];
+                        const amount = yearData[month] || 0;
                         return (
                           <td key={month} className={`text-center px-1 py-2 ${
                             amount > 0 ? styles.textGreen :
                             amount < 0 ? 'text-red-500' :
                             styles.textSecondary
                           }`}>
-                            {amount !== 0 ? amount.toFixed(0) : '-'}
+                            {amount !== 0 ? safeToFixed(amount, 0) : '-'}
                           </td>
                         );
                       })}
