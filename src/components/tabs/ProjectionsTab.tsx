@@ -81,7 +81,7 @@ export const ProjectionsTab: React.FC = () => {
   const calculatePayInFull = (): number => {
     const startMonth = parseInt(exitSettings.startMonth) || 1;
     const endMonth = parseInt(exitSettings.endMonth) || 24;
-    const nper = endMonth - startMonth + 1;
+    const nper = Math.max(1, endMonth - startMonth + 1); // Ensure positive nper
     const rate = getProjectedRate();
     const payment = calculateProjectedPayment();
 
@@ -93,43 +93,50 @@ export const ProjectionsTab: React.FC = () => {
 
   // Get calculated exit value
   const getCalculatedExitValue = (): number => {
-    switch (exitSettings.method) {
-      case 'Pay in Full':
-        return calculatePayInFull();
-      case 'DPO':
-        return calculatePayInFull() * (parseFloat(exitSettings.dpoPercentage) || 95) / 100;
-      case 'Value Cap':
-        const loanCollateral = collateralList.find(c =>
-          collateralLoanRelationships[c.id]?.[selectedLoan]
-        );
-        const collateralValue = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : 0;
-        return collateralValue * (parseFloat(exitSettings.valueCapPercentage) || 90) / 100;
-      case 'User Enter':
-        return parseFloat(exitSettings.userEnterAmount) || 0;
-      case 'YTM Sell Solve':
-        const desiredYield = parseFloat(exitSettings.ytmDesired) || 12;
-        const months = parseInt(exitSettings.endMonth) - parseInt(exitSettings.startMonth) + 1;
-        const monthlyPmt = calculateProjectedPayment();
-        const finalPayoff = calculatePayInFull();
-        // Calculate present value: what to sell loan for today to achieve desired yield
-        // With positive payments (cash inflows) and positive final payoff
-        return calculatePV(desiredYield, months, monthlyPmt, finalPayoff);
-      case 'Liquidation':
-        const liquidationMonths = parseInt(exitSettings.liquidationMonths) || 12;
-        let balance = selectedLoanData.principal;
-        if (exitSettings.liquidationAddInterest) {
-          balance += selectedLoanData.interest;
-        }
-        // Calculate interest accrual during liquidation
-        const monthlyRate = getProjectedRate() / 100 / 12;
-        for (let i = 0; i < liquidationMonths; i++) {
-          balance += balance * monthlyRate;
-        }
-        // Assume recovery at collateral value
-        const col = collateralList.find(c => collateralLoanRelationships[c.id]?.[selectedLoan]);
-        return col ? parseFloat(String(col.ourValue).replace(/[$,]/g, '')) : balance;
-      default:
-        return 0;
+    try {
+      switch (exitSettings.method) {
+        case 'Pay in Full':
+          return calculatePayInFull();
+        case 'DPO':
+          return calculatePayInFull() * (parseFloat(exitSettings.dpoPercentage) || 95) / 100;
+        case 'Value Cap':
+          const loanCollateral = collateralList.find(c =>
+            collateralLoanRelationships[c.id]?.[selectedLoan]
+          );
+          const collateralValue = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : 0;
+          return collateralValue * (parseFloat(exitSettings.valueCapPercentage) || 90) / 100;
+        case 'User Enter':
+          return parseFloat(exitSettings.userEnterAmount) || 0;
+        case 'YTM Sell Solve':
+          const desiredYield = parseFloat(exitSettings.ytmDesired) || 12;
+          const startMonthYTM = parseInt(exitSettings.startMonth) || 1;
+          const endMonthYTM = parseInt(exitSettings.endMonth) || 24;
+          const months = Math.max(1, endMonthYTM - startMonthYTM + 1); // Ensure positive months
+          const monthlyPmt = calculateProjectedPayment();
+          const finalPayoff = calculatePayInFull();
+          // Calculate present value: what to sell loan for today to achieve desired yield
+          // With positive payments (cash inflows) and positive final payoff
+          return calculatePV(desiredYield, months, monthlyPmt, finalPayoff);
+        case 'Liquidation':
+          const liquidationMonths = parseInt(exitSettings.liquidationMonths) || 12;
+          let balance = selectedLoanData.principal;
+          if (exitSettings.liquidationAddInterest) {
+            balance += selectedLoanData.interest;
+          }
+          // Calculate interest accrual during liquidation
+          const monthlyRate = getProjectedRate() / 100 / 12;
+          for (let i = 0; i < liquidationMonths; i++) {
+            balance += balance * monthlyRate;
+          }
+          // Assume recovery at collateral value
+          const col = collateralList.find(c => collateralLoanRelationships[c.id]?.[selectedLoan]);
+          return col ? parseFloat(String(col.ourValue).replace(/[$,]/g, '')) : balance;
+        default:
+          return 0;
+      }
+    } catch (error) {
+      console.error('Error calculating exit value:', error);
+      return 0;
     }
   };
 
@@ -140,7 +147,7 @@ export const ProjectionsTab: React.FC = () => {
     const netCashFlow: Record<string, Record<number, number>> = {};
 
     const startMonth = parseInt(exitSettings.startMonth) || 1;
-    const endMonth = Math.min(parseInt(exitSettings.endMonth) || 24, 60);
+    const endMonth = Math.min(Math.max(1, parseInt(exitSettings.endMonth) || 24), 60); // Ensure valid range
     const monthlyPayment = calculateProjectedPayment();
     const initialLegal = parseFloat(projSettings.initialLegal) || 0;
     const initialLegalStart = parseInt(projSettings.initialLegalStartMonth) || 1;
@@ -369,7 +376,12 @@ export const ProjectionsTab: React.FC = () => {
               className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
             />
             <p className={`text-xs ${styles.textMuted} mt-1`}>
-              {parseInt(exitSettings.endMonth) - parseInt(exitSettings.startMonth) + 1} months of cash flow
+              {(() => {
+                const start = parseInt(exitSettings.startMonth) || 1;
+                const end = parseInt(exitSettings.endMonth) || 24;
+                const monthsCount = Math.max(0, end - start + 1);
+                return `${monthsCount} months of cash flow`;
+              })()}
             </p>
           </div>
         </div>
