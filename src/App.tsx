@@ -3,6 +3,10 @@ import React from 'react';
 import {
   ThemeProvider,
   LoanProvider,
+  BorrowerProvider,
+  CollateralProvider,
+  CommentProvider,
+  PaymentProvider,
   ProjectionProvider,
   ExitProvider,
   useTheme,
@@ -74,15 +78,24 @@ const AppLayout: React.FC = () => {
 };
 
 // Main App with all providers
+// Provider order matters: LoanProvider must wrap others since they depend on selectedLoan
 const App: React.FC = () => {
   return (
     <ThemeProvider>
       <LoanProvider>
-        <ProjectionProvider>
-          <ExitProvider>
-            <AppLayout />
-          </ExitProvider>
-        </ProjectionProvider>
+        <BorrowerProvider>
+          <CollateralProvider>
+            <CommentProvider>
+              <PaymentProvider>
+                <ProjectionProvider>
+                  <ExitProvider>
+                    <AppLayout />
+                  </ExitProvider>
+                </ProjectionProvider>
+              </PaymentProvider>
+            </CommentProvider>
+          </CollateralProvider>
+        </BorrowerProvider>
       </LoanProvider>
     </ThemeProvider>
   );

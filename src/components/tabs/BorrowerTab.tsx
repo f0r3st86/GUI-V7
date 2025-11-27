@@ -1,15 +1,15 @@
 // BorrowerTab component - displays borrower/guarantor information and loan relationships
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
-import { useTheme, useLoan } from '../../context';
+import { useTheme, useLoan, useBorrower } from '../../context';
 import { maskSsnEin } from '../../utils';
 import { DeleteModal } from '../ui';
 import type { Borrower } from '../../types';
 
 export const BorrowerTab: React.FC = () => {
   const { styles } = useTheme();
+  const { currentRelationship, getSortedLoans } = useLoan();
   const {
-    currentRelationship,
     selectedBorrowerId,
     setSelectedBorrowerId,
     selectedBorrower,
@@ -17,11 +17,10 @@ export const BorrowerTab: React.FC = () => {
     setBorrowersList,
     deleteConfirmation,
     setDeleteConfirmation,
-    getSortedLoans,
     getRelationshipBorrowers,
     getCurrentBorrowerLoanRelationships,
     getNextBorrowerId
-  } = useLoan();
+  } = useBorrower();
 
   // Add new borrower
   const addNewBorrower = () => {

@@ -1,7 +1,7 @@
 // CollateralTab component - displays collateral information
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
-import { useTheme, useLoan } from '../../context';
+import { useTheme, useLoan, useCollateral } from '../../context';
 import { US_STATES } from '../../data';
 import { calculatePerSqft } from '../../utils';
 import { DeleteModal } from '../ui';
@@ -9,8 +9,8 @@ import type { Collateral } from '../../types';
 
 export const CollateralTab: React.FC = () => {
   const { styles } = useTheme();
+  const { selectedLoan, getSortedLoans } = useLoan();
   const {
-    selectedLoan,
     collateralList,
     setCollateralList,
     selectedCollateralId,
@@ -20,9 +20,8 @@ export const CollateralTab: React.FC = () => {
     setCollateralLoanRelationships,
     deleteCollateralConfirmation,
     setDeleteCollateralConfirmation,
-    getSortedLoans,
     getNextCollateralId
-  } = useLoan();
+  } = useCollateral();
 
   // Add new collateral
   const addNewCollateral = () => {

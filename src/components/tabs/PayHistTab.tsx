@@ -1,21 +1,19 @@
 // PayHistTab component - payment history with Excel-like grid
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
-import { useTheme, useLoan } from '../../context';
+import { useTheme, useLoan, usePayment } from '../../context';
 import { calculateExpression, calculateTrailingPayments, calculateYearSum } from '../../utils';
 import { MONTH_NAMES } from '../../data';
 
 export const PayHistTab: React.FC = () => {
   const { theme, styles } = useTheme();
+  const { selectedLoan, selectedLoanData, loans } = useLoan();
   const {
-    selectedLoan,
-    selectedLoanData,
     paymentRecords,
     setPaymentRecords,
     paymentGridData,
-    getFilteredPaymentRecords,
-    loans
-  } = useLoan();
+    getFilteredPaymentRecords
+  } = usePayment();
 
   if (!selectedLoanData) {
     return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;

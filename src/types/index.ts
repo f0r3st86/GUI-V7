@@ -273,20 +273,22 @@ export interface USState {
 
 // ==================== CONTEXT TYPES ====================
 
+// Loan Context - core loan selection and data
 export interface LoanContextType {
-  // Loan state
   loans: Loan[];
   setLoans: React.Dispatch<React.SetStateAction<Loan[]>>;
   selectedLoan: string;
   setSelectedLoan: React.Dispatch<React.SetStateAction<string>>;
   selectedLoanData: Loan | undefined;
   currentRelationship: string;
-
-  // Tab state
   activeTab: string;
   setActiveTab: React.Dispatch<React.SetStateAction<string>>;
+  handleLoanFieldChange: (field: string, value: string | number) => void;
+  getSortedLoans: () => Loan[];
+}
 
-  // Borrower state
+// Borrower Context - borrower management
+export interface BorrowerContextType {
   borrowersList: Borrower[];
   setBorrowersList: React.Dispatch<React.SetStateAction<Borrower[]>>;
   selectedBorrowerId: number;
@@ -294,8 +296,13 @@ export interface LoanContextType {
   selectedBorrower: Borrower | undefined;
   deleteConfirmation: DeleteConfirmation;
   setDeleteConfirmation: React.Dispatch<React.SetStateAction<DeleteConfirmation>>;
+  getRelationshipBorrowers: () => Borrower[];
+  getCurrentBorrowerLoanRelationships: () => Record<string, LoanRelationship>;
+  getNextBorrowerId: () => number;
+}
 
-  // Collateral state
+// Collateral Context - collateral management
+export interface CollateralContextType {
   collateralList: Collateral[];
   setCollateralList: React.Dispatch<React.SetStateAction<Collateral[]>>;
   selectedCollateralId: number;
@@ -305,31 +312,27 @@ export interface LoanContextType {
   setCollateralLoanRelationships: React.Dispatch<React.SetStateAction<CollateralLoanRelationships>>;
   deleteCollateralConfirmation: DeleteCollateralConfirmation;
   setDeleteCollateralConfirmation: React.Dispatch<React.SetStateAction<DeleteCollateralConfirmation>>;
+  getCollateralForLoan: () => Collateral[];
+  getNextCollateralId: () => number;
+}
 
-  // Comment state
+// Comment Context - comment management
+export interface CommentContextType {
   commentsList: Comment[];
   setCommentsList: React.Dispatch<React.SetStateAction<Comment[]>>;
   selectedCommentId: number;
   setSelectedCommentId: React.Dispatch<React.SetStateAction<number>>;
   selectedComment: Comment | undefined;
+  getNextCommentId: () => number;
+}
 
-  // Payment state
+// Payment Context - payment history management
+export interface PaymentContextType {
   paymentRecords: PaymentRecord[];
   setPaymentRecords: React.Dispatch<React.SetStateAction<PaymentRecord[]>>;
   paymentGridData: PaymentGridData;
-  setPaymentGridData: React.Dispatch<React.SetStateAction<PaymentGridData>>;
-
-  // Helper functions
-  handleLoanFieldChange: (field: string, value: string | number) => void;
-  getRelationshipBorrowers: () => Borrower[];
-  getSortedLoans: () => Loan[];
-  getCurrentBorrowerLoanRelationships: () => Record<string, LoanRelationship>;
-  getCollateralForLoan: () => Collateral[];
   getFilteredPaymentRecords: () => PaymentRecord[];
   getNextPaymentId: () => number;
-  getNextBorrowerId: () => number;
-  getNextCollateralId: () => number;
-  getNextCommentId: () => number;
 }
 
 export interface ThemeContextType {

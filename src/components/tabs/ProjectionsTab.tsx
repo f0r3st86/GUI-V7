@@ -1,6 +1,6 @@
 // ProjectionsTab component - cash flow projections and exit scenarios
 import React, { useMemo } from 'react';
-import { useTheme, useLoan, useProjection, useExit } from '../../context';
+import { useTheme, useLoan, usePayment, useCollateral, useProjection, useExit } from '../../context';
 import { PAYMENT_METHODS, RATE_METHODS, EXIT_METHODS, MONTH_NAMES_SHORT } from '../../data';
 import {
   calculatePMT,
@@ -9,17 +9,11 @@ import {
   calculateTrailingPayments,
   calculateYearSum
 } from '../../utils';
-
 export const ProjectionsTab: React.FC = () => {
   const { styles } = useTheme();
-  const {
-    selectedLoan,
-    selectedLoanData,
-    paymentRecords,
-    loans,
-    collateralList,
-    collateralLoanRelationships
-  } = useLoan();
+  const { selectedLoan, selectedLoanData, loans } = useLoan();
+  const { paymentRecords } = usePayment();
+  const { collateralList, collateralLoanRelationships } = useCollateral();
   const { settings: projSettings, updateSetting: updateProjSetting } = useProjection();
   const { settings: exitSettings, updateSetting: updateExitSetting } = useExit();
 

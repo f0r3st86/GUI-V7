@@ -1,23 +1,22 @@
 // CommentTab component - displays comments for loans in the relationship
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
-import { useTheme, useLoan } from '../../context';
+import { useTheme, useLoan, useComment } from '../../context';
 import { COMMENT_TYPES } from '../../data';
 import { getCommentPreview } from '../../utils';
 import type { Comment } from '../../types';
 
 export const CommentTab: React.FC = () => {
   const { theme, styles } = useTheme();
+  const { loans, selectedLoan } = useLoan();
   const {
-    loans,
-    selectedLoan,
     commentsList,
     setCommentsList,
     selectedCommentId,
     setSelectedCommentId,
     selectedComment,
     getNextCommentId
-  } = useLoan();
+  } = useComment();
 
   // Add new comment
   const addNewComment = () => {
