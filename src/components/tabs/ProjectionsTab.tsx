@@ -311,7 +311,10 @@ export const ProjectionsTab: React.FC = () => {
               <div className={`mt-2 px-2 py-1 ${styles.readOnlyBg} rounded ${styles.inputBorder} border`}>
                 <span className={`text-xs ${styles.textMuted}`}>Calculated: </span>
                 <span className={`text-sm font-medium ${styles.textYellow}`}>
-                  ${calculateProjectedPayment().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}/mo
+                  ${(() => {
+                    const pmt = calculateProjectedPayment();
+                    return (isFinite(pmt) ? pmt : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                  })()}/mo
                 </span>
               </div>
             </div>
@@ -477,7 +480,7 @@ export const ProjectionsTab: React.FC = () => {
             <div className={`mt-2 px-2 py-1 ${styles.readOnlyBg} rounded ${styles.inputBorder} border`}>
               <span className={`text-xs ${styles.textMuted}`}>Exit Value: </span>
               <span className={`text-sm font-medium ${calculatedExitValue < 0 ? 'text-red-500' : styles.textYellow}`}>
-                ${calculatedExitValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                ${(isFinite(calculatedExitValue) ? calculatedExitValue : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </span>
             </div>
           </div>
@@ -569,19 +572,27 @@ export const ProjectionsTab: React.FC = () => {
             <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
               <div className={`text-xs ${styles.textMuted} mb-1`}>Exit Value</div>
               <div className={`text-lg font-medium ${calculatedExitValue < 0 ? 'text-red-500' : styles.textYellow}`}>
-                ${calculatedExitValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                ${(isFinite(calculatedExitValue) ? calculatedExitValue : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </div>
             </div>
             <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
               <div className={`text-xs ${styles.textMuted} mb-1`}>Add Back Recovery</div>
               <div className={`text-lg font-medium ${styles.textYellow}`}>
-                ${calculateAddBackToExit().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                ${(() => {
+                  const addBack = calculateAddBackToExit();
+                  return (isFinite(addBack) ? addBack : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                })()}
               </div>
             </div>
             <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
               <div className={`text-xs ${styles.textMuted} mb-1`}>Total Exit Proceeds</div>
               <div className={`text-lg font-medium ${styles.textGreen}`}>
-                ${(calculatedExitValue + calculateAddBackToExit()).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                ${(() => {
+                  const exitVal = isFinite(calculatedExitValue) ? calculatedExitValue : 0;
+                  const addBack = calculateAddBackToExit();
+                  const total = exitVal + (isFinite(addBack) ? addBack : 0);
+                  return (isFinite(total) ? total : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                })()}
               </div>
             </div>
           </div>
