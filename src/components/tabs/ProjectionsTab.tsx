@@ -27,6 +27,18 @@ export const ProjectionsTab: React.FC = () => {
     return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;
   }
 
+  // Sanitize exit settings to prevent invalid calculations during user input
+  const sanitizedExitSettings = useMemo(() => {
+    const startMonth = parseInt(exitSettings.startMonth) || 1;
+    const endMonth = parseInt(exitSettings.endMonth) || 24;
+
+    return {
+      ...exitSettings,
+      startMonth: Math.max(1, Math.min(60, startMonth)).toString(),
+      endMonth: Math.max(1, Math.min(60, endMonth)).toString(),
+    };
+  }, [exitSettings]);
+
   // Get projected rate
   const getProjectedRate = useCallback((): number => {
     try {
@@ -124,8 +136,8 @@ export const ProjectionsTab: React.FC = () => {
   // Calculate pay in full value
   const calculatePayInFull = useCallback((): number => {
     try {
-      const startMonth = parseInt(exitSettings.startMonth) || 1;
-      const endMonth = parseInt(exitSettings.endMonth) || 24;
+      const startMonth = parseInt(sanitizedExitSettings.startMonth) || 1;
+      const endMonth = parseInt(sanitizedExitSettings.endMonth) || 24;
       const nper = Math.max(1, endMonth - startMonth + 1); // Ensure positive nper
       const rate = getProjectedRate();
       const payment = calculateProjectedPayment();
@@ -149,7 +161,7 @@ export const ProjectionsTab: React.FC = () => {
       console.error('Error in calculatePayInFull:', error);
       return selectedLoanData.principal;
     }
-  }, [exitSettings.startMonth, exitSettings.endMonth, selectedLoanData.principal, getProjectedRate, calculateProjectedPayment]);
+  }, [sanitizedExitSettings.startMonth, sanitizedExitSettings.endMonth, selectedLoanData.principal, getProjectedRate, calculateProjectedPayment]);
 
   // Get calculated exit value - memoized to prevent recalculation on every render
   const calculatedExitValue = useMemo(() => {
@@ -174,8 +186,8 @@ export const ProjectionsTab: React.FC = () => {
           break;
         case 'YTM Sell Solve':
           const desiredYield = parseFloat(exitSettings.ytmDesired) || 12;
-          const startMonthYTM = parseInt(exitSettings.startMonth) || 1;
-          const endMonthYTM = parseInt(exitSettings.endMonth) || 24;
+          const startMonthYTM = parseInt(sanitizedExitSettings.startMonth) || 1;
+          const endMonthYTM = parseInt(sanitizedExitSettings.endMonth) || 24;
           const months = Math.max(1, endMonthYTM - startMonthYTM + 1); // Ensure positive months
           const monthlyPmt = calculateProjectedPayment();
           const finalPayoff = calculatePayInFull();
@@ -213,7 +225,7 @@ export const ProjectionsTab: React.FC = () => {
       console.error('Error calculating exit value:', error);
       return 0;
     }
-  }, [exitSettings, selectedLoanData, collateralList, collateralLoanRelationships, selectedLoan, calculateProjectedPayment, calculatePayInFull, getProjectedRate]);
+  }, [sanitizedExitSettings, exitSettings.method, exitSettings.dpoPercentage, exitSettings.valueCapPercentage, exitSettings.userEnterAmount, exitSettings.ytmDesired, exitSettings.liquidationMonths, exitSettings.liquidationAddInterest, selectedLoanData, collateralList, collateralLoanRelationships, selectedLoan, calculateProjectedPayment, calculatePayInFull, getProjectedRate]);
 
   // Memoized projected payment value - don't call function in render
   const projectedPaymentValue = useMemo(() => {
@@ -243,8 +255,8 @@ export const ProjectionsTab: React.FC = () => {
     const expenses: Record<string, Record<number, number>> = {};
     const netCashFlow: Record<string, Record<number, number>> = {};
 
-    const startMonth = parseInt(exitSettings.startMonth) || 1;
-    const endMonth = Math.min(Math.max(1, parseInt(exitSettings.endMonth) || 24), 60); // Ensure valid range
+    const startMonth = parseInt(sanitizedExitSettings.startMonth) || 1;
+    const endMonth = Math.min(Math.max(1, parseInt(sanitizedExitSettings.endMonth) || 24), 60); // Ensure valid range
     const monthlyPayment = projectedPaymentValue;
     const initialLegal = parseFloat(projSettings.initialLegal) || 0;
     const initialLegalStart = parseInt(projSettings.initialLegalStartMonth) || 1;
@@ -283,7 +295,7 @@ export const ProjectionsTab: React.FC = () => {
     }
 
     return { income, expenses, netCashFlow };
-  }, [projSettings, exitSettings, projectedPaymentValue]);
+  }, [projSettings, sanitizedExitSettings, projectedPaymentValue]);
 
   const projectionGrid = buildProjectionGrid;
 
@@ -474,8 +486,8 @@ export const ProjectionsTab: React.FC = () => {
             />
             <p className={`text-xs ${styles.textMuted} mt-1`}>
               {(() => {
-                const start = parseInt(exitSettings.startMonth) || 1;
-                const end = parseInt(exitSettings.endMonth) || 24;
+                const start = parseInt(sanitizedExitSettings.startMonth) || 1;
+                const end = parseInt(sanitizedExitSettings.endMonth) || 24;
                 const monthsCount = Math.max(0, end - start + 1);
                 return `${monthsCount} months of cash flow`;
               })()}
