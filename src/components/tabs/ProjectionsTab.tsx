@@ -9,6 +9,24 @@ import {
   calculateTrailingPayments,
   calculateYearSum
 } from '../../utils';
+
+// Safe number parsing helpers to prevent NaN crashes
+const safeParseInt = (value: string, defaultValue: number = 0): number => {
+  const parsed = parseInt(value);
+  return isNaN(parsed) || !isFinite(parsed) ? defaultValue : parsed;
+};
+
+const safeParseFloat = (value: string, defaultValue: number = 0): number => {
+  const parsed = parseFloat(value.replace(/[$,]/g, ''));
+  return isNaN(parsed) || !isFinite(parsed) ? defaultValue : parsed;
+};
+
+// Safe number formatter - ensures toLocaleString never receives NaN/Infinity
+const safeFormat = (value: number, options?: Intl.NumberFormatOptions): string => {
+  if (isNaN(value) || !isFinite(value)) return '0';
+  return value.toLocaleString(undefined, options);
+};
+
 export const ProjectionsTab: React.FC = () => {
   const { styles } = useTheme();
   const { selectedLoan, selectedLoanData, loans } = useLoan();
@@ -23,110 +41,119 @@ export const ProjectionsTab: React.FC = () => {
 
   // Calculate projected payment based on method
   const calculateProjectedPayment = (): number => {
-    switch (projSettings.paymentMethod) {
-      case 'Contractual':
-        return selectedLoanData.pmt;
-      case 'User Enter':
-        return parseFloat(projSettings.userPayment) || 0;
-      case 'Interest Payment':
-        return selectedLoanData.principal * (getProjectedRate() / 100) / 12;
-      case 'Term Pmt':
-        return calculatePMT(getProjectedRate(), parseInt(projSettings.amortMonths) || 360, selectedLoanData.principal);
-      case '% of Trail Pmt':
-        const trailData = calculateTrailingPayments(
-          selectedLoan,
-          parseInt(projSettings.trailPeriod) || 12,
-          selectedLoanData.lastImportDate,
-          paymentRecords,
-          loans
-        );
-        const trailMonthly = trailData?.monthly || 0;
-        return trailMonthly * (parseFloat(projSettings.trailPercentage) || 100) / 100;
-      default:
-        return selectedLoanData.pmt;
+    try {
+      switch (projSettings.paymentMethod) {
+        case 'Contractual':
+          return selectedLoanData.pmt || 0;
+        case 'User Enter':
+          return safeParseFloat(projSettings.userPayment, 0);
+        case 'Interest Payment':
+          return (selectedLoanData.principal || 0) * (getProjectedRate() / 100) / 12;
+        case 'Term Pmt':
+          return calculatePMT(getProjectedRate(), safeParseInt(projSettings.amortMonths, 360), selectedLoanData.principal || 0);
+        case '% of Trail Pmt':
+          const trailData = calculateTrailingPayments(
+            selectedLoan,
+            safeParseInt(projSettings.trailPeriod, 12),
+            selectedLoanData.lastImportDate,
+            paymentRecords,
+            loans
+          );
+          const trailMonthly = trailData?.monthly || 0;
+          return trailMonthly * safeParseFloat(projSettings.trailPercentage, 100) / 100;
+        default:
+          return selectedLoanData.pmt || 0;
+      }
+    } catch {
+      return selectedLoanData.pmt || 0;
     }
   };
 
   // Get projected rate
   const getProjectedRate = (): number => {
     if (projSettings.rateMethod === 'User Enter') {
-      return parseFloat(projSettings.userRate) || 0;
+      return safeParseFloat(projSettings.userRate, 0);
     }
-    return selectedLoanData.intRate;
+    return selectedLoanData.intRate || 0;
   };
 
   // Calculate total holding costs
   const calculateTotalHoldingCosts = (): number => {
-    const legalStartMonth = parseInt(projSettings.initialLegalStartMonth) || 0;
-    const holdingEndMonth = parseInt(projSettings.holdingCostsEndMonth) || 0;
+    const legalStartMonth = safeParseInt(projSettings.initialLegalStartMonth, 0);
+    const holdingEndMonth = safeParseInt(projSettings.holdingCostsEndMonth, 0);
     const numberOfMonths = Math.max(0, holdingEndMonth - legalStartMonth);
-    return numberOfMonths * (parseFloat(projSettings.holdingCosts) || 0);
+    return numberOfMonths * safeParseFloat(projSettings.holdingCosts, 0);
   };
 
   // Calculate add back to exit
   const calculateAddBackToExit = (): number => {
-    const initialLegal = parseFloat(projSettings.initialLegal) || 0;
+    const initialLegal = safeParseFloat(projSettings.initialLegal, 0);
     const totalHolding = calculateTotalHoldingCosts();
     const basis = projSettings.addBackBasis === 'Initial Only' ? initialLegal : initialLegal + totalHolding;
-    return basis * (parseFloat(projSettings.addBackPercentage) || 0) / 100;
+    return basis * safeParseFloat(projSettings.addBackPercentage, 0) / 100;
   };
 
   // Calculate pay in full value
   const calculatePayInFull = (): number => {
-    const startMonth = parseInt(exitSettings.startMonth) || 1;
-    const endMonth = parseInt(exitSettings.endMonth) || 24;
-    const nper = Math.max(1, endMonth - startMonth + 1); // Ensure at least 1 month
+    try {
+      const startMonth = safeParseInt(exitSettings.startMonth, 1);
+      const endMonth = safeParseInt(exitSettings.endMonth, 24);
+      const nper = Math.max(1, endMonth - startMonth + 1); // Ensure at least 1 month
 
-    // Handle NaN case (during typing when field is empty)
-    if (isNaN(nper) || !isFinite(nper)) return selectedLoanData.principal;
+      const rate = getProjectedRate();
+      const payment = calculateProjectedPayment();
+      const principal = selectedLoanData.principal || 0;
 
-    const rate = getProjectedRate();
-    const payment = calculateProjectedPayment();
-
-    // Calculate future value of balance with payments
-    const fv = calculateFV(rate, nper, -payment, selectedLoanData.principal);
-    return isNaN(fv) || !isFinite(fv) ? selectedLoanData.principal : fv + payment; // Add one more payment for exit month
+      // Calculate future value of balance with payments
+      const fv = calculateFV(rate, nper, -payment, principal);
+      return isNaN(fv) || !isFinite(fv) ? principal : fv + payment; // Add one more payment for exit month
+    } catch {
+      return selectedLoanData.principal || 0;
+    }
   };
 
   // Get calculated exit value
   const getCalculatedExitValue = (): number => {
-    switch (exitSettings.method) {
-      case 'Pay in Full':
-        return calculatePayInFull();
-      case 'DPO':
-        return calculatePayInFull() * (parseFloat(exitSettings.dpoPercentage) || 95) / 100;
-      case 'Value Cap':
-        const loanCollateral = collateralList.find(c =>
-          collateralLoanRelationships[c.id]?.[selectedLoan]
-        );
-        const collateralValue = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : 0;
-        return collateralValue * (parseFloat(exitSettings.valueCapPercentage) || 90) / 100;
-      case 'User Enter':
-        return parseFloat(exitSettings.userEnterAmount) || 0;
-      case 'YTM Sell Solve':
-        const desiredYield = parseFloat(exitSettings.ytmDesired) || 12;
-        const ytmStartMonth = parseInt(exitSettings.startMonth) || 1;
-        const ytmEndMonth = parseInt(exitSettings.endMonth) || 24;
-        const months = Math.max(1, ytmEndMonth - ytmStartMonth + 1);
-        if (isNaN(months) || !isFinite(months)) return 0;
-        const pvResult = calculatePV(desiredYield, months, calculateProjectedPayment(), calculatePayInFull());
-        return isNaN(pvResult) || !isFinite(pvResult) ? 0 : pvResult;
-      case 'Liquidation':
-        const liquidationMonths = parseInt(exitSettings.liquidationMonths) || 12;
-        let balance = selectedLoanData.principal;
-        if (exitSettings.liquidationAddInterest) {
-          balance += selectedLoanData.interest;
-        }
-        // Calculate interest accrual during liquidation
-        const monthlyRate = getProjectedRate() / 100 / 12;
-        for (let i = 0; i < liquidationMonths; i++) {
-          balance += balance * monthlyRate;
-        }
-        // Assume recovery at collateral value
-        const col = collateralList.find(c => collateralLoanRelationships[c.id]?.[selectedLoan]);
-        return col ? parseFloat(String(col.ourValue).replace(/[$,]/g, '')) : balance;
-      default:
-        return 0;
+    try {
+      switch (exitSettings.method) {
+        case 'Pay in Full':
+          return calculatePayInFull();
+        case 'DPO':
+          return calculatePayInFull() * safeParseFloat(exitSettings.dpoPercentage, 95) / 100;
+        case 'Value Cap':
+          const loanCollateral = collateralList.find(c =>
+            collateralLoanRelationships[c.id]?.[selectedLoan]
+          );
+          const collateralValue = loanCollateral ? safeParseFloat(String(loanCollateral.ourValue), 0) : 0;
+          return collateralValue * safeParseFloat(exitSettings.valueCapPercentage, 90) / 100;
+        case 'User Enter':
+          return safeParseFloat(exitSettings.userEnterAmount, 0);
+        case 'YTM Sell Solve':
+          const desiredYield = safeParseFloat(exitSettings.ytmDesired, 12);
+          const ytmStartMonth = safeParseInt(exitSettings.startMonth, 1);
+          const ytmEndMonth = safeParseInt(exitSettings.endMonth, 24);
+          const months = Math.max(1, ytmEndMonth - ytmStartMonth + 1);
+          const pvResult = calculatePV(desiredYield, months, calculateProjectedPayment(), calculatePayInFull());
+          return isNaN(pvResult) || !isFinite(pvResult) ? 0 : pvResult;
+        case 'Liquidation':
+          const liquidationMonths = safeParseInt(exitSettings.liquidationMonths, 12);
+          let balance = selectedLoanData.principal || 0;
+          if (exitSettings.liquidationAddInterest) {
+            balance += selectedLoanData.interest || 0;
+          }
+          // Calculate interest accrual during liquidation
+          const monthlyRate = getProjectedRate() / 100 / 12;
+          for (let i = 0; i < liquidationMonths; i++) {
+            balance += balance * monthlyRate;
+          }
+          // Assume recovery at collateral value
+          const col = collateralList.find(c => collateralLoanRelationships[c.id]?.[selectedLoan]);
+          return col ? safeParseFloat(String(col.ourValue), balance) : balance;
+        default:
+          return 0;
+      }
+    } catch {
+      return 0;
     }
   };
 
@@ -136,54 +163,56 @@ export const ProjectionsTab: React.FC = () => {
     const expenses: Record<string, Record<number, number>> = {};
     const netCashFlow: Record<string, Record<number, number>> = {};
 
-    const parsedStartMonth = parseInt(exitSettings.startMonth);
-    const parsedEndMonth = parseInt(exitSettings.endMonth);
-    const startMonth = isNaN(parsedStartMonth) ? 1 : parsedStartMonth;
-    const endMonth = Math.min(isNaN(parsedEndMonth) ? 24 : parsedEndMonth, 60);
+    try {
+      const startMonth = safeParseInt(exitSettings.startMonth, 1);
+      const endMonth = Math.min(safeParseInt(exitSettings.endMonth, 24), 60);
 
-    // Return empty grid if invalid range
-    if (startMonth > endMonth || startMonth < 1) {
+      // Return empty grid if invalid range
+      if (startMonth > endMonth || startMonth < 1) {
+        return { income, expenses, netCashFlow };
+      }
+
+      const monthlyPayment = calculateProjectedPayment();
+      const initialLegal = safeParseFloat(projSettings.initialLegal, 0);
+      const initialLegalStart = safeParseInt(projSettings.initialLegalStartMonth, 1);
+      const holdingCosts = safeParseFloat(projSettings.holdingCosts, 0);
+      const holdingCostsEnd = safeParseInt(projSettings.holdingCostsEndMonth, 12);
+
+      // Get current date for starting year
+      const currentYear = new Date().getFullYear();
+
+      for (let month = startMonth; month <= endMonth; month++) {
+        // Calculate actual month and year
+        const actualMonth = ((month - 1) % 12) + 1;
+        const yearOffset = Math.floor((month - 1) / 12);
+        const year = (currentYear + yearOffset).toString();
+
+        // Initialize year data if needed
+        if (!income[year]) income[year] = {};
+        if (!expenses[year]) expenses[year] = {};
+        if (!netCashFlow[year]) netCashFlow[year] = {};
+
+        // Add income (monthly payment)
+        income[year][actualMonth] = (income[year][actualMonth] || 0) + monthlyPayment;
+
+        // Add expenses
+        let monthExpense = 0;
+        if (month === initialLegalStart) {
+          monthExpense += initialLegal;
+        }
+        if (month >= initialLegalStart && month <= holdingCostsEnd) {
+          monthExpense += holdingCosts;
+        }
+        expenses[year][actualMonth] = (expenses[year][actualMonth] || 0) + monthExpense;
+
+        // Calculate net
+        netCashFlow[year][actualMonth] = income[year][actualMonth] - expenses[year][actualMonth];
+      }
+
+      return { income, expenses, netCashFlow };
+    } catch {
       return { income, expenses, netCashFlow };
     }
-
-    const monthlyPayment = calculateProjectedPayment();
-    const initialLegal = parseFloat(projSettings.initialLegal) || 0;
-    const initialLegalStart = parseInt(projSettings.initialLegalStartMonth) || 1;
-    const holdingCosts = parseFloat(projSettings.holdingCosts) || 0;
-    const holdingCostsEnd = parseInt(projSettings.holdingCostsEndMonth) || 12;
-
-    // Get current date for starting year
-    const currentYear = new Date().getFullYear();
-
-    for (let month = startMonth; month <= endMonth; month++) {
-      // Calculate actual month and year
-      const actualMonth = ((month - 1) % 12) + 1;
-      const yearOffset = Math.floor((month - 1) / 12);
-      const year = (currentYear + yearOffset).toString();
-
-      // Initialize year data if needed
-      if (!income[year]) income[year] = {};
-      if (!expenses[year]) expenses[year] = {};
-      if (!netCashFlow[year]) netCashFlow[year] = {};
-
-      // Add income (monthly payment)
-      income[year][actualMonth] = (income[year][actualMonth] || 0) + monthlyPayment;
-
-      // Add expenses
-      let monthExpense = 0;
-      if (month === initialLegalStart) {
-        monthExpense += initialLegal;
-      }
-      if (month >= initialLegalStart && month <= holdingCostsEnd) {
-        monthExpense += holdingCosts;
-      }
-      expenses[year][actualMonth] = (expenses[year][actualMonth] || 0) + monthExpense;
-
-      // Calculate net
-      netCashFlow[year][actualMonth] = income[year][actualMonth] - expenses[year][actualMonth];
-    }
-
-    return { income, expenses, netCashFlow };
   }, [projSettings, exitSettings, selectedLoanData]);
 
   const projectionGrid = buildProjectionGrid;
@@ -234,7 +263,7 @@ export const ProjectionsTab: React.FC = () => {
               <div className={`mt-2 px-2 py-1 ${styles.readOnlyBg} rounded ${styles.inputBorder} border`}>
                 <span className={`text-xs ${styles.textMuted}`}>Calculated: </span>
                 <span className={`text-sm font-medium ${styles.textYellow}`}>
-                  ${calculateProjectedPayment().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}/mo
+                  ${safeFormat(calculateProjectedPayment(), {minimumFractionDigits: 2, maximumFractionDigits: 2})}/mo
                 </span>
               </div>
             </div>
@@ -263,7 +292,7 @@ export const ProjectionsTab: React.FC = () => {
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 />
                 <p className={`text-xs ${styles.textMuted} mt-1`}>
-                  {(parseInt(projSettings.amortMonths) / 12).toFixed(1)} years
+                  {(safeParseInt(projSettings.amortMonths, 360) / 12).toFixed(1)} years
                 </p>
               </div>
             )}
@@ -299,7 +328,7 @@ export const ProjectionsTab: React.FC = () => {
                 {(() => {
                   const trailingData = calculateTrailingPayments(
                     selectedLoan,
-                    parseInt(projSettings.trailPeriod),
+                    safeParseInt(projSettings.trailPeriod, 12),
                     selectedLoanData?.lastImportDate,
                     paymentRecords,
                     loans
@@ -404,10 +433,10 @@ export const ProjectionsTab: React.FC = () => {
             <span className={`text-xs ${styles.textMuted}`}>Total Holding: </span>
             <span className={`text-sm font-medium ${styles.textYellow}`}>
               {(() => {
-                const legalStartMonth = parseInt(projSettings.initialLegalStartMonth) || 0;
-                const holdingEndMonth = parseInt(projSettings.holdingCostsEndMonth) || 0;
+                const legalStartMonth = safeParseInt(projSettings.initialLegalStartMonth, 0);
+                const holdingEndMonth = safeParseInt(projSettings.holdingCostsEndMonth, 0);
                 const numberOfMonths = Math.max(0, holdingEndMonth - legalStartMonth);
-                return `${numberOfMonths} months × $${parseFloat(projSettings.holdingCosts || '0').toLocaleString()} = $${calculateTotalHoldingCosts().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                return `${numberOfMonths} months × $${safeFormat(safeParseFloat(projSettings.holdingCosts, 0))} = $${safeFormat(calculateTotalHoldingCosts(), {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
               })()}
             </span>
           </div>
@@ -451,12 +480,12 @@ export const ProjectionsTab: React.FC = () => {
           <div className={`mt-3 ${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border`}>
             <div className={`text-xs ${styles.textMuted}`}>Expected Recovery at Exit:</div>
             <div className={`text-sm font-medium ${styles.textYellow} mt-1`}>
-              ${calculateAddBackToExit().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+              ${safeFormat(calculateAddBackToExit(), {minimumFractionDigits: 2, maximumFractionDigits: 2})}
             </div>
             <div className={`text-xs ${styles.textMuted} mt-1`}>
               {projSettings.addBackPercentage || '0'}% of {projSettings.addBackBasis === 'Initial Only'
-                ? `Initial Legal ($${parseFloat(projSettings.initialLegal || '0').toLocaleString()})`
-                : `Initial + Holding ($${(parseFloat(projSettings.initialLegal || '0') + calculateTotalHoldingCosts()).toLocaleString()})`
+                ? `Initial Legal ($${safeFormat(safeParseFloat(projSettings.initialLegal, 0))})`
+                : `Initial + Holding ($${safeFormat(safeParseFloat(projSettings.initialLegal, 0) + calculateTotalHoldingCosts())})`
               }
             </div>
           </div>
@@ -470,7 +499,7 @@ export const ProjectionsTab: React.FC = () => {
             <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
               <div className={`text-xs ${styles.textMuted} mb-1`}>Monthly Payment</div>
               <div className={`text-lg font-medium ${styles.textYellow}`}>
-                ${calculateProjectedPayment().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                ${safeFormat(calculateProjectedPayment(), {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </div>
             </div>
 
@@ -484,7 +513,7 @@ export const ProjectionsTab: React.FC = () => {
             <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
               <div className={`text-xs ${styles.textMuted} mb-1`}>Annual Cash Flow</div>
               <div className={`text-lg font-medium ${styles.textYellow}`}>
-                ${(calculateProjectedPayment() * 12).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                ${safeFormat(calculateProjectedPayment() * 12, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </div>
             </div>
           </div>
@@ -516,7 +545,7 @@ export const ProjectionsTab: React.FC = () => {
               className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
             />
             <p className={`text-xs ${styles.textMuted} mt-1`}>
-              {parseInt(exitSettings.endMonth) - parseInt(exitSettings.startMonth) + 1} months of cash flow
+              {safeParseInt(exitSettings.endMonth, 24) - safeParseInt(exitSettings.startMonth, 1) + 1} months of cash flow
             </p>
           </div>
         </div>
@@ -537,7 +566,7 @@ export const ProjectionsTab: React.FC = () => {
             <div className={`mt-2 px-2 py-1 ${styles.readOnlyBg} rounded ${styles.inputBorder} border`}>
               <span className={`text-xs ${styles.textMuted}`}>Exit Value: </span>
               <span className={`text-sm font-medium ${getCalculatedExitValue() < 0 ? 'text-red-500' : styles.textYellow}`}>
-                ${getCalculatedExitValue().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                ${safeFormat(getCalculatedExitValue(), {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </span>
             </div>
           </div>
@@ -629,19 +658,19 @@ export const ProjectionsTab: React.FC = () => {
             <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
               <div className={`text-xs ${styles.textMuted} mb-1`}>Exit Value</div>
               <div className={`text-lg font-medium ${getCalculatedExitValue() < 0 ? 'text-red-500' : styles.textYellow}`}>
-                ${getCalculatedExitValue().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                ${safeFormat(getCalculatedExitValue(), {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </div>
             </div>
             <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
               <div className={`text-xs ${styles.textMuted} mb-1`}>Add Back Recovery</div>
               <div className={`text-lg font-medium ${styles.textYellow}`}>
-                ${calculateAddBackToExit().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                ${safeFormat(calculateAddBackToExit(), {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </div>
             </div>
             <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
               <div className={`text-xs ${styles.textMuted} mb-1`}>Total Exit Proceeds</div>
               <div className={`text-lg font-medium ${getCalculatedExitValue() + calculateAddBackToExit() < 0 ? 'text-red-500' : styles.textGreen}`}>
-                ${(getCalculatedExitValue() + calculateAddBackToExit()).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                ${safeFormat(getCalculatedExitValue() + calculateAddBackToExit(), {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </div>
             </div>
           </div>
@@ -697,7 +726,7 @@ export const ProjectionsTab: React.FC = () => {
                           );
                         })}
                         <td className={`text-center px-2 py-2 font-medium ${yearSum > 0 ? styles.textGreen : styles.textSecondary} ${styles.borderColor} border-l`}>
-                          ${yearSum.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                          ${safeFormat(yearSum, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                         </td>
                       </tr>
                     );
@@ -742,7 +771,7 @@ export const ProjectionsTab: React.FC = () => {
                           );
                         })}
                         <td className={`text-center px-2 py-2 font-medium ${yearSum > 0 ? 'text-red-400' : styles.textSecondary} ${styles.borderColor} border-l`}>
-                          ${yearSum.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                          ${safeFormat(yearSum, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                         </td>
                       </tr>
                     );
@@ -791,7 +820,7 @@ export const ProjectionsTab: React.FC = () => {
                         yearSum < 0 ? 'text-red-500' :
                         styles.textSecondary
                       } ${styles.borderColor} border-l`}>
-                        ${yearSum.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                        ${safeFormat(yearSum, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                       </td>
                     </tr>
                   );
