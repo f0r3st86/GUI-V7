@@ -246,6 +246,59 @@ export const ProjectionsTab: React.FC = () => {
                   placeholder="360"
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 />
+                <p className={`text-xs ${styles.textMuted} mt-1`}>
+                  {(parseInt(projSettings.amortMonths) / 12).toFixed(1)} years
+                </p>
+              </div>
+            )}
+
+            {projSettings.paymentMethod === '% of Trail Pmt' && (
+              <div className="space-y-3">
+                <div>
+                  <label className={`text-xs ${styles.textMuted} block mb-1`}>Trailing Period:</label>
+                  <select
+                    value={projSettings.trailPeriod}
+                    onChange={(e) => updateProjSetting('trailPeriod', e.target.value)}
+                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  >
+                    <option value="12">12 Months</option>
+                    <option value="6">6 Months</option>
+                    <option value="3">3 Months</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`text-xs ${styles.textMuted} block mb-1`}>Percentage (%):</label>
+                  <input
+                    type="text"
+                    value={projSettings.trailPercentage}
+                    onChange={(e) => updateProjSetting('trailPercentage', e.target.value)}
+                    placeholder="100"
+                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder} ${parseFloat(projSettings.trailPercentage) < 0 || parseFloat(projSettings.trailPercentage) > 100 ? 'border-yellow-500' : ''}`}
+                  />
+                  {(parseFloat(projSettings.trailPercentage) < 0 || parseFloat(projSettings.trailPercentage) > 100) && (
+                    <p className="text-xs text-yellow-400 mt-1">⚠️ Percentage should be 0-100</p>
+                  )}
+                </div>
+                {/* No Payment History Warning */}
+                {(() => {
+                  const trailingData = calculateTrailingPayments(
+                    selectedLoan,
+                    parseInt(projSettings.trailPeriod),
+                    selectedLoanData?.lastImportDate,
+                    paymentRecords,
+                    loans
+                  );
+                  return trailingData && trailingData.paymentsReceived === 0 ? (
+                    <div className="p-2 bg-yellow-900/30 border border-yellow-500/50 rounded">
+                      <div className="flex items-center gap-2">
+                        <span className="text-yellow-400">⚠️</span>
+                        <span className="text-yellow-300 text-xs">
+                          No payment history available for trailing calculation. Using $0.
+                        </span>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
               </div>
             )}
           </div>
@@ -328,6 +381,95 @@ export const ProjectionsTab: React.FC = () => {
                 placeholder="12"
                 className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
               />
+            </div>
+          </div>
+          {/* Holding Costs Summary */}
+          <div className={`mt-3 ${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border`}>
+            <span className={`text-xs ${styles.textMuted}`}>Total Holding: </span>
+            <span className={`text-sm font-medium ${styles.textYellow}`}>
+              {(() => {
+                const legalStartMonth = parseInt(projSettings.initialLegalStartMonth) || 0;
+                const holdingEndMonth = parseInt(projSettings.holdingCostsEndMonth) || 0;
+                const numberOfMonths = Math.max(0, holdingEndMonth - legalStartMonth);
+                return `${numberOfMonths} months × $${parseFloat(projSettings.holdingCosts || '0').toLocaleString()} = $${calculateTotalHoldingCosts().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+              })()}
+            </span>
+          </div>
+        </div>
+
+        {/* Add Back to Exit */}
+        <div className={`mt-4 pt-4 border-t border-dashed ${styles.borderColor}`}>
+          <h5 className={`text-xs font-medium ${styles.textPrimary} mb-3`}>Add Back to Exit</h5>
+
+          <div className="grid grid-cols-2 gap-6">
+            {/* Add Back Percentage */}
+            <div>
+              <label className={`text-xs ${styles.textMuted} block mb-1`}>Recovery Percentage (%):</label>
+              <input
+                type="text"
+                value={projSettings.addBackPercentage}
+                onChange={(e) => updateProjSetting('addBackPercentage', e.target.value)}
+                placeholder="0"
+                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder} ${parseFloat(projSettings.addBackPercentage) < 0 || parseFloat(projSettings.addBackPercentage) > 100 ? 'border-yellow-500' : ''}`}
+              />
+              {(parseFloat(projSettings.addBackPercentage) < 0 || parseFloat(projSettings.addBackPercentage) > 100) && (
+                <p className="text-xs text-yellow-400 mt-1">⚠️ Percentage should be 0-100</p>
+              )}
+            </div>
+
+            {/* Add Back Basis */}
+            <div>
+              <label className={`text-xs ${styles.textMuted} block mb-1`}>Apply To:</label>
+              <select
+                value={projSettings.addBackBasis}
+                onChange={(e) => updateProjSetting('addBackBasis', e.target.value as typeof projSettings.addBackBasis)}
+                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+              >
+                <option value="Initial Only">Initial Legal Only</option>
+                <option value="Initial + Holding">Initial Legal + Holding Costs</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Show calculation */}
+          <div className={`mt-3 ${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border`}>
+            <div className={`text-xs ${styles.textMuted}`}>Expected Recovery at Exit:</div>
+            <div className={`text-sm font-medium ${styles.textYellow} mt-1`}>
+              ${calculateAddBackToExit().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+            </div>
+            <div className={`text-xs ${styles.textMuted} mt-1`}>
+              {projSettings.addBackPercentage || '0'}% of {projSettings.addBackBasis === 'Initial Only'
+                ? `Initial Legal ($${parseFloat(projSettings.initialLegal || '0').toLocaleString()})`
+                : `Initial + Holding ($${(parseFloat(projSettings.initialLegal || '0') + calculateTotalHoldingCosts()).toLocaleString()})`
+              }
+            </div>
+          </div>
+        </div>
+
+        {/* Projected Cash Flow Summary */}
+        <div className={`mt-6 pt-4 border-t ${styles.borderColor}`}>
+          <h4 className={`text-sm font-medium ${styles.textPrimary} mb-3`}>Projected Cash Flow</h4>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+              <div className={`text-xs ${styles.textMuted} mb-1`}>Monthly Payment</div>
+              <div className={`text-lg font-medium ${styles.textYellow}`}>
+                ${calculateProjectedPayment().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+              </div>
+            </div>
+
+            <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+              <div className={`text-xs ${styles.textMuted} mb-1`}>Effective Rate</div>
+              <div className={`text-lg font-medium ${styles.textYellow}`}>
+                {getProjectedRate().toFixed(2)}%
+              </div>
+            </div>
+
+            <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+              <div className={`text-xs ${styles.textMuted} mb-1`}>Annual Cash Flow</div>
+              <div className={`text-lg font-medium ${styles.textYellow}`}>
+                ${(calculateProjectedPayment() * 12).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+              </div>
             </div>
           </div>
         </div>
@@ -482,11 +624,26 @@ export const ProjectionsTab: React.FC = () => {
             </div>
             <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
               <div className={`text-xs ${styles.textMuted} mb-1`}>Total Exit Proceeds</div>
-              <div className={`text-lg font-medium ${styles.textGreen}`}>
+              <div className={`text-lg font-medium ${getCalculatedExitValue() + calculateAddBackToExit() < 0 ? 'text-red-500' : styles.textGreen}`}>
                 ${(getCalculatedExitValue() + calculateAddBackToExit()).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </div>
             </div>
           </div>
+
+          {/* Negative Exit Value Warning */}
+          {getCalculatedExitValue() < 0 && (
+            <div className="mt-3 p-3 bg-red-900/30 border border-red-500/50 rounded-lg">
+              <div className="flex items-start gap-2">
+                <span className="text-red-400 text-lg">⚠️</span>
+                <div>
+                  <div className="text-red-400 font-medium text-sm">Warning: Exit value is negative</div>
+                  <div className="text-red-300/70 text-xs mt-1">
+                    This may indicate the loan balance exceeds the expected recovery value.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -524,6 +681,51 @@ export const ProjectionsTab: React.FC = () => {
                           );
                         })}
                         <td className={`text-center px-2 py-2 font-medium ${yearSum > 0 ? styles.textGreen : styles.textSecondary} ${styles.borderColor} border-l`}>
+                          ${yearSum.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Expenses Table */}
+        <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+          <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Projected Expenses</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr>
+                  <th className={`text-left px-2 py-1 ${styles.textMuted} font-medium`}></th>
+                  {MONTH_NAMES_SHORT.map(month => (
+                    <th key={month} className={`text-center px-1 py-1 ${styles.textMuted} font-medium`}>{month}</th>
+                  ))}
+                  <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium ${styles.borderColor} border-l`}>Sum</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(projectionGrid.expenses)
+                  .filter(year => {
+                    const yearData = projectionGrid.expenses[year] || {};
+                    return calculateYearSum(yearData) > 0 || Object.values(yearData).some(v => v > 0);
+                  })
+                  .map((year, index) => {
+                    const yearData = projectionGrid.expenses[year] || {};
+                    const yearSum = calculateYearSum(yearData);
+                    return (
+                      <tr key={year} className={index === 0 ? styles.borderColor + ' border-t' : ''}>
+                        <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
+                          const amount = yearData[month];
+                          return (
+                            <td key={month} className={`text-center px-1 py-2 ${amount > 0 ? 'text-red-400' : styles.textSecondary}`}>
+                              {amount > 0 ? amount.toFixed(0) : '-'}
+                            </td>
+                          );
+                        })}
+                        <td className={`text-center px-2 py-2 font-medium ${yearSum > 0 ? 'text-red-400' : styles.textSecondary} ${styles.borderColor} border-l`}>
                           ${yearSum.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                         </td>
                       </tr>
