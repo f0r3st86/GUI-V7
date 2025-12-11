@@ -1,9 +1,16 @@
 // CollateralTab component - displays collateral information
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useTheme, useLoan } from '../../context';
 import { US_STATES } from '../../data';
-import { calculatePerSqft } from '../../utils';
+import {
+  calculatePerSqft,
+  validateCurrency,
+  validatePositiveInteger,
+  sanitizeCurrency,
+  sanitizeNumber
+} from '../../utils';
+import { useDebounce } from '../../hooks';
 import { DeleteModal } from '../ui';
 import type { Collateral } from '../../types';
 
@@ -23,6 +30,89 @@ export const CollateralTab: React.FC = () => {
     getSortedLoans,
     getNextCollateralId
   } = useLoan();
+
+  // Local state for debounced inputs ($/SF calculation triggers)
+  const [localListPrice, setLocalListPrice] = useState('');
+  const [localAppraisedValue, setLocalAppraisedValue] = useState('');
+  const [localOurValue, setLocalOurValue] = useState('');
+  const [localBpoValue, setLocalBpoValue] = useState('');
+  const [localSqft, setLocalSqft] = useState('');
+
+  // Validation state
+  const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
+
+  // Debounce expensive inputs (500ms for $/SF calculations)
+  const debouncedListPrice = useDebounce(localListPrice, 500);
+  const debouncedAppraisedValue = useDebounce(localAppraisedValue, 500);
+  const debouncedOurValue = useDebounce(localOurValue, 500);
+  const debouncedBpoValue = useDebounce(localBpoValue, 500);
+  const debouncedSqft = useDebounce(localSqft, 500);
+
+  // Initialize local state from selectedCollateral
+  useEffect(() => {
+    if (selectedCollateral) {
+      setLocalListPrice(selectedCollateral.listPrice || '');
+      setLocalAppraisedValue(selectedCollateral.appraisedValue || '');
+      setLocalOurValue(selectedCollateral.ourValue || '');
+      setLocalBpoValue(selectedCollateral.bpoValue || '');
+      setLocalSqft(selectedCollateral.sqft || '');
+    }
+  }, [selectedCollateralId]); // Re-init when collateral changes
+
+  // Update context when debounced values change
+  useEffect(() => {
+    if (debouncedListPrice !== undefined && selectedCollateral && debouncedListPrice !== selectedCollateral.listPrice) {
+      handleCollateralFieldChange('listPrice', debouncedListPrice);
+    }
+  }, [debouncedListPrice]);
+
+  useEffect(() => {
+    if (debouncedAppraisedValue !== undefined && selectedCollateral && debouncedAppraisedValue !== selectedCollateral.appraisedValue) {
+      handleCollateralFieldChange('appraisedValue', debouncedAppraisedValue);
+    }
+  }, [debouncedAppraisedValue]);
+
+  useEffect(() => {
+    if (debouncedOurValue !== undefined && selectedCollateral && debouncedOurValue !== selectedCollateral.ourValue) {
+      handleCollateralFieldChange('ourValue', debouncedOurValue);
+    }
+  }, [debouncedOurValue]);
+
+  useEffect(() => {
+    if (debouncedBpoValue !== undefined && selectedCollateral && debouncedBpoValue !== selectedCollateral.bpoValue) {
+      handleCollateralFieldChange('bpoValue', debouncedBpoValue);
+    }
+  }, [debouncedBpoValue]);
+
+  useEffect(() => {
+    if (debouncedSqft !== undefined && selectedCollateral && debouncedSqft !== selectedCollateral.sqft) {
+      handleCollateralFieldChange('sqft', debouncedSqft);
+    }
+  }, [debouncedSqft]);
+
+  // Helper: Get input border style (red if invalid)
+  const getInputStyle = (field: string) => {
+    if (validationErrors[field]) {
+      return 'border-red-500';
+    }
+    return `${styles.inputBorder}`;
+  };
+
+  // Helper: Handle currency input with validation
+  const handleCurrencyChange = (field: string, value: string, setter: React.Dispatch<React.SetStateAction<string>>) => {
+    const sanitized = sanitizeCurrency(value);
+    const isValid = validateCurrency(sanitized);
+    setter(sanitized);
+    setValidationErrors(prev => ({ ...prev, [field]: !isValid }));
+  };
+
+  // Helper: Handle integer input with validation
+  const handleIntegerChange = (field: string, value: string, setter: React.Dispatch<React.SetStateAction<string>>) => {
+    const sanitized = sanitizeNumber(value, 0); // No decimals for integers
+    const isValid = validatePositiveInteger(sanitized, 0);
+    setter(sanitized);
+    setValidationErrors(prev => ({ ...prev, [field]: !isValid }));
+  };
 
   // Add new collateral
   const addNewCollateral = () => {
@@ -263,9 +353,10 @@ export const CollateralTab: React.FC = () => {
                     <label className={`text-xs ${styles.textMuted} block mb-1`}>SqFt:</label>
                     <input
                       type="text"
-                      value={selectedCollateral.sqft}
-                      onChange={(e) => handleCollateralFieldChange('sqft', e.target.value)}
-                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                      value={localSqft}
+                      onChange={(e) => handleIntegerChange('sqft', e.target.value, setLocalSqft)}
+                      placeholder="0"
+                      className={`${styles.inputBg} ${getInputStyle('sqft')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     />
                   </div>
                   <div>
@@ -315,33 +406,37 @@ export const CollateralTab: React.FC = () => {
                 <div>
                   <input
                     type="text"
-                    value={selectedCollateral.listPrice}
-                    onChange={(e) => handleCollateralFieldChange('listPrice', e.target.value)}
-                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    value={localListPrice}
+                    onChange={(e) => handleCurrencyChange('listPrice', e.target.value, setLocalListPrice)}
+                    placeholder="0.00"
+                    className={`${styles.inputBg} ${getInputStyle('listPrice')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
                 <div>
                   <input
                     type="text"
-                    value={selectedCollateral.appraisedValue}
-                    onChange={(e) => handleCollateralFieldChange('appraisedValue', e.target.value)}
-                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    value={localAppraisedValue}
+                    onChange={(e) => handleCurrencyChange('appraisedValue', e.target.value, setLocalAppraisedValue)}
+                    placeholder="0.00"
+                    className={`${styles.inputBg} ${getInputStyle('appraisedValue')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
                 <div>
                   <input
                     type="text"
-                    value={selectedCollateral.ourValue}
-                    onChange={(e) => handleCollateralFieldChange('ourValue', e.target.value)}
-                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textGreen} focus:outline-none ${styles.focusBorder}`}
+                    value={localOurValue}
+                    onChange={(e) => handleCurrencyChange('ourValue', e.target.value, setLocalOurValue)}
+                    placeholder="0.00"
+                    className={`${styles.inputBg} ${getInputStyle('ourValue')} border rounded px-2 py-1 w-full text-xs ${styles.textGreen} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
                 <div>
                   <input
                     type="text"
-                    value={selectedCollateral.bpoValue}
-                    onChange={(e) => handleCollateralFieldChange('bpoValue', e.target.value)}
-                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    value={localBpoValue}
+                    onChange={(e) => handleCurrencyChange('bpoValue', e.target.value, setLocalBpoValue)}
+                    placeholder="0.00"
+                    className={`${styles.inputBg} ${getInputStyle('bpoValue')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
 

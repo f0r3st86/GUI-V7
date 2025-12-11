@@ -1,8 +1,16 @@
 // BorrowerTab component - displays borrower/guarantor information and loan relationships
-import React from 'react';
+import React, { useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useTheme, useLoan } from '../../context';
-import { maskSsnEin } from '../../utils';
+import {
+  maskSsnEin,
+  validatePhone,
+  validateZip,
+  validateSSN,
+  validateEIN,
+  validateDateFormat,
+  validateCreditScore
+} from '../../utils';
 import { DeleteModal } from '../ui';
 import type { Borrower } from '../../types';
 
@@ -22,6 +30,55 @@ export const BorrowerTab: React.FC = () => {
     getCurrentBorrowerLoanRelationships,
     getNextBorrowerId
   } = useLoan();
+
+  // Validation state (track invalid inputs)
+  const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
+
+  // Helper: Get input border style (red if invalid)
+  const getInputStyle = (field: string) => {
+    if (validationErrors[field]) {
+      return 'border-red-500';
+    }
+    return `${styles.inputBorder}`;
+  };
+
+  // Helper: Handle phone input with validation
+  const handlePhoneChange = (value: string) => {
+    const isValid = validatePhone(value);
+    setValidationErrors(prev => ({ ...prev, phone: !isValid }));
+    handleBorrowerFieldChange('phone', value);
+  };
+
+  // Helper: Handle zip code with validation
+  const handleZipChange = (value: string) => {
+    const isValid = validateZip(value);
+    setValidationErrors(prev => ({ ...prev, zip: !isValid }));
+    handleBorrowerFieldChange('zip', value);
+  };
+
+  // Helper: Handle SSN/EIN input with validation
+  const handleSsnEinChange = (value: string) => {
+    // Try both SSN and EIN validation
+    const isValidSSN = validateSSN(value);
+    const isValidEIN = validateEIN(value);
+    const isValid = isValidSSN || isValidEIN || value === ''; // Allow empty
+    setValidationErrors(prev => ({ ...prev, ssnEin: !isValid }));
+    handleBorrowerFieldChange('ssnEin', value);
+  };
+
+  // Helper: Handle credit score with validation
+  const handleCreditScoreChange = (value: string) => {
+    const isValid = validateCreditScore(value);
+    setValidationErrors(prev => ({ ...prev, creditScore: !isValid }));
+    handleBorrowerFieldChange('creditScore', value);
+  };
+
+  // Helper: Handle date input with validation
+  const handleDateChange = (field: keyof Borrower, value: string) => {
+    const isValid = validateDateFormat(value);
+    setValidationErrors(prev => ({ ...prev, [field]: !isValid }));
+    handleBorrowerFieldChange(field, value);
+  };
 
   // Add new borrower
   const addNewBorrower = () => {
@@ -248,9 +305,9 @@ export const BorrowerTab: React.FC = () => {
                   <input
                     type="text"
                     value={selectedBorrower.phone}
-                    onChange={(e) => handleBorrowerFieldChange('phone', e.target.value)}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
                     placeholder="(555) 555-5555"
-                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    className={`${styles.inputBg} ${getInputStyle('phone')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
                 <div>
@@ -296,9 +353,10 @@ export const BorrowerTab: React.FC = () => {
                     <input
                       type="text"
                       value={selectedBorrower.zip}
-                      onChange={(e) => handleBorrowerFieldChange('zip', e.target.value)}
+                      onChange={(e) => handleZipChange(e.target.value)}
+                      placeholder="12345"
                       maxLength={10}
-                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                      className={`${styles.inputBg} ${getInputStyle('zip')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     />
                   </div>
                 </div>
@@ -314,8 +372,9 @@ export const BorrowerTab: React.FC = () => {
                   <input
                     type="text"
                     value={selectedBorrower.ssnEin}
-                    onChange={(e) => handleBorrowerFieldChange('ssnEin', e.target.value)}
-                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    onChange={(e) => handleSsnEinChange(e.target.value)}
+                    placeholder="XXX-XX-XXXX or XX-XXXXXXX"
+                    className={`${styles.inputBg} ${getInputStyle('ssnEin')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
                 <div>
@@ -323,9 +382,9 @@ export const BorrowerTab: React.FC = () => {
                   <input
                     type="text"
                     value={selectedBorrower.dob}
-                    onChange={(e) => handleBorrowerFieldChange('dob', e.target.value)}
-                    placeholder="MM/DD/YYYY"
-                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    onChange={(e) => handleDateChange('dob', e.target.value)}
+                    placeholder="MM/DD/YY"
+                    className={`${styles.inputBg} ${getInputStyle('dob')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
               </div>
@@ -340,8 +399,10 @@ export const BorrowerTab: React.FC = () => {
                   <input
                     type="text"
                     value={selectedBorrower.creditScore}
-                    onChange={(e) => handleBorrowerFieldChange('creditScore', e.target.value)}
-                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    onChange={(e) => handleCreditScoreChange(e.target.value)}
+                    placeholder="300-850"
+                    maxLength={3}
+                    className={`${styles.inputBg} ${getInputStyle('creditScore')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
                 <div>
@@ -349,9 +410,9 @@ export const BorrowerTab: React.FC = () => {
                   <input
                     type="text"
                     value={selectedBorrower.creditScoreDate}
-                    onChange={(e) => handleBorrowerFieldChange('creditScoreDate', e.target.value)}
+                    onChange={(e) => handleDateChange('creditScoreDate', e.target.value)}
                     placeholder="MM/DD/YY"
-                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    className={`${styles.inputBg} ${getInputStyle('creditScoreDate')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
               </div>
