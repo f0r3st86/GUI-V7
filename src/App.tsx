@@ -25,15 +25,35 @@ const TabContent: React.FC = () => {
 
   switch (activeTab) {
     case 'Loan':
-      return <LoanTab />;
+      return (
+        <ErrorBoundary>
+          <LoanTab />
+        </ErrorBoundary>
+      );
     case 'Borrower':
-      return <BorrowerTab />;
+      return (
+        <ErrorBoundary>
+          <BorrowerTab />
+        </ErrorBoundary>
+      );
     case 'Collateral':
-      return <CollateralTab />;
+      return (
+        <ErrorBoundary>
+          <CollateralTab />
+        </ErrorBoundary>
+      );
     case 'Comment':
-      return <CommentTab />;
+      return (
+        <ErrorBoundary>
+          <CommentTab />
+        </ErrorBoundary>
+      );
     case 'PayHist':
-      return <PayHistTab />;
+      return (
+        <ErrorBoundary>
+          <PayHistTab />
+        </ErrorBoundary>
+      );
     case 'Projections':
       return (
         <ErrorBoundary>

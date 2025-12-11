@@ -44,6 +44,20 @@ export const ProjectionsTab: React.FC = () => {
   const [startMonthInput, setStartMonthInput] = React.useState(exitSettings.startMonth);
   const [endMonthInput, setEndMonthInput] = React.useState(exitSettings.endMonth);
 
+  // Memoize collateral lookup to avoid O(n) search on every render - PERFORMANCE OPTIMIZATION
+  const loanCollateral = useMemo(() =>
+    collateralList.find(c => collateralLoanRelationships[c.id]?.[selectedLoan]),
+    [collateralList, collateralLoanRelationships, selectedLoan]
+  );
+
+  // Classic Mode refs - replace DOM access for better React pattern
+  const classicStartMonthRef = React.useRef<HTMLSelectElement>(null);
+  const classicStartYearRef = React.useRef<HTMLInputElement>(null);
+  const classicEndMonthRef = React.useRef<HTMLSelectElement>(null);
+  const classicEndYearRef = React.useRef<HTMLInputElement>(null);
+  const classicAmountRef = React.useRef<HTMLInputElement>(null);
+  const classicTypeRef = React.useRef<HTMLSelectElement>(null);
+
   // Sync local state when context changes (but not during typing)
   React.useEffect(() => {
     if (document.activeElement?.getAttribute('name') !== 'startMonth') {
@@ -383,9 +397,7 @@ export const ProjectionsTab: React.FC = () => {
           console.log('[DPO] Pay in Full:', payInFull, 'Percentage:', dpoPercent, 'Result:', result);
           break;
         case 'Value Cap':
-          const loanCollateral = collateralList.find(c =>
-            collateralLoanRelationships[c.id]?.[selectedLoan]
-          );
+          // Use memoized collateral lookup for O(1) performance
           const collateralValue = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : 0;
           const capPercent = parseFloat(exitSettings.valueCapPercentage) || 90;
           result = collateralValue * capPercent / 100;
@@ -428,9 +440,8 @@ export const ProjectionsTab: React.FC = () => {
           for (let i = 0; i < liquidationMonths; i++) {
             balance += balance * monthlyRate;
           }
-          // Assume recovery at collateral value
-          const col = collateralList.find(c => collateralLoanRelationships[c.id]?.[selectedLoan]);
-          result = col ? parseFloat(String(col.ourValue).replace(/[$,]/g, '')) : balance;
+          // Assume recovery at collateral value - use memoized lookup
+          result = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : balance;
           console.log('[Liquidation] Balance after accrual:', balance, 'Collateral value:', result);
           break;
         default:
@@ -449,7 +460,29 @@ export const ProjectionsTab: React.FC = () => {
       console.error('Error calculating exit value:', error);
       return 0;
     }
-  }, [sanitizedExitSettings, exitSettings.method, exitSettings.dpoPercentage, exitSettings.valueCapPercentage, exitSettings.userEnterAmount, exitSettings.ytmDesired, exitSettings.liquidationMonths, exitSettings.liquidationAddInterest, selectedLoanData, collateralList, collateralLoanRelationships, selectedLoan, calculateProjectedPayment, calculatePayInFull, getProjectedRate, projSettings.paymentMethod, projSettings.rateMethod]);
+    // OPTIMIZED DEPENDENCIES: Only include what's actually used, not entire objects
+  }, [
+    // Exit settings - only specific fields used in switch cases
+    exitSettings.method,
+    exitSettings.dpoPercentage,
+    exitSettings.valueCapPercentage,
+    exitSettings.userEnterAmount,
+    exitSettings.ytmDesired,
+    exitSettings.liquidationMonths,
+    exitSettings.liquidationAddInterest,
+    // Sanitized start/end months (not entire object)
+    sanitizedExitSettings.startMonth,
+    sanitizedExitSettings.endMonth,
+    // Loan data - only specific fields
+    selectedLoanData.principal,
+    selectedLoanData.interest,
+    // Memoized collateral (replaces collateralList + relationships + selectedLoan)
+    loanCollateral,
+    // Calculation functions
+    calculateProjectedPayment,
+    calculatePayInFull,
+    getProjectedRate
+  ]);
 
   // Memoized projected payment value - don't call function in render
   const projectedPaymentValue = useMemo(() => {
@@ -539,12 +572,13 @@ export const ProjectionsTab: React.FC = () => {
     return { income, expenses, netCashFlow };
   }, [projSettings, sanitizedExitSettings, projectedPaymentValue]);
 
-  // Build classic mode projection grid from entries
+  // Build classic mode projection grid from entries - OPTIMIZED O(n) algorithm
   const buildClassicProjectionGrid = useMemo(() => {
-    const income: Record<string, Record<number, number>> = {};
-    const expenses: Record<string, Record<number, number>> = {};
-    const netCashFlow: Record<string, Record<number, number>> = {};
+    // Use Map for O(1) lookups instead of nested object access
+    const incomeMap = new Map<string, number>(); // "year-month" -> amount
+    const expenseMap = new Map<string, number>();
 
+    // Single pass through entries - O(n * m) where m is months per entry (typically 1-36)
     classicEntries.forEach(entry => {
       const startYear = parseInt(entry.startYear);
       const endYear = parseInt(entry.endYear);
@@ -552,30 +586,47 @@ export const ProjectionsTab: React.FC = () => {
       const endMonth = parseInt(entry.endMonth);
       const amount = parseFloat(entry.amount) || 0;
 
-      // Iterate through all months in the range
+      // Calculate all year-month keys for this entry
       for (let year = startYear; year <= endYear; year++) {
-        const yearStr = year.toString();
-
-        // Initialize year data if needed
-        if (!income[yearStr]) income[yearStr] = {};
-        if (!expenses[yearStr]) expenses[yearStr] = {};
-        if (!netCashFlow[yearStr]) netCashFlow[yearStr] = {};
-
-        // Determine which months to populate for this year
         const firstMonth = (year === startYear) ? startMonth : 1;
         const lastMonth = (year === endYear) ? endMonth : 12;
 
         for (let month = firstMonth; month <= lastMonth; month++) {
-          // Overwrite the value (not additive)
+          const key = `${year}-${month}`;
+          // Overwrite the value (Map.set is O(1))
           if (entry.type === 'income') {
-            income[yearStr][month] = amount;
+            incomeMap.set(key, amount);
           } else {
-            expenses[yearStr][month] = amount;
+            expenseMap.set(key, amount);
           }
+        }
+      }
+    });
 
-          // Calculate net cash flow
-          const incomeAmount = income[yearStr][month] || 0;
-          const expenseAmount = expenses[yearStr][month] || 0;
+    // Convert Maps to structured format - O(n) where n is unique year-months
+    const income: Record<string, Record<number, number>> = {};
+    const expenses: Record<string, Record<number, number>> = {};
+    const netCashFlow: Record<string, Record<number, number>> = {};
+
+    // Collect all unique years
+    const allYears = new Set<string>();
+    incomeMap.forEach((_, key) => allYears.add(key.split('-')[0]));
+    expenseMap.forEach((_, key) => allYears.add(key.split('-')[0]));
+
+    // Build structured format - single pass through years
+    allYears.forEach(yearStr => {
+      income[yearStr] = {};
+      expenses[yearStr] = {};
+      netCashFlow[yearStr] = {};
+
+      for (let month = 1; month <= 12; month++) {
+        const key = `${yearStr}-${month}`;
+        const incomeAmount = incomeMap.get(key) || 0;
+        const expenseAmount = expenseMap.get(key) || 0;
+
+        if (incomeAmount > 0) income[yearStr][month] = incomeAmount;
+        if (expenseAmount > 0) expenses[yearStr][month] = expenseAmount;
+        if (incomeAmount > 0 || expenseAmount > 0) {
           netCashFlow[yearStr][month] = incomeAmount - expenseAmount;
         }
       }
@@ -1082,6 +1133,7 @@ export const ProjectionsTab: React.FC = () => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Start Month:</label>
                 <select
                   id="classic-start-month"
+                  ref={classicStartMonthRef}
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 >
                   {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
@@ -1095,6 +1147,7 @@ export const ProjectionsTab: React.FC = () => {
                 <input
                   type="text"
                   id="classic-start-year"
+                  ref={classicStartYearRef}
                   placeholder="2025"
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 />
@@ -1104,6 +1157,7 @@ export const ProjectionsTab: React.FC = () => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>End Month:</label>
                 <select
                   id="classic-end-month"
+                  ref={classicEndMonthRef}
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 >
                   {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
@@ -1117,6 +1171,7 @@ export const ProjectionsTab: React.FC = () => {
                 <input
                   type="text"
                   id="classic-end-year"
+                  ref={classicEndYearRef}
                   placeholder="2027"
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 />
@@ -1127,6 +1182,7 @@ export const ProjectionsTab: React.FC = () => {
                 <input
                   type="text"
                   id="classic-amount"
+                  ref={classicAmountRef}
                   placeholder="500"
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 />
@@ -1136,6 +1192,7 @@ export const ProjectionsTab: React.FC = () => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Type:</label>
                 <select
                   id="classic-type"
+                  ref={classicTypeRef}
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 >
                   <option value="income">Income</option>
@@ -1146,12 +1203,13 @@ export const ProjectionsTab: React.FC = () => {
               <div>
                 <button
                   onClick={() => {
-                    const startMonth = (document.getElementById('classic-start-month') as HTMLSelectElement)?.value;
-                    const startYear = (document.getElementById('classic-start-year') as HTMLInputElement)?.value;
-                    const endMonth = (document.getElementById('classic-end-month') as HTMLSelectElement)?.value;
-                    const endYear = (document.getElementById('classic-end-year') as HTMLInputElement)?.value;
-                    const amount = (document.getElementById('classic-amount') as HTMLInputElement)?.value;
-                    const type = (document.getElementById('classic-type') as HTMLSelectElement)?.value as 'income' | 'expense';
+                    // Use React refs instead of direct DOM access - BETTER PATTERN
+                    const startMonth = classicStartMonthRef.current?.value;
+                    const startYear = classicStartYearRef.current?.value;
+                    const endMonth = classicEndMonthRef.current?.value;
+                    const endYear = classicEndYearRef.current?.value;
+                    const amount = classicAmountRef.current?.value;
+                    const type = classicTypeRef.current?.value as 'income' | 'expense';
 
                     if (startMonth && startYear && endMonth && endYear && amount) {
                       const newEntry: ClassicEntry = {
