@@ -243,8 +243,18 @@ export const ProjectionsTab: React.FC = () => {
       const rate = getProjectedRate();
       const payment = calculateProjectedPayment();
 
+      console.log('[calculatePayInFull] Using:', {
+        rate,
+        payment,
+        principal: selectedLoanData.principal,
+        nper,
+        paymentMethod: projSettings.paymentMethod,
+        rateMethod: projSettings.rateMethod
+      });
+
       // Validate inputs
       if (!isFinite(rate) || !isFinite(payment) || !isFinite(selectedLoanData.principal)) {
+        console.warn('[calculatePayInFull] Invalid inputs, returning principal');
         return selectedLoanData.principal;
       }
 
@@ -252,8 +262,11 @@ export const ProjectionsTab: React.FC = () => {
       // The FV represents the remaining balance after nper payments, which is the payoff amount
       const fv = calculateFV(rate, nper, -payment, selectedLoanData.principal);
 
+      console.log('[calculatePayInFull] Result:', fv);
+
       // Validate output
       if (!isFinite(fv)) {
+        console.warn('[calculatePayInFull] Invalid FV, returning principal');
         return selectedLoanData.principal;
       }
 
@@ -262,7 +275,7 @@ export const ProjectionsTab: React.FC = () => {
       console.error('Error in calculatePayInFull:', error);
       return selectedLoanData.principal;
     }
-  }, [sanitizedExitSettings.startMonth, sanitizedExitSettings.endMonth, selectedLoanData.principal, getProjectedRate, calculateProjectedPayment]);
+  }, [sanitizedExitSettings.startMonth, sanitizedExitSettings.endMonth, selectedLoanData.principal, projSettings.paymentMethod, projSettings.rateMethod, getProjectedRate, calculateProjectedPayment]);
 
   // Get calculated exit value - memoized to prevent recalculation on every render
   const calculatedExitValue = useMemo(() => {
