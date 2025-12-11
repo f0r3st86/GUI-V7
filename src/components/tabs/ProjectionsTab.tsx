@@ -764,9 +764,10 @@ export const ProjectionsTab: React.FC = () => {
                         <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
                           const amount = yearData[month];
+                          const isValidAmount = amount != null && isFinite(amount);
                           return (
-                            <td key={month} className={`text-center px-1 py-2 ${amount > 0 ? styles.textGreen : styles.textSecondary}`}>
-                              {amount > 0 ? amount.toFixed(0) : '-'}
+                            <td key={month} className={`text-center px-1 py-2 ${isValidAmount && amount > 0 ? styles.textGreen : styles.textSecondary}`}>
+                              {isValidAmount && amount > 0 ? amount.toFixed(0) : '-'}
                             </td>
                           );
                         })}
@@ -805,13 +806,14 @@ export const ProjectionsTab: React.FC = () => {
                       <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
                         const amount = yearData[month];
+                        const isValidAmount = amount != null && isFinite(amount);
                         return (
                           <td key={month} className={`text-center px-1 py-2 ${
-                            amount > 0 ? styles.textGreen :
-                            amount < 0 ? 'text-red-500' :
+                            isValidAmount && amount > 0 ? styles.textGreen :
+                            isValidAmount && amount < 0 ? 'text-red-500' :
                             styles.textSecondary
                           }`}>
-                            {amount !== 0 ? amount.toFixed(0) : '-'}
+                            {isValidAmount && amount !== 0 ? amount.toFixed(0) : '-'}
                           </td>
                         );
                       })}
