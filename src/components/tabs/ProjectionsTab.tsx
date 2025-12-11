@@ -25,6 +25,21 @@ export const ProjectionsTab: React.FC = () => {
   const { settings: projSettings, updateSetting: updateProjSetting } = useProjection();
   const { settings: exitSettings, updateSetting: updateExitSetting } = useExit();
 
+  // Mode state: 'modern' or 'classic'
+  const [mode, setMode] = React.useState<'modern' | 'classic'>('modern');
+
+  // Classic mode state - array of cash flow entries
+  type ClassicEntry = {
+    id: string;
+    startMonth: string;
+    startYear: string;
+    endMonth: string;
+    endYear: string;
+    amount: string;
+    type: 'income' | 'expense';
+  };
+  const [classicEntries, setClassicEntries] = React.useState<ClassicEntry[]>([]);
+
   // Local state for input fields to allow empty display while keeping valid context state
   const [startMonthInput, setStartMonthInput] = React.useState(exitSettings.startMonth);
   const [endMonthInput, setEndMonthInput] = React.useState(exitSettings.endMonth);
@@ -523,10 +538,78 @@ export const ProjectionsTab: React.FC = () => {
     return { income, expenses, netCashFlow };
   }, [projSettings, sanitizedExitSettings, projectedPaymentValue]);
 
-  const projectionGrid = buildProjectionGrid;
+  // Build classic mode projection grid from entries
+  const buildClassicProjectionGrid = useMemo(() => {
+    const income: Record<string, Record<number, number>> = {};
+    const expenses: Record<string, Record<number, number>> = {};
+    const netCashFlow: Record<string, Record<number, number>> = {};
+
+    classicEntries.forEach(entry => {
+      const startYear = parseInt(entry.startYear);
+      const endYear = parseInt(entry.endYear);
+      const startMonth = parseInt(entry.startMonth);
+      const endMonth = parseInt(entry.endMonth);
+      const amount = parseFloat(entry.amount) || 0;
+
+      // Iterate through all months in the range
+      for (let year = startYear; year <= endYear; year++) {
+        const yearStr = year.toString();
+
+        // Initialize year data if needed
+        if (!income[yearStr]) income[yearStr] = {};
+        if (!expenses[yearStr]) expenses[yearStr] = {};
+        if (!netCashFlow[yearStr]) netCashFlow[yearStr] = {};
+
+        // Determine which months to populate for this year
+        const firstMonth = (year === startYear) ? startMonth : 1;
+        const lastMonth = (year === endYear) ? endMonth : 12;
+
+        for (let month = firstMonth; month <= lastMonth; month++) {
+          if (entry.type === 'income') {
+            income[yearStr][month] = (income[yearStr][month] || 0) + amount;
+          } else {
+            expenses[yearStr][month] = (expenses[yearStr][month] || 0) + amount;
+          }
+
+          // Calculate net cash flow
+          const incomeAmount = income[yearStr][month] || 0;
+          const expenseAmount = expenses[yearStr][month] || 0;
+          netCashFlow[yearStr][month] = incomeAmount - expenseAmount;
+        }
+      }
+    });
+
+    return { income, expenses, netCashFlow };
+  }, [classicEntries]);
+
+  const projectionGrid = mode === 'classic' ? buildClassicProjectionGrid : buildProjectionGrid;
 
   return (
     <div className="p-4">
+      {/* Mode Selector */}
+      <div className="mb-4 flex gap-2">
+        <button
+          onClick={() => setMode('modern')}
+          className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${
+            mode === 'modern'
+              ? `${styles.activeBg} ${styles.textPrimary} ${styles.inputBorder}`
+              : `${styles.cardBg} ${styles.textMuted} ${styles.borderColor} ${styles.hoverText}`
+          }`}
+        >
+          Modern Mode
+        </button>
+        <button
+          onClick={() => setMode('classic')}
+          className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${
+            mode === 'classic'
+              ? `${styles.activeBg} ${styles.textPrimary} ${styles.inputBorder}`
+              : `${styles.cardBg} ${styles.textMuted} ${styles.borderColor} ${styles.hoverText}`
+          }`}
+        >
+          Classic Mode
+        </button>
+      </div>
+
       {/* Loan Header Info */}
       <div className={`${styles.cardBg} rounded-lg p-3 ${styles.inputBorder} border mb-4`}>
         <div className="flex items-center space-x-6">
@@ -555,8 +638,11 @@ export const ProjectionsTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Projection Settings */}
-      <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+      {/* Modern Mode Content */}
+      {mode === 'modern' && (
+        <>
+          {/* Projection Settings */}
+          <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
         <h3 className={`font-medium mb-4 ${styles.textPrimary}`}>Projection Settings</h3>
 
         <div className="grid grid-cols-2 gap-6">
@@ -979,6 +1065,288 @@ export const ProjectionsTab: React.FC = () => {
           </div>
         </div>
       </div>
+        </>
+      )}
+
+      {/* Classic Mode Content */}
+      {mode === 'classic' && (
+        <>
+          {/* Classic Mode Entry Form */}
+          <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border mb-4`}>
+            <h3 className={`font-medium mb-4 ${styles.textPrimary}`}>Add Cash Flow Entry</h3>
+
+            <div className="grid grid-cols-6 gap-3 items-end">
+              <div>
+                <label className={`text-xs ${styles.textMuted} block mb-1`}>Start Month:</label>
+                <select
+                  id="classic-start-month"
+                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                >
+                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className={`text-xs ${styles.textMuted} block mb-1`}>Start Year:</label>
+                <input
+                  type="text"
+                  id="classic-start-year"
+                  placeholder="2025"
+                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                />
+              </div>
+
+              <div>
+                <label className={`text-xs ${styles.textMuted} block mb-1`}>End Month:</label>
+                <select
+                  id="classic-end-month"
+                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                >
+                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className={`text-xs ${styles.textMuted} block mb-1`}>End Year:</label>
+                <input
+                  type="text"
+                  id="classic-end-year"
+                  placeholder="2027"
+                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                />
+              </div>
+
+              <div>
+                <label className={`text-xs ${styles.textMuted} block mb-1`}>Amount ($):</label>
+                <input
+                  type="text"
+                  id="classic-amount"
+                  placeholder="500"
+                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                />
+              </div>
+
+              <div>
+                <label className={`text-xs ${styles.textMuted} block mb-1`}>Type:</label>
+                <select
+                  id="classic-type"
+                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                >
+                  <option value="income">Income</option>
+                  <option value="expense">Expense</option>
+                </select>
+              </div>
+
+              <div>
+                <button
+                  onClick={() => {
+                    const startMonth = (document.getElementById('classic-start-month') as HTMLSelectElement)?.value;
+                    const startYear = (document.getElementById('classic-start-year') as HTMLInputElement)?.value;
+                    const endMonth = (document.getElementById('classic-end-month') as HTMLSelectElement)?.value;
+                    const endYear = (document.getElementById('classic-end-year') as HTMLInputElement)?.value;
+                    const amount = (document.getElementById('classic-amount') as HTMLInputElement)?.value;
+                    const type = (document.getElementById('classic-type') as HTMLSelectElement)?.value as 'income' | 'expense';
+
+                    if (startMonth && startYear && endMonth && endYear && amount) {
+                      const newEntry: ClassicEntry = {
+                        id: Date.now().toString(),
+                        startMonth,
+                        startYear,
+                        endMonth,
+                        endYear,
+                        amount,
+                        type
+                      };
+                      setClassicEntries(prev => [...prev, newEntry]);
+
+                      // Clear inputs
+                      (document.getElementById('classic-start-month') as HTMLSelectElement).value = '1';
+                      (document.getElementById('classic-start-year') as HTMLInputElement).value = '';
+                      (document.getElementById('classic-end-month') as HTMLSelectElement).value = '12';
+                      (document.getElementById('classic-end-year') as HTMLInputElement).value = '';
+                      (document.getElementById('classic-amount') as HTMLInputElement).value = '';
+                    }
+                  }}
+                  className={`${styles.activeBg} ${styles.textPrimary} px-4 py-2 rounded text-sm font-medium border ${styles.inputBorder} ${styles.buttonHover} transition-colors`}
+                >
+                  Add Entry
+                </button>
+              </div>
+            </div>
+
+            {/* Entries List */}
+            {classicEntries.length > 0 && (
+              <div className="mt-4">
+                <h4 className={`text-sm font-medium ${styles.textPrimary} mb-2`}>Current Entries</h4>
+                <div className="space-y-2">
+                  {classicEntries.map(entry => (
+                    <div key={entry.id} className={`${styles.readOnlyBg} rounded px-3 py-2 flex items-center justify-between text-sm`}>
+                      <span className={styles.textPrimary}>
+                        {entry.startMonth}/{entry.startYear} - {entry.endMonth}/{entry.endYear}: ${entry.amount} ({entry.type})
+                      </span>
+                      <button
+                        onClick={() => setClassicEntries(prev => prev.filter(e => e.id !== entry.id))}
+                        className={`${styles.textMuted} hover:${styles.textPrimary} text-xs`}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Classic Mode Tables - Income, Expenses, Net Cash Flow */}
+          <div className="space-y-4">
+            {/* Income Table */}
+            <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+              <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Income</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className={`${styles.tableHeaderBg} sticky top-0`}>
+                    <tr>
+                      <th className={`px-2 py-2 text-left ${styles.textMuted} font-medium`}>Year</th>
+                      {MONTH_NAMES_SHORT.map(month => (
+                        <th key={month} className={`text-center px-1 py-2 ${styles.textMuted} font-medium`}>{month}</th>
+                      ))}
+                      <th className={`px-2 py-2 text-right ${styles.textMuted} font-medium ${styles.borderColor} border-l`}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.keys(projectionGrid.income).sort().map((year, index) => {
+                      const yearData = projectionGrid.income[year] || {};
+                      const yearSum = calculateYearSum(yearData);
+                      return (
+                        <tr key={year} className={index === 0 ? styles.borderColor + ' border-t' : ''}>
+                          <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
+                            const amount = yearData[month];
+                            const isValidAmount = amount != null && isFinite(amount);
+                            return (
+                              <td key={month} className={`text-center px-1 py-2 ${isValidAmount && amount > 0 ? styles.textGreen : styles.textSecondary}`}>
+                                {isValidAmount && amount > 0 ? amount.toFixed(0) : '-'}
+                              </td>
+                            );
+                          })}
+                          <td className={`px-2 py-2 text-right font-medium ${
+                            yearSum > 0 ? styles.textGreen : styles.textSecondary
+                          } ${styles.borderColor} border-l`}>
+                            ${yearSum.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Expenses Table */}
+            <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+              <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Expenses</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className={`${styles.tableHeaderBg} sticky top-0`}>
+                    <tr>
+                      <th className={`px-2 py-2 text-left ${styles.textMuted} font-medium`}>Year</th>
+                      {MONTH_NAMES_SHORT.map(month => (
+                        <th key={month} className={`text-center px-1 py-2 ${styles.textMuted} font-medium`}>{month}</th>
+                      ))}
+                      <th className={`px-2 py-2 text-right ${styles.textMuted} font-medium ${styles.borderColor} border-l`}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.keys(projectionGrid.expenses).sort().map((year, index) => {
+                      const yearData = projectionGrid.expenses[year] || {};
+                      const yearSum = calculateYearSum(yearData);
+                      if (yearSum === 0 && Object.values(yearData).every(v => v === 0)) return null;
+                      return (
+                        <tr key={year} className={index === 0 ? styles.borderColor + ' border-t' : ''}>
+                          <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
+                            const amount = yearData[month];
+                            const isValidAmount = amount != null && isFinite(amount);
+                            return (
+                              <td key={month} className={`text-center px-1 py-2 ${
+                                isValidAmount && amount > 0 ? styles.textGreen :
+                                isValidAmount && amount < 0 ? styles.textYellow :
+                                styles.textSecondary
+                              }`}>
+                                {isValidAmount && amount !== 0 ? amount.toFixed(0) : '-'}
+                              </td>
+                            );
+                          })}
+                          <td className={`px-2 py-2 text-right font-medium ${
+                            yearSum > 0 ? styles.textGreen :
+                            yearSum < 0 ? styles.textYellow :
+                            styles.textSecondary
+                          } ${styles.borderColor} border-l`}>
+                            ${yearSum.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Net Cash Flow Table */}
+            <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+              <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Net Cash Flow</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className={`${styles.tableHeaderBg} sticky top-0`}>
+                    <tr>
+                      <th className={`px-2 py-2 text-left ${styles.textMuted} font-medium`}>Year</th>
+                      {MONTH_NAMES_SHORT.map(month => (
+                        <th key={month} className={`text-center px-1 py-2 ${styles.textMuted} font-medium`}>{month}</th>
+                      ))}
+                      <th className={`px-2 py-2 text-right ${styles.textMuted} font-medium ${styles.borderColor} border-l`}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.keys(projectionGrid.netCashFlow).sort().map((year, index) => {
+                      const yearData = projectionGrid.netCashFlow[year] || {};
+                      const yearSum = calculateYearSum(yearData);
+                      return (
+                        <tr key={year} className={index === 0 ? styles.borderColor + ' border-t' : ''}>
+                          <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
+                            const amount = yearData[month];
+                            const isValidAmount = amount != null && isFinite(amount);
+                            return (
+                              <td key={month} className={`text-center px-1 py-2 ${
+                                isValidAmount && amount > 0 ? styles.textGreen :
+                                isValidAmount && amount < 0 ? styles.textYellow :
+                                styles.textSecondary
+                              }`}>
+                                {isValidAmount && amount !== 0 ? amount.toFixed(0) : '-'}
+                              </td>
+                            );
+                          })}
+                          <td className={`px-2 py-2 text-right font-medium ${
+                            yearSum > 0 ? styles.textGreen :
+                            yearSum < 0 ? styles.textYellow :
+                            styles.textSecondary
+                          } ${styles.borderColor} border-l`}>
+                            ${yearSum.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
