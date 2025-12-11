@@ -7,11 +7,12 @@ import {
   calculateFV,
   calculatePV,
   calculateTrailingPayments,
-  calculateYearSum
+  calculateYearSum,
+  debug
 } from '../../utils';
 
 export const ProjectionsTab: React.FC = () => {
-  console.log('[ProjectionsTab] Component rendering');
+  debug.log('[ProjectionsTab] Component rendering');
 
   const { styles } = useTheme();
   const {
@@ -71,7 +72,7 @@ export const ProjectionsTab: React.FC = () => {
     }
   }, [exitSettings.endMonth]);
 
-  console.log('[ProjectionsTab] Context values:', {
+  debug.log('[ProjectionsTab] Context values:', {
     selectedLoan,
     hasSelectedLoanData: !!selectedLoanData,
     projSettings,
@@ -79,11 +80,11 @@ export const ProjectionsTab: React.FC = () => {
   });
 
   if (!selectedLoanData) {
-    console.warn('[ProjectionsTab] No loan data selected');
+    debug.warn('[ProjectionsTab] No loan data selected');
     return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;
   }
 
-  console.log('[ProjectionsTab] Selected loan data:', {
+  debug.log('[ProjectionsTab] Selected loan data:', {
     mwLoanNo: selectedLoanData.mwLoanNo,
     principal: selectedLoanData.principal,
     intRate: selectedLoanData.intRate,
@@ -210,21 +211,21 @@ export const ProjectionsTab: React.FC = () => {
       let rate = 0;
       if (projSettings.rateMethod === 'User Enter') {
         rate = parseFloat(projSettings.userRate) || 0;
-        console.log('[getProjectedRate] Using User Enter:', rate);
+        debug.log('[getProjectedRate] Using User Enter:', rate);
       } else {
         rate = selectedLoanData.intRate;
-        console.log('[getProjectedRate] Using Contractual:', rate);
+        debug.log('[getProjectedRate] Using Contractual:', rate);
       }
 
       // Validate rate
       if (!isFinite(rate) || rate < 0) {
-        console.warn('[getProjectedRate] Invalid rate, using contractual:', selectedLoanData.intRate);
+        debug.warn('[getProjectedRate] Invalid rate, using contractual:', selectedLoanData.intRate);
         return selectedLoanData.intRate;
       }
 
       return rate;
     } catch (error) {
-      console.error('Error in getProjectedRate:', error);
+      debug.error('Error in getProjectedRate:', error);
       return selectedLoanData.intRate;
     }
   }, [projSettings.rateMethod, projSettings.userRate, selectedLoanData.intRate]);
@@ -233,27 +234,27 @@ export const ProjectionsTab: React.FC = () => {
   const calculateProjectedPayment = useCallback((): number => {
     try {
       let result = 0;
-      console.log('[calculateProjectedPayment] Method:', projSettings.paymentMethod);
+      debug.log('[calculateProjectedPayment] Method:', projSettings.paymentMethod);
 
       switch (projSettings.paymentMethod) {
         case 'Contractual':
           result = selectedLoanData.pmt;
-          console.log('[calculateProjectedPayment] Contractual:', result);
+          debug.log('[calculateProjectedPayment] Contractual:', result);
           break;
         case 'User Enter':
           result = parseFloat(projSettings.userPayment) || 0;
-          console.log('[calculateProjectedPayment] User Enter:', result);
+          debug.log('[calculateProjectedPayment] User Enter:', result);
           break;
         case 'Interest Payment':
           const rate = getProjectedRate();
           result = selectedLoanData.principal * (rate / 100) / 12;
-          console.log('[calculateProjectedPayment] Interest Payment - Rate:', rate, 'Principal:', selectedLoanData.principal, 'Result:', result);
+          debug.log('[calculateProjectedPayment] Interest Payment - Rate:', rate, 'Principal:', selectedLoanData.principal, 'Result:', result);
           break;
         case 'Term Pmt':
           const termRate = getProjectedRate();
           const amortMonths = parseInt(projSettings.amortMonths) || 360;
           result = calculatePMT(termRate, amortMonths, selectedLoanData.principal);
-          console.log('[calculateProjectedPayment] Term Pmt - Rate:', termRate, 'Months:', amortMonths, 'Result:', result);
+          debug.log('[calculateProjectedPayment] Term Pmt - Rate:', termRate, 'Months:', amortMonths, 'Result:', result);
           break;
         case '% of Trail Pmt':
           const trailData = calculateTrailingPayments(
@@ -266,22 +267,22 @@ export const ProjectionsTab: React.FC = () => {
           const trailMonthly = trailData?.monthly || 0;
           const trailPercent = parseFloat(projSettings.trailPercentage) || 100;
           result = trailMonthly * trailPercent / 100;
-          console.log('[calculateProjectedPayment] Trail Pmt - Monthly:', trailMonthly, 'Percent:', trailPercent, 'Result:', result);
+          debug.log('[calculateProjectedPayment] Trail Pmt - Monthly:', trailMonthly, 'Percent:', trailPercent, 'Result:', result);
           break;
         default:
           result = selectedLoanData.pmt;
-          console.log('[calculateProjectedPayment] Default:', result);
+          debug.log('[calculateProjectedPayment] Default:', result);
       }
 
       // Validate result
       if (!isFinite(result) || result < 0) {
-        console.warn('[calculateProjectedPayment] Invalid result, using contractual:', selectedLoanData.pmt);
+        debug.warn('[calculateProjectedPayment] Invalid result, using contractual:', selectedLoanData.pmt);
         return selectedLoanData.pmt;
       }
 
       return result;
     } catch (error) {
-      console.error('Error in calculateProjectedPayment:', error);
+      debug.error('Error in calculateProjectedPayment:', error);
       return selectedLoanData.pmt;
     }
   }, [projSettings.paymentMethod, projSettings.userPayment, projSettings.amortMonths, projSettings.trailPeriod, projSettings.trailPercentage, selectedLoanData.pmt, selectedLoanData.principal, selectedLoanData.lastImportDate, selectedLoan, paymentRecords, loans, getProjectedRate]);
@@ -294,7 +295,7 @@ export const ProjectionsTab: React.FC = () => {
     const monthlyHolding = parseFloat(projSettings.holdingCosts) || 0;
     const total = numberOfMonths * monthlyHolding;
 
-    console.log('[calculateTotalHoldingCosts]:', {
+    debug.log('[calculateTotalHoldingCosts]:', {
       legalStartMonth,
       holdingEndMonth,
       numberOfMonths,
@@ -314,7 +315,7 @@ export const ProjectionsTab: React.FC = () => {
       const percentage = parseFloat(projSettings.addBackPercentage) || 0;
       const result = basis * percentage / 100;
 
-      console.log('[calculateAddBackToExit] Expense Recovery:', {
+      debug.log('[calculateAddBackToExit] Expense Recovery:', {
         initialLegal,
         totalHolding,
         addBackBasis: projSettings.addBackBasis,
@@ -325,13 +326,13 @@ export const ProjectionsTab: React.FC = () => {
 
       // Validate result
       if (!isFinite(result)) {
-        console.warn('[calculateAddBackToExit] Invalid result, returning 0');
+        debug.warn('[calculateAddBackToExit] Invalid result, returning 0');
         return 0;
       }
 
       return result;
     } catch (error) {
-      console.error('Error in calculateAddBackToExit:', error);
+      debug.error('Error in calculateAddBackToExit:', error);
       return 0;
     }
   }, [projSettings.initialLegal, projSettings.addBackBasis, projSettings.addBackPercentage, calculateTotalHoldingCosts]);
@@ -345,7 +346,7 @@ export const ProjectionsTab: React.FC = () => {
       const rate = getProjectedRate();
       const payment = calculateProjectedPayment();
 
-      console.log('[calculatePayInFull] Using:', {
+      debug.log('[calculatePayInFull] Using:', {
         rate,
         payment,
         principal: selectedLoanData.principal,
@@ -356,7 +357,7 @@ export const ProjectionsTab: React.FC = () => {
 
       // Validate inputs
       if (!isFinite(rate) || !isFinite(payment) || !isFinite(selectedLoanData.principal)) {
-        console.warn('[calculatePayInFull] Invalid inputs, returning principal');
+        debug.warn('[calculatePayInFull] Invalid inputs, returning principal');
         return selectedLoanData.principal;
       }
 
@@ -364,17 +365,17 @@ export const ProjectionsTab: React.FC = () => {
       // The FV represents the remaining balance after nper payments, which is the payoff amount
       const fv = calculateFV(rate, nper, -payment, selectedLoanData.principal);
 
-      console.log('[calculatePayInFull] Result:', fv);
+      debug.log('[calculatePayInFull] Result:', fv);
 
       // Validate output
       if (!isFinite(fv)) {
-        console.warn('[calculatePayInFull] Invalid FV, returning principal');
+        debug.warn('[calculatePayInFull] Invalid FV, returning principal');
         return selectedLoanData.principal;
       }
 
       return fv;
     } catch (error) {
-      console.error('Error in calculatePayInFull:', error);
+      debug.error('Error in calculatePayInFull:', error);
       return selectedLoanData.principal;
     }
   }, [sanitizedExitSettings.startMonth, sanitizedExitSettings.endMonth, selectedLoanData.principal, projSettings.paymentMethod, projSettings.rateMethod, getProjectedRate, calculateProjectedPayment]);
@@ -383,29 +384,29 @@ export const ProjectionsTab: React.FC = () => {
   const calculatedExitValue = useMemo(() => {
     try {
       let result = 0;
-      console.log(`[calculatedExitValue] Method: ${exitSettings.method}`);
+      debug.log(`[calculatedExitValue] Method: ${exitSettings.method}`);
 
       switch (exitSettings.method) {
         case 'Pay in Full':
           result = calculatePayInFull();
-          console.log('[Pay in Full] Result:', result);
+          debug.log('[Pay in Full] Result:', result);
           break;
         case 'DPO':
           const payInFull = calculatePayInFull();
           const dpoPercent = parseFloat(exitSettings.dpoPercentage) || 95;
           result = payInFull * dpoPercent / 100;
-          console.log('[DPO] Pay in Full:', payInFull, 'Percentage:', dpoPercent, 'Result:', result);
+          debug.log('[DPO] Pay in Full:', payInFull, 'Percentage:', dpoPercent, 'Result:', result);
           break;
         case 'Value Cap':
           // Use memoized collateral lookup for O(1) performance
           const collateralValue = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : 0;
           const capPercent = parseFloat(exitSettings.valueCapPercentage) || 90;
           result = collateralValue * capPercent / 100;
-          console.log('[Value Cap] Collateral:', collateralValue, 'Percentage:', capPercent, 'Result:', result);
+          debug.log('[Value Cap] Collateral:', collateralValue, 'Percentage:', capPercent, 'Result:', result);
           break;
         case 'User Enter':
           result = parseFloat(exitSettings.userEnterAmount) || 0;
-          console.log('[User Enter] Amount:', result);
+          debug.log('[User Enter] Amount:', result);
           break;
         case 'YTM Sell Solve':
           const desiredYield = parseFloat(exitSettings.ytmDesired) || 12;
@@ -414,7 +415,7 @@ export const ProjectionsTab: React.FC = () => {
           const months = Math.max(1, endMonthYTM - startMonthYTM + 1); // Ensure positive months
           const monthlyPmt = calculateProjectedPayment();
           const finalPayoff = calculatePayInFull();
-          console.log('[YTM Sell Solve] Using:', {
+          debug.log('[YTM Sell Solve] Using:', {
             desiredYield,
             months,
             monthlyPmt,
@@ -425,7 +426,7 @@ export const ProjectionsTab: React.FC = () => {
           // Calculate present value: what to sell loan for today to achieve desired yield
           // With positive payments (cash inflows) and positive final payoff
           result = calculatePV(desiredYield, months, monthlyPmt, finalPayoff);
-          console.log('[YTM Sell Solve] Result:', result);
+          debug.log('[YTM Sell Solve] Result:', result);
           break;
         case 'Liquidation':
           const liquidationMonths = parseInt(exitSettings.liquidationMonths) || 12;
@@ -435,14 +436,14 @@ export const ProjectionsTab: React.FC = () => {
           }
           const rate = getProjectedRate();
           const monthlyRate = rate / 100 / 12;
-          console.log('[Liquidation] Starting balance:', balance, 'Rate:', rate, 'Months:', liquidationMonths, 'Rate method:', projSettings.rateMethod);
+          debug.log('[Liquidation] Starting balance:', balance, 'Rate:', rate, 'Months:', liquidationMonths, 'Rate method:', projSettings.rateMethod);
           // Calculate interest accrual during liquidation
           for (let i = 0; i < liquidationMonths; i++) {
             balance += balance * monthlyRate;
           }
           // Assume recovery at collateral value - use memoized lookup
           result = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : balance;
-          console.log('[Liquidation] Balance after accrual:', balance, 'Collateral value:', result);
+          debug.log('[Liquidation] Balance after accrual:', balance, 'Collateral value:', result);
           break;
         default:
           result = 0;
@@ -450,14 +451,14 @@ export const ProjectionsTab: React.FC = () => {
 
       // Validate result - handle NaN, Infinity, etc.
       if (!isFinite(result)) {
-        console.warn('Invalid exit value calculation:', result);
+        debug.warn('Invalid exit value calculation:', result);
         return 0;
       }
 
-      console.log(`[calculatedExitValue] Final result for ${exitSettings.method}:`, result);
+      debug.log(`[calculatedExitValue] Final result for ${exitSettings.method}:`, result);
       return result;
     } catch (error) {
-      console.error('Error calculating exit value:', error);
+      debug.error('Error calculating exit value:', error);
       return 0;
     }
     // OPTIMIZED DEPENDENCIES: Only include what's actually used, not entire objects
@@ -490,7 +491,7 @@ export const ProjectionsTab: React.FC = () => {
       const value = calculateProjectedPayment();
       return isFinite(value) ? value : 0;
     } catch (error) {
-      console.error('Error getting projected payment value:', error);
+      debug.error('Error getting projected payment value:', error);
       return 0;
     }
   }, [calculateProjectedPayment]);
@@ -500,10 +501,10 @@ export const ProjectionsTab: React.FC = () => {
     try {
       const value = calculateAddBackToExit();
       const result = isFinite(value) ? value : 0;
-      console.log('[addBackValue] Memoized expense recovery value:', result);
+      debug.log('[addBackValue] Memoized expense recovery value:', result);
       return result;
     } catch (error) {
-      console.error('Error getting add back value:', error);
+      debug.error('Error getting add back value:', error);
       return 0;
     }
   }, [calculateAddBackToExit]);
@@ -514,7 +515,7 @@ export const ProjectionsTab: React.FC = () => {
     const total = exitVal + addBackValue;
     const result = isFinite(total) ? total : 0;
 
-    console.log('[totalExitProceeds] Final Calculation:', {
+    debug.log('[totalExitProceeds] Final Calculation:', {
       exitValue: exitVal,
       addBackRecovery: addBackValue,
       totalExitProceeds: result

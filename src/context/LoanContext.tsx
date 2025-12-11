@@ -183,12 +183,27 @@ export const LoanProvider: React.FC<LoanProviderProps> = ({ children }) => {
   }, [paymentRecords, selectedLoan]);
 
   // Ensure there's always an empty row for new entries in payment records
+  // FIXED: Use ref to prevent infinite loop risk
+  const lastProcessedLoan = React.useRef<string | null>(null);
+  const lastRecordCount = React.useRef<number>(0);
+
   useEffect(() => {
     const filteredRecords = paymentRecords.filter(record => record.loanNo === selectedLoan);
     const lastRecord = filteredRecords[filteredRecords.length - 1];
+    const currentCount = filteredRecords.length;
 
-    // Add empty row if the last row has data or if there are no records
-    if (!lastRecord || (lastRecord.year && lastRecord.month && lastRecord.amount)) {
+    // Only add empty row if:
+    // 1. Loan changed, OR
+    // 2. Record count changed (user added/deleted a record)
+    const shouldAddRow =
+      !lastRecord ||
+      (lastRecord.year && lastRecord.month && lastRecord.amount);
+
+    const stateChanged =
+      lastProcessedLoan.current !== selectedLoan ||
+      lastRecordCount.current !== currentCount;
+
+    if (shouldAddRow && stateChanged) {
       setPaymentRecords(prev => [
         ...prev,
         {
@@ -199,6 +214,10 @@ export const LoanProvider: React.FC<LoanProviderProps> = ({ children }) => {
           amount: ''
         }
       ]);
+
+      // Update refs to prevent re-triggering
+      lastProcessedLoan.current = selectedLoan;
+      lastRecordCount.current = currentCount + 1; // +1 for the row we just added
     }
   }, [selectedLoan, paymentRecords, getNextPaymentId]);
 
