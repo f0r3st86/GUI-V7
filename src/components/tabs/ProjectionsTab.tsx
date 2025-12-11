@@ -654,6 +654,31 @@ export const ProjectionsTab: React.FC = () => {
               />
             </div>
           </div>
+
+          {/* Expense Recovery (Add Back) */}
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className={`text-xs ${styles.textMuted} block mb-1`}>Add Back Basis:</label>
+              <select
+                value={projSettings.addBackBasis || 'Initial Only'}
+                onChange={(e) => updateProjSetting('addBackBasis', e.target.value as 'Initial Only' | 'Initial + Holding')}
+                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+              >
+                <option value="Initial Only">Initial Only</option>
+                <option value="Initial + Holding">Initial + Holding</option>
+              </select>
+            </div>
+            <div>
+              <label className={`text-xs ${styles.textMuted} block mb-1`}>Add Back Recovery (%):</label>
+              <input
+                type="text"
+                value={projSettings.addBackPercentage || '0'}
+                onChange={(e) => updateProjSetting('addBackPercentage', e.target.value)}
+                placeholder="0"
+                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
