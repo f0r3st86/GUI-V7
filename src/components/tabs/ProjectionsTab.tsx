@@ -227,7 +227,18 @@ export const ProjectionsTab: React.FC = () => {
     const legalStartMonth = parseInt(projSettings.initialLegalStartMonth) || 0;
     const holdingEndMonth = parseInt(projSettings.holdingCostsEndMonth) || 0;
     const numberOfMonths = Math.max(0, holdingEndMonth - legalStartMonth);
-    return numberOfMonths * (parseFloat(projSettings.holdingCosts) || 0);
+    const monthlyHolding = parseFloat(projSettings.holdingCosts) || 0;
+    const total = numberOfMonths * monthlyHolding;
+
+    console.log('[calculateTotalHoldingCosts]:', {
+      legalStartMonth,
+      holdingEndMonth,
+      numberOfMonths,
+      monthlyHolding,
+      total
+    });
+
+    return total;
   }, [projSettings.initialLegalStartMonth, projSettings.holdingCostsEndMonth, projSettings.holdingCosts]);
 
   // Calculate add back to exit
@@ -236,10 +247,21 @@ export const ProjectionsTab: React.FC = () => {
       const initialLegal = parseFloat(projSettings.initialLegal) || 0;
       const totalHolding = calculateTotalHoldingCosts();
       const basis = projSettings.addBackBasis === 'Initial Only' ? initialLegal : initialLegal + totalHolding;
-      const result = basis * (parseFloat(projSettings.addBackPercentage) || 0) / 100;
+      const percentage = parseFloat(projSettings.addBackPercentage) || 0;
+      const result = basis * percentage / 100;
+
+      console.log('[calculateAddBackToExit] Expense Recovery:', {
+        initialLegal,
+        totalHolding,
+        addBackBasis: projSettings.addBackBasis,
+        basis,
+        percentage,
+        result
+      });
 
       // Validate result
       if (!isFinite(result)) {
+        console.warn('[calculateAddBackToExit] Invalid result, returning 0');
         return 0;
       }
 
@@ -394,12 +416,29 @@ export const ProjectionsTab: React.FC = () => {
   const addBackValue = useMemo(() => {
     try {
       const value = calculateAddBackToExit();
-      return isFinite(value) ? value : 0;
+      const result = isFinite(value) ? value : 0;
+      console.log('[addBackValue] Memoized expense recovery value:', result);
+      return result;
     } catch (error) {
       console.error('Error getting add back value:', error);
       return 0;
     }
   }, [calculateAddBackToExit]);
+
+  // Memoized total exit proceeds (exit value + add back recovery)
+  const totalExitProceeds = useMemo(() => {
+    const exitVal = isFinite(calculatedExitValue) ? calculatedExitValue : 0;
+    const total = exitVal + addBackValue;
+    const result = isFinite(total) ? total : 0;
+
+    console.log('[totalExitProceeds] Final Calculation:', {
+      exitValue: exitVal,
+      addBackRecovery: addBackValue,
+      totalExitProceeds: result
+    });
+
+    return result;
+  }, [calculatedExitValue, addBackValue]);
 
   // Build projection grid
   const buildProjectionGrid = useMemo(() => {
@@ -777,11 +816,7 @@ export const ProjectionsTab: React.FC = () => {
             <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
               <div className={`text-xs ${styles.textMuted} mb-1`}>Total Exit Proceeds</div>
               <div className={`text-lg font-medium ${styles.textGreen}`}>
-                ${(() => {
-                  const exitVal = isFinite(calculatedExitValue) ? calculatedExitValue : 0;
-                  const total = exitVal + addBackValue;
-                  return (isFinite(total) ? total : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                })()}
+                ${totalExitProceeds.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </div>
             </div>
           </div>
