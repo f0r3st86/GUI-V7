@@ -44,6 +44,30 @@ export const ProjectionsTab: React.FC = () => {
     pmt: selectedLoanData.pmt
   });
 
+  // Safe handlers for input changes that sanitize before updating state
+  const handleExitMonthChange = useCallback((field: 'startMonth' | 'endMonth', value: string) => {
+    // Allow empty string temporarily for user to type
+    if (value === '') {
+      updateExitSetting(field, value);
+      return;
+    }
+
+    // Only allow numeric characters
+    if (!/^\d+$/.test(value)) {
+      return; // Don't update if non-numeric
+    }
+
+    // Update with the value (will be sanitized on blur)
+    updateExitSetting(field, value);
+  }, [updateExitSetting]);
+
+  const handleExitMonthBlur = useCallback((field: 'startMonth' | 'endMonth', value: string) => {
+    // On blur, ensure we have a valid value
+    const parsed = parseInt(value) || (field === 'startMonth' ? 1 : 24);
+    const sanitized = Math.max(1, Math.min(60, parsed));
+    updateExitSetting(field, sanitized.toString());
+  }, [updateExitSetting]);
+
   // Sanitize exit settings to prevent invalid calculations during user input
   const sanitizedExitSettings = useMemo(() => {
     const startMonth = parseInt(exitSettings.startMonth) || 1;
@@ -487,7 +511,8 @@ export const ProjectionsTab: React.FC = () => {
             <input
               type="text"
               value={exitSettings.startMonth}
-              onChange={(e) => updateExitSetting('startMonth', e.target.value)}
+              onChange={(e) => handleExitMonthChange('startMonth', e.target.value)}
+              onBlur={(e) => handleExitMonthBlur('startMonth', e.target.value)}
               placeholder="1"
               className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
             />
@@ -497,7 +522,8 @@ export const ProjectionsTab: React.FC = () => {
             <input
               type="text"
               value={exitSettings.endMonth}
-              onChange={(e) => updateExitSetting('endMonth', e.target.value)}
+              onChange={(e) => handleExitMonthChange('endMonth', e.target.value)}
+              onBlur={(e) => handleExitMonthBlur('endMonth', e.target.value)}
               placeholder="24"
               className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
             />
