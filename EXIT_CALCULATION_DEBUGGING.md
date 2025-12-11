@@ -258,6 +258,78 @@ If you see:
 
 ---
 
+## Expense Recovery (Add Back) Debugging
+
+### What It Shows
+
+The expense recovery calculation appears in three stages:
+
+**1. Holding Costs Calculation:**
+```
+[calculateTotalHoldingCosts]: {
+  legalStartMonth: 1,
+  holdingEndMonth: 12,
+  numberOfMonths: 11,
+  monthlyHolding: 500,
+  total: 5500
+}
+```
+**What this shows:** Monthly holding costs × number of months = total holding costs
+
+**2. Add Back Recovery Calculation:**
+```
+[calculateAddBackToExit] Expense Recovery: {
+  initialLegal: 5000,
+  totalHolding: 5500,
+  addBackBasis: "Initial + Holding",
+  basis: 10500,
+  percentage: 50,
+  result: 5250
+}
+```
+**What this shows:**
+- Initial legal costs: $5,000
+- Total holding costs: $5,500
+- Basis selected: "Initial + Holding" (or "Initial Only")
+- Basis amount: $10,500 (sum of initial legal + holding)
+- Recovery percentage: 50%
+- Recovery amount: $5,250 (50% of $10,500)
+
+**3. Memoized Recovery Value:**
+```
+[addBackValue] Memoized expense recovery value: 5250
+```
+**What this shows:** The final recovery amount cached for display
+
+**4. Total Exit Proceeds:**
+```
+[totalExitProceeds] Final Calculation: {
+  exitValue: 186915.45,
+  addBackRecovery: 5250,
+  totalExitProceeds: 192165.45
+}
+```
+**What this shows:**
+- Exit value from selected exit method: $186,915.45
+- Add back recovery amount: $5,250
+- **Total exit proceeds: $192,165.45** (exit value + recovery)
+
+---
+
+### How to Verify Expense Recovery
+
+**Scenario:** Initial legal = $5,000, Holding costs = $500/month for 11 months, Recovery = 50%
+
+**Test 1: Initial Only**
+- Basis: $5,000
+- Recovery: $5,000 × 50% = **$2,500** ✅
+
+**Test 2: Initial + Holding**
+- Basis: $5,000 + ($500 × 11) = $10,500
+- Recovery: $10,500 × 50% = **$5,250** ✅
+
+---
+
 ## Summary
 
 The debugging output proves:
@@ -267,6 +339,8 @@ The debugging output proves:
 3. ✅ **Exit calculations** use the values from rate and payment methods
 4. ✅ **All 6 exit methods** correctly pull from the selected methods when applicable
 5. ✅ **Calculations update** when you change dropdown selections
+6. ✅ **Expense recovery** correctly calculates based on selected basis and percentage
+7. ✅ **Total exit proceeds** correctly adds exit value + expense recovery
 
 Every exit method now shows complete transparency about:
 - What inputs are being used
