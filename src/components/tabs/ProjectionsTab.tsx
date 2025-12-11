@@ -565,10 +565,11 @@ export const ProjectionsTab: React.FC = () => {
         const lastMonth = (year === endYear) ? endMonth : 12;
 
         for (let month = firstMonth; month <= lastMonth; month++) {
+          // Overwrite the value (not additive)
           if (entry.type === 'income') {
-            income[yearStr][month] = (income[yearStr][month] || 0) + amount;
+            income[yearStr][month] = amount;
           } else {
-            expenses[yearStr][month] = (expenses[yearStr][month] || 0) + amount;
+            expenses[yearStr][month] = amount;
           }
 
           // Calculate net cash flow
@@ -1162,13 +1163,6 @@ export const ProjectionsTab: React.FC = () => {
                         type
                       };
                       setClassicEntries(prev => [...prev, newEntry]);
-
-                      // Clear inputs
-                      (document.getElementById('classic-start-month') as HTMLSelectElement).value = '1';
-                      (document.getElementById('classic-start-year') as HTMLInputElement).value = '';
-                      (document.getElementById('classic-end-month') as HTMLSelectElement).value = '12';
-                      (document.getElementById('classic-end-year') as HTMLInputElement).value = '';
-                      (document.getElementById('classic-amount') as HTMLInputElement).value = '';
                     }
                   }}
                   className={`${styles.activeBg} ${styles.textPrimary} px-4 py-2 rounded text-sm font-medium border ${styles.inputBorder} ${styles.buttonHover} transition-colors`}
