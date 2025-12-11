@@ -128,6 +128,41 @@ export const ProjectionsTab: React.FC = () => {
     updateExitSetting('endMonth', sanitized);
   }, [endMonthInput, updateExitSetting]);
 
+  // Handle add back percentage change - allow empty temporarily, cap at 100
+  const handleAddBackPercentageChange = useCallback((value: string) => {
+    // Allow empty string temporarily
+    if (value === '') {
+      updateProjSetting('addBackPercentage', value);
+      return;
+    }
+
+    // Only allow numeric characters and decimal point
+    if (!/^\d*\.?\d*$/.test(value)) {
+      return; // Reject non-numeric
+    }
+
+    // Parse and cap at 100
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue) && numValue > 100) {
+      updateProjSetting('addBackPercentage', '100');
+      return;
+    }
+
+    updateProjSetting('addBackPercentage', value);
+  }, [updateProjSetting]);
+
+  // Handle add back percentage blur - ensure valid value when leaving field
+  const handleAddBackPercentageBlur = useCallback((value: string) => {
+    if (value === '' || value === '.') {
+      updateProjSetting('addBackPercentage', '0');
+      return;
+    }
+
+    const numValue = parseFloat(value);
+    const sanitized = Math.max(0, Math.min(100, numValue));
+    updateProjSetting('addBackPercentage', sanitized.toString());
+  }, [updateProjSetting]);
+
   // Sanitize exit settings to prevent invalid calculations during user input
   const sanitizedExitSettings = useMemo(() => {
     const startMonth = parseInt(exitSettings.startMonth) || 1;
@@ -672,8 +707,9 @@ export const ProjectionsTab: React.FC = () => {
               <label className={`text-xs ${styles.textMuted} block mb-1`}>Add Back Recovery (%):</label>
               <input
                 type="text"
-                value={projSettings.addBackPercentage || '0'}
-                onChange={(e) => updateProjSetting('addBackPercentage', e.target.value)}
+                value={projSettings.addBackPercentage || ''}
+                onChange={(e) => handleAddBackPercentageChange(e.target.value)}
+                onBlur={(e) => handleAddBackPercentageBlur(e.target.value)}
                 placeholder="0"
                 className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
               />
