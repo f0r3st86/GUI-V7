@@ -44,6 +44,8 @@ export const isDuplicatePayment = (
  */
 export const validateCreditScore = (value: string): boolean => {
   if (!value) return true; // Allow empty
+  // Must be integer (no decimals)
+  if (!/^\d+$/.test(value)) return false;
   const num = parseInt(value, 10);
   return !isNaN(num) && num >= 300 && num <= 850;
 };

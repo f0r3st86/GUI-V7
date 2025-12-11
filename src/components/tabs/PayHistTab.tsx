@@ -1,8 +1,14 @@
 // PayHistTab component - payment history with Excel-like grid
-import React from 'react';
+import React, { useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useTheme, useLoan } from '../../context';
-import { calculateExpression, calculateTrailingPayments, calculateYearSum } from '../../utils';
+import {
+  calculateExpression,
+  calculateTrailingPayments,
+  calculateYearSum,
+  validateYearInput,
+  validateMonthInput
+} from '../../utils';
 import { MONTH_NAMES } from '../../data';
 
 export const PayHistTab: React.FC = () => {
@@ -17,17 +23,48 @@ export const PayHistTab: React.FC = () => {
     loans
   } = useLoan();
 
+  // Validation state (track invalid inputs by record ID + field)
+  const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
+
+  // Helper: Get validation key for a record field
+  const getValidationKey = (id: number, field: string) => `${id}-${field}`;
+
+  // Helper: Check if field is invalid
+  const isFieldInvalid = (id: number, field: string) => {
+    return validationErrors[getValidationKey(id, field)] || false;
+  };
+
   if (!selectedLoanData) {
     return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;
   }
 
-  // Handle cell edit
+  // Handle cell edit with validation
   const handleCellEdit = (id: number, field: string, value: string) => {
-    setPaymentRecords(prev =>
-      prev.map(record =>
-        record.id === id ? { ...record, [field]: value } : record
-      )
-    );
+    let isValid = true;
+
+    // Validate based on field type
+    if (field === 'year') {
+      isValid = validateYearInput(value);
+    } else if (field === 'month') {
+      isValid = validateMonthInput(value);
+    } else if (field === 'amount') {
+      // For amount, allow expressions (will be validated on blur)
+      // Just prevent completely invalid input
+      isValid = /^[0-9+\-*/.() ]*$/.test(value);
+    }
+
+    // Update validation state
+    const key = getValidationKey(id, field);
+    setValidationErrors(prev => ({ ...prev, [key]: !isValid }));
+
+    // Only update if valid OR if clearing the field
+    if (isValid || value === '') {
+      setPaymentRecords(prev =>
+        prev.map(record =>
+          record.id === id ? { ...record, [field]: value } : record
+        )
+      );
+    }
   };
 
   // Handle amount blur - evaluate expression
@@ -156,7 +193,11 @@ export const PayHistTab: React.FC = () => {
                         onKeyDown={(e) => handleKeyDown(e, record.id, 'year')}
                         placeholder="YYYY"
                         maxLength={4}
-                        className={`w-full px-3 py-2 text-xs ${styles.textPrimary} bg-transparent focus:outline-none focus:ring-1 focus:ring-green-500`}
+                        className={`w-full px-3 py-2 text-xs ${styles.textPrimary} bg-transparent focus:outline-none ${
+                          isFieldInvalid(record.id, 'year')
+                            ? 'ring-1 ring-red-500'
+                            : 'focus:ring-1 focus:ring-green-500'
+                        }`}
                         style={{ border: 'none' }}
                       />
                     </td>
@@ -169,7 +210,11 @@ export const PayHistTab: React.FC = () => {
                         onKeyDown={(e) => handleKeyDown(e, record.id, 'month')}
                         placeholder="1-12"
                         maxLength={2}
-                        className={`w-full px-3 py-2 text-xs ${styles.textPrimary} bg-transparent focus:outline-none focus:ring-1 focus:ring-green-500`}
+                        className={`w-full px-3 py-2 text-xs ${styles.textPrimary} bg-transparent focus:outline-none ${
+                          isFieldInvalid(record.id, 'month')
+                            ? 'ring-1 ring-red-500'
+                            : 'focus:ring-1 focus:ring-green-500'
+                        }`}
                         style={{ border: 'none' }}
                       />
                     </td>
@@ -183,7 +228,11 @@ export const PayHistTab: React.FC = () => {
                         onKeyDown={(e) => handleKeyDown(e, record.id, 'amount')}
                         placeholder="0.00"
                         title="You can enter calculations like 500+108.15 or 608.15*2"
-                        className={`w-full px-3 py-2 text-xs ${styles.textGreen} bg-transparent focus:outline-none focus:ring-1 focus:ring-green-500`}
+                        className={`w-full px-3 py-2 text-xs ${styles.textGreen} bg-transparent focus:outline-none ${
+                          isFieldInvalid(record.id, 'amount')
+                            ? 'ring-1 ring-red-500'
+                            : 'focus:ring-1 focus:ring-green-500'
+                        }`}
                         style={{ border: 'none' }}
                       />
                     </td>
