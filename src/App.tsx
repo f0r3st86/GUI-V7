@@ -1,5 +1,5 @@
 // Main App component - assembles all components with providers
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   ThemeProvider,
   LoanProvider,
@@ -18,6 +18,7 @@ import {
   ProjectionsTab
 } from './components/tabs';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { enableHighRefreshRate, FPSMonitor, getFrameBudget } from './utils';
 
 // Tab content renderer component
 const TabContent: React.FC = () => {
@@ -75,6 +76,28 @@ const TabContent: React.FC = () => {
 // Main layout component with theme applied
 const AppLayout: React.FC = () => {
   const { styles } = useTheme();
+
+  // Enable 120fps optimizations on mount
+  useEffect(() => {
+    const budget = getFrameBudget();
+    console.log(`[Performance] Display supports ${budget.fps}fps (${budget.budget}ms budget)`);
+
+    // Enable CSS optimizations for high refresh rates
+    enableHighRefreshRate();
+
+    // Optional: Monitor actual FPS (only in dev, remove or comment out for production)
+    const enableFPSMonitor = true; // Set to false in production
+    if (enableFPSMonitor) {
+      const fpsMonitor = new FPSMonitor((fps) => {
+        const status = fps >= 115 ? '🟢' : fps >= 55 ? '🟡' : '🔴';
+        console.log(`${status} FPS: ${fps} (Target: ${budget.fps})`);
+      });
+      fpsMonitor.start();
+
+      // Cleanup
+      return () => fpsMonitor.stop();
+    }
+  }, []);
 
   return (
     <div className={`min-h-screen ${styles.mainBg}`}>
