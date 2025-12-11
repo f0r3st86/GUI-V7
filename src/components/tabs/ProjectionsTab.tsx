@@ -146,12 +146,15 @@ export const ProjectionsTab: React.FC = () => {
       let rate = 0;
       if (projSettings.rateMethod === 'User Enter') {
         rate = parseFloat(projSettings.userRate) || 0;
+        console.log('[getProjectedRate] Using User Enter:', rate);
       } else {
         rate = selectedLoanData.intRate;
+        console.log('[getProjectedRate] Using Contractual:', rate);
       }
 
       // Validate rate
       if (!isFinite(rate) || rate < 0) {
+        console.warn('[getProjectedRate] Invalid rate, using contractual:', selectedLoanData.intRate);
         return selectedLoanData.intRate;
       }
 
@@ -166,18 +169,27 @@ export const ProjectionsTab: React.FC = () => {
   const calculateProjectedPayment = useCallback((): number => {
     try {
       let result = 0;
+      console.log('[calculateProjectedPayment] Method:', projSettings.paymentMethod);
+
       switch (projSettings.paymentMethod) {
         case 'Contractual':
           result = selectedLoanData.pmt;
+          console.log('[calculateProjectedPayment] Contractual:', result);
           break;
         case 'User Enter':
           result = parseFloat(projSettings.userPayment) || 0;
+          console.log('[calculateProjectedPayment] User Enter:', result);
           break;
         case 'Interest Payment':
-          result = selectedLoanData.principal * (getProjectedRate() / 100) / 12;
+          const rate = getProjectedRate();
+          result = selectedLoanData.principal * (rate / 100) / 12;
+          console.log('[calculateProjectedPayment] Interest Payment - Rate:', rate, 'Principal:', selectedLoanData.principal, 'Result:', result);
           break;
         case 'Term Pmt':
-          result = calculatePMT(getProjectedRate(), parseInt(projSettings.amortMonths) || 360, selectedLoanData.principal);
+          const termRate = getProjectedRate();
+          const amortMonths = parseInt(projSettings.amortMonths) || 360;
+          result = calculatePMT(termRate, amortMonths, selectedLoanData.principal);
+          console.log('[calculateProjectedPayment] Term Pmt - Rate:', termRate, 'Months:', amortMonths, 'Result:', result);
           break;
         case '% of Trail Pmt':
           const trailData = calculateTrailingPayments(
@@ -188,14 +200,18 @@ export const ProjectionsTab: React.FC = () => {
             loans
           );
           const trailMonthly = trailData?.monthly || 0;
-          result = trailMonthly * (parseFloat(projSettings.trailPercentage) || 100) / 100;
+          const trailPercent = parseFloat(projSettings.trailPercentage) || 100;
+          result = trailMonthly * trailPercent / 100;
+          console.log('[calculateProjectedPayment] Trail Pmt - Monthly:', trailMonthly, 'Percent:', trailPercent, 'Result:', result);
           break;
         default:
           result = selectedLoanData.pmt;
+          console.log('[calculateProjectedPayment] Default:', result);
       }
 
       // Validate result
       if (!isFinite(result) || result < 0) {
+        console.warn('[calculateProjectedPayment] Invalid result, using contractual:', selectedLoanData.pmt);
         return selectedLoanData.pmt;
       }
 
@@ -281,22 +297,31 @@ export const ProjectionsTab: React.FC = () => {
   const calculatedExitValue = useMemo(() => {
     try {
       let result = 0;
+      console.log(`[calculatedExitValue] Method: ${exitSettings.method}`);
+
       switch (exitSettings.method) {
         case 'Pay in Full':
           result = calculatePayInFull();
+          console.log('[Pay in Full] Result:', result);
           break;
         case 'DPO':
-          result = calculatePayInFull() * (parseFloat(exitSettings.dpoPercentage) || 95) / 100;
+          const payInFull = calculatePayInFull();
+          const dpoPercent = parseFloat(exitSettings.dpoPercentage) || 95;
+          result = payInFull * dpoPercent / 100;
+          console.log('[DPO] Pay in Full:', payInFull, 'Percentage:', dpoPercent, 'Result:', result);
           break;
         case 'Value Cap':
           const loanCollateral = collateralList.find(c =>
             collateralLoanRelationships[c.id]?.[selectedLoan]
           );
           const collateralValue = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : 0;
-          result = collateralValue * (parseFloat(exitSettings.valueCapPercentage) || 90) / 100;
+          const capPercent = parseFloat(exitSettings.valueCapPercentage) || 90;
+          result = collateralValue * capPercent / 100;
+          console.log('[Value Cap] Collateral:', collateralValue, 'Percentage:', capPercent, 'Result:', result);
           break;
         case 'User Enter':
           result = parseFloat(exitSettings.userEnterAmount) || 0;
+          console.log('[User Enter] Amount:', result);
           break;
         case 'YTM Sell Solve':
           const desiredYield = parseFloat(exitSettings.ytmDesired) || 12;
@@ -305,9 +330,18 @@ export const ProjectionsTab: React.FC = () => {
           const months = Math.max(1, endMonthYTM - startMonthYTM + 1); // Ensure positive months
           const monthlyPmt = calculateProjectedPayment();
           const finalPayoff = calculatePayInFull();
+          console.log('[YTM Sell Solve] Using:', {
+            desiredYield,
+            months,
+            monthlyPmt,
+            finalPayoff,
+            paymentMethod: projSettings.paymentMethod,
+            rateMethod: projSettings.rateMethod
+          });
           // Calculate present value: what to sell loan for today to achieve desired yield
           // With positive payments (cash inflows) and positive final payoff
           result = calculatePV(desiredYield, months, monthlyPmt, finalPayoff);
+          console.log('[YTM Sell Solve] Result:', result);
           break;
         case 'Liquidation':
           const liquidationMonths = parseInt(exitSettings.liquidationMonths) || 12;
@@ -315,14 +349,17 @@ export const ProjectionsTab: React.FC = () => {
           if (exitSettings.liquidationAddInterest) {
             balance += selectedLoanData.interest;
           }
+          const rate = getProjectedRate();
+          const monthlyRate = rate / 100 / 12;
+          console.log('[Liquidation] Starting balance:', balance, 'Rate:', rate, 'Months:', liquidationMonths, 'Rate method:', projSettings.rateMethod);
           // Calculate interest accrual during liquidation
-          const monthlyRate = getProjectedRate() / 100 / 12;
           for (let i = 0; i < liquidationMonths; i++) {
             balance += balance * monthlyRate;
           }
           // Assume recovery at collateral value
           const col = collateralList.find(c => collateralLoanRelationships[c.id]?.[selectedLoan]);
           result = col ? parseFloat(String(col.ourValue).replace(/[$,]/g, '')) : balance;
+          console.log('[Liquidation] Balance after accrual:', balance, 'Collateral value:', result);
           break;
         default:
           result = 0;
@@ -334,12 +371,13 @@ export const ProjectionsTab: React.FC = () => {
         return 0;
       }
 
+      console.log(`[calculatedExitValue] Final result for ${exitSettings.method}:`, result);
       return result;
     } catch (error) {
       console.error('Error calculating exit value:', error);
       return 0;
     }
-  }, [sanitizedExitSettings, exitSettings.method, exitSettings.dpoPercentage, exitSettings.valueCapPercentage, exitSettings.userEnterAmount, exitSettings.ytmDesired, exitSettings.liquidationMonths, exitSettings.liquidationAddInterest, selectedLoanData, collateralList, collateralLoanRelationships, selectedLoan, calculateProjectedPayment, calculatePayInFull, getProjectedRate]);
+  }, [sanitizedExitSettings, exitSettings.method, exitSettings.dpoPercentage, exitSettings.valueCapPercentage, exitSettings.userEnterAmount, exitSettings.ytmDesired, exitSettings.liquidationMonths, exitSettings.liquidationAddInterest, selectedLoanData, collateralList, collateralLoanRelationships, selectedLoan, calculateProjectedPayment, calculatePayInFull, getProjectedRate, projSettings.paymentMethod, projSettings.rateMethod]);
 
   // Memoized projected payment value - don't call function in render
   const projectedPaymentValue = useMemo(() => {
