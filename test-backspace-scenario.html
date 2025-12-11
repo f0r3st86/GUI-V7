@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Backspace Test</title>
+    <script>
+        // Test the exact scenario
+        function testParsing() {
+            console.log('Testing parseInt with empty string:');
+            console.log('parseInt("") =', parseInt(""));
+            console.log('parseInt("") || 1 =', parseInt("") || 1);
+            console.log('NaN is falsy?', !!NaN);
+            
+            const exitSettings = { endMonth: "" };
+            const sanitized = parseInt(exitSettings.endMonth) || 24;
+            console.log('Sanitized value:', sanitized);
+        }
+        
+        testParsing();
+    </script>
+</head>
+<body>
+    <h1>Check Console (F12)</h1>
+</body>
+</html>

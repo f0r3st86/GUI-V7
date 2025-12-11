@@ -25,6 +25,23 @@ export const ProjectionsTab: React.FC = () => {
   const { settings: projSettings, updateSetting: updateProjSetting } = useProjection();
   const { settings: exitSettings, updateSetting: updateExitSetting } = useExit();
 
+  // Local state for input fields to allow empty display while keeping valid context state
+  const [startMonthInput, setStartMonthInput] = React.useState(exitSettings.startMonth);
+  const [endMonthInput, setEndMonthInput] = React.useState(exitSettings.endMonth);
+
+  // Sync local state when context changes (but not during typing)
+  React.useEffect(() => {
+    if (document.activeElement?.getAttribute('name') !== 'startMonth') {
+      setStartMonthInput(exitSettings.startMonth);
+    }
+  }, [exitSettings.startMonth]);
+
+  React.useEffect(() => {
+    if (document.activeElement?.getAttribute('name') !== 'endMonth') {
+      setEndMonthInput(exitSettings.endMonth);
+    }
+  }, [exitSettings.endMonth]);
+
   console.log('[ProjectionsTab] Context values:', {
     selectedLoan,
     hasSelectedLoanData: !!selectedLoanData,
@@ -44,29 +61,72 @@ export const ProjectionsTab: React.FC = () => {
     pmt: selectedLoanData.pmt
   });
 
-  // Safe handlers for input changes that sanitize before updating state
-  const handleExitMonthChange = useCallback((field: 'startMonth' | 'endMonth', value: string) => {
-    // Allow empty string temporarily for user to type
+  // Safe handlers for input changes with local state
+  const handleStartMonthChange = useCallback((value: string) => {
+    // Update local state immediately (allows empty for UX)
+    setStartMonthInput(value);
+
+    // Only update context with valid values
     if (value === '') {
-      updateExitSetting(field, value);
+      updateExitSetting('startMonth', '1'); // Use default in context
       return;
     }
 
-    // Only allow numeric characters
     if (!/^\d+$/.test(value)) {
-      return; // Don't update if non-numeric
+      return; // Ignore non-numeric
     }
 
-    // Update with the value (will be sanitized on blur)
-    updateExitSetting(field, value);
+    const numValue = parseInt(value);
+    if (numValue > 60) {
+      setStartMonthInput('60');
+      updateExitSetting('startMonth', '60');
+      return;
+    }
+
+    if (numValue >= 1) {
+      updateExitSetting('startMonth', value);
+    }
   }, [updateExitSetting]);
 
-  const handleExitMonthBlur = useCallback((field: 'startMonth' | 'endMonth', value: string) => {
-    // On blur, ensure we have a valid value
-    const parsed = parseInt(value) || (field === 'startMonth' ? 1 : 24);
-    const sanitized = Math.max(1, Math.min(60, parsed));
-    updateExitSetting(field, sanitized.toString());
+  const handleEndMonthChange = useCallback((value: string) => {
+    // Update local state immediately (allows empty for UX)
+    setEndMonthInput(value);
+
+    // Only update context with valid values
+    if (value === '') {
+      updateExitSetting('endMonth', '24'); // Use default in context
+      return;
+    }
+
+    if (!/^\d+$/.test(value)) {
+      return; // Ignore non-numeric
+    }
+
+    const numValue = parseInt(value);
+    if (numValue > 60) {
+      setEndMonthInput('60');
+      updateExitSetting('endMonth', '60');
+      return;
+    }
+
+    if (numValue >= 1) {
+      updateExitSetting('endMonth', value);
+    }
   }, [updateExitSetting]);
+
+  const handleStartMonthBlur = useCallback(() => {
+    const parsed = parseInt(startMonthInput) || 1;
+    const sanitized = Math.max(1, Math.min(60, parsed)).toString();
+    setStartMonthInput(sanitized);
+    updateExitSetting('startMonth', sanitized);
+  }, [startMonthInput, updateExitSetting]);
+
+  const handleEndMonthBlur = useCallback(() => {
+    const parsed = parseInt(endMonthInput) || 24;
+    const sanitized = Math.max(1, Math.min(60, parsed)).toString();
+    setEndMonthInput(sanitized);
+    updateExitSetting('endMonth', sanitized);
+  }, [endMonthInput, updateExitSetting]);
 
   // Sanitize exit settings to prevent invalid calculations during user input
   const sanitizedExitSettings = useMemo(() => {
@@ -510,9 +570,10 @@ export const ProjectionsTab: React.FC = () => {
             <label className={`text-xs ${styles.textMuted} block mb-1`}>Cash Flow Start Month:</label>
             <input
               type="text"
-              value={exitSettings.startMonth}
-              onChange={(e) => handleExitMonthChange('startMonth', e.target.value)}
-              onBlur={(e) => handleExitMonthBlur('startMonth', e.target.value)}
+              name="startMonth"
+              value={startMonthInput}
+              onChange={(e) => handleStartMonthChange(e.target.value)}
+              onBlur={handleStartMonthBlur}
               placeholder="1"
               className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
             />
@@ -521,9 +582,10 @@ export const ProjectionsTab: React.FC = () => {
             <label className={`text-xs ${styles.textMuted} block mb-1`}>Exit Month:</label>
             <input
               type="text"
-              value={exitSettings.endMonth}
-              onChange={(e) => handleExitMonthChange('endMonth', e.target.value)}
-              onBlur={(e) => handleExitMonthBlur('endMonth', e.target.value)}
+              name="endMonth"
+              value={endMonthInput}
+              onChange={(e) => handleEndMonthChange(e.target.value)}
+              onBlur={handleEndMonthBlur}
               placeholder="24"
               className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
             />
