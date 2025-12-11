@@ -411,15 +411,21 @@ export const ProjectionsTab: React.FC = () => {
           </div>
           <div>
             <span className={`text-xs ${styles.textMuted}`}>UPB:</span>
-            <span className={`ml-2 font-medium ${styles.textGreen}`}>${selectedLoanData.principal.toLocaleString()}</span>
+            <span className={`ml-2 font-medium ${styles.textGreen}`}>
+              ${(isFinite(selectedLoanData.principal) ? selectedLoanData.principal : 0).toLocaleString()}
+            </span>
           </div>
           <div>
             <span className={`text-xs ${styles.textMuted}`}>Contractual Rate:</span>
-            <span className={`ml-2 font-medium ${styles.textPrimary}`}>{selectedLoanData.intRate}%</span>
+            <span className={`ml-2 font-medium ${styles.textPrimary}`}>
+              {isFinite(selectedLoanData.intRate) ? selectedLoanData.intRate : 0}%
+            </span>
           </div>
           <div>
             <span className={`text-xs ${styles.textMuted}`}>Contractual Pmt:</span>
-            <span className={`ml-2 font-medium ${styles.textPrimary}`}>${selectedLoanData.pmt.toLocaleString()}</span>
+            <span className={`ml-2 font-medium ${styles.textPrimary}`}>
+              ${(isFinite(selectedLoanData.pmt) ? selectedLoanData.pmt : 0).toLocaleString()}
+            </span>
           </div>
         </div>
       </div>
