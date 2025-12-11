@@ -526,7 +526,8 @@ export const ProjectionsTab: React.FC = () => {
       if (month === initialLegalStart) {
         monthExpense += initialLegal;
       }
-      if (month >= initialLegalStart && month <= holdingCostsEnd) {
+      // Start holding costs AFTER initial legal expense month
+      if (month > initialLegalStart && month <= holdingCostsEnd) {
         monthExpense += holdingCosts;
       }
       expenses[year][actualMonth] = (expenses[year][actualMonth] || 0) + monthExpense;
@@ -1172,25 +1173,15 @@ export const ProjectionsTab: React.FC = () => {
               </div>
             </div>
 
-            {/* Entries List */}
+            {/* Clear All Button */}
             {classicEntries.length > 0 && (
               <div className="mt-4">
-                <h4 className={`text-sm font-medium ${styles.textPrimary} mb-2`}>Current Entries</h4>
-                <div className="space-y-2">
-                  {classicEntries.map(entry => (
-                    <div key={entry.id} className={`${styles.readOnlyBg} rounded px-3 py-2 flex items-center justify-between text-sm`}>
-                      <span className={styles.textPrimary}>
-                        {entry.startMonth}/{entry.startYear} - {entry.endMonth}/{entry.endYear}: ${entry.amount} ({entry.type})
-                      </span>
-                      <button
-                        onClick={() => setClassicEntries(prev => prev.filter(e => e.id !== entry.id))}
-                        className={`${styles.textMuted} hover:${styles.textPrimary} text-xs`}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                <button
+                  onClick={() => setClassicEntries([])}
+                  className={`${styles.cardBg} ${styles.textMuted} hover:${styles.textPrimary} px-4 py-2 rounded text-sm border ${styles.borderColor} transition-colors`}
+                >
+                  Clear All Entries
+                </button>
               </div>
             )}
           </div>
