@@ -1,5 +1,5 @@
 // PayHistTab component - payment history with Excel-like grid
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useTheme, useLoan } from '../../context';
 import {
@@ -25,6 +25,29 @@ export const PayHistTab: React.FC = () => {
 
   // Validation state (track invalid inputs by record ID + field)
   const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
+
+  // PERFORMANCE: Memoize year sums to avoid O(n×m) redundant calculations
+  // Previously calculated 3+ times per render for same data
+  const yearSums = useMemo(() => {
+    const sums: Record<string, number> = {};
+    Object.keys(paymentGridData).forEach(year => {
+      const yearData = paymentGridData[year] || {};
+      sums[year] = calculateYearSum(yearData);
+    });
+    return sums;
+  }, [paymentGridData]);
+
+  // Memoize sorted years with non-zero sums
+  const sortedYears = useMemo(() => {
+    return Object.keys(yearSums)
+      .filter(year => yearSums[year] > 0)
+      .sort((a, b) => parseInt(a) - parseInt(b));
+  }, [yearSums]);
+
+  // Memoize grand total
+  const grandTotal = useMemo(() => {
+    return Object.values(yearSums).reduce((total, sum) => total + sum, 0);
+  }, [yearSums]);
 
   // Helper: Get validation key for a record field
   const getValidationKey = (id: number, field: string) => `${id}-${field}`;
@@ -277,42 +300,33 @@ export const PayHistTab: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {Object.keys(paymentGridData)
-                .filter(year => {
-                  const yearData = paymentGridData[year] || {};
-                  return calculateYearSum(yearData) > 0;
-                })
-                .sort((a, b) => parseInt(a) - parseInt(b))
-                .map((year, index) => {
-                  const yearData = paymentGridData[year] || {};
-                  const yearSum = calculateYearSum(yearData);
-                  return (
-                    <tr key={year} className={index === 0 ? styles.borderColor + ' border-t' : ''}>
-                      <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
-                        const amount = yearData[month];
-                        return (
-                          <td key={month} className={`text-center px-1 py-2 ${amount ? styles.textGreen : styles.textSecondary}`}>
-                            {amount ? amount.toFixed(2) : '-'}
-                          </td>
-                        );
-                      })}
-                      <td className={`text-center px-2 py-2 font-medium ${yearSum > 0 ? styles.textPrimary : styles.textSecondary} ${styles.borderColor} border-l`}>
-                        ${yearSum.toFixed(2)}
-                      </td>
-                    </tr>
-                  );
-                })
-              }
+              {sortedYears.map((year, index) => {
+                const yearData = paymentGridData[year] || {};
+                const yearSum = yearSums[year];
+                return (
+                  <tr key={year} className={index === 0 ? styles.borderColor + ' border-t' : ''}>
+                    <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
+                      const amount = yearData[month];
+                      return (
+                        <td key={month} className={`text-center px-1 py-2 ${amount ? styles.textGreen : styles.textSecondary}`}>
+                          {amount ? amount.toFixed(2) : '-'}
+                        </td>
+                      );
+                    })}
+                    <td className={`text-center px-2 py-2 font-medium ${yearSum > 0 ? styles.textPrimary : styles.textSecondary} ${styles.borderColor} border-l`}>
+                      ${yearSum.toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })}
 
               {/* Total Row */}
               <tr className={`${styles.borderColor} border-t font-medium`}>
                 <td className={`px-2 py-2 ${styles.textPrimary}`}>TOTAL</td>
                 <td colSpan={12} className={`text-right px-2 py-2 ${styles.textPrimary}`}>Grand Total:</td>
                 <td className={`text-center px-2 py-2 ${styles.textGreen} ${styles.borderColor} border-l`}>
-                  ${Object.values(paymentGridData)
-                    .reduce((total, yearData) => total + calculateYearSum(yearData), 0)
-                    .toFixed(2)}
+                  ${grandTotal.toFixed(2)}
                 </td>
               </tr>
             </tbody>
