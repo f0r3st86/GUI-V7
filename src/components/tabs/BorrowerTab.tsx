@@ -14,7 +14,7 @@ import {
 import { DeleteModal } from '../ui';
 import type { Borrower } from '../../types';
 
-export const BorrowerTab: React.FC = () => {
+export const BorrowerTab = React.memo(() => {
   const { styles } = useTheme();
   const {
     currentRelationship,
@@ -603,4 +603,4 @@ export const BorrowerTab: React.FC = () => {
       />
     </div>
   );
-};
+});

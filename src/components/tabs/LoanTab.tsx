@@ -15,7 +15,7 @@ import {
 } from '../../utils';
 import { useDebounce } from '../../hooks';
 
-export const LoanTab: React.FC = () => {
+export const LoanTab = React.memo(() => {
   const { styles } = useTheme();
   const {
     selectedLoanData,
@@ -725,4 +725,4 @@ export const LoanTab: React.FC = () => {
       </div>
     </div>
   );
-};
+});

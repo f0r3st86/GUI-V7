@@ -6,7 +6,7 @@ import { COMMENT_TYPES } from '../../data';
 import { getCommentPreview } from '../../utils';
 import type { Comment } from '../../types';
 
-export const CommentTab: React.FC = () => {
+export const CommentTab = React.memo(() => {
   const { theme, styles } = useTheme();
   const {
     loans,
@@ -207,4 +207,4 @@ export const CommentTab: React.FC = () => {
       </div>
     </div>
   );
-};
+});

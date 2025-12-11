@@ -11,7 +11,7 @@ import {
   debug
 } from '../../utils';
 
-export const ProjectionsTab: React.FC = () => {
+export const ProjectionsTab = React.memo(() => {
   debug.log('[ProjectionsTab] Component rendering');
 
   const { styles } = useTheme();
@@ -1393,4 +1393,4 @@ export const ProjectionsTab: React.FC = () => {
       )}
     </div>
   );
-};
+});

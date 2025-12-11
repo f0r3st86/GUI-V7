@@ -11,7 +11,7 @@ import {
 } from '../../utils';
 import { MONTH_NAMES } from '../../data';
 
-export const PayHistTab: React.FC = () => {
+export const PayHistTab = React.memo(() => {
   const { theme, styles } = useTheme();
   const {
     selectedLoan,
@@ -479,4 +479,4 @@ export const PayHistTab: React.FC = () => {
       </div>
     </div>
   );
-};
+});

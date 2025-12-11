@@ -14,7 +14,7 @@ import { useDebounce } from '../../hooks';
 import { DeleteModal } from '../ui';
 import type { Collateral } from '../../types';
 
-export const CollateralTab: React.FC = () => {
+export const CollateralTab = React.memo(() => {
   const { styles } = useTheme();
   const {
     selectedLoan,
@@ -598,4 +598,4 @@ export const CollateralTab: React.FC = () => {
       />
     </div>
   );
-};
+});
