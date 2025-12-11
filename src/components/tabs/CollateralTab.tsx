@@ -48,47 +48,73 @@ export const CollateralTab: React.FC = () => {
   const debouncedBpoValue = useDebounce(localBpoValue, 500);
   const debouncedSqft = useDebounce(localSqft, 500);
 
+  // Track the current collateral ID to prevent stale updates
+  const currentCollateralIdRef = React.useRef<number | null>(null);
+
+  // Handle collateral field changes (moved up and wrapped in useCallback to fix dependency order)
+  const handleCollateralFieldChange = React.useCallback((field: keyof Collateral, value: string) => {
+    setCollateralList(prev =>
+      prev.map(collateral =>
+        collateral.id === selectedCollateralId
+          ? { ...collateral, [field]: value }
+          : collateral
+      )
+    );
+  }, [selectedCollateralId, setCollateralList]);
+
   // Initialize local state from selectedCollateral
   useEffect(() => {
     if (selectedCollateral) {
+      currentCollateralIdRef.current = selectedCollateral.id;
       setLocalListPrice(selectedCollateral.listPrice || '');
       setLocalAppraisedValue(selectedCollateral.appraisedValue || '');
       setLocalOurValue(selectedCollateral.ourValue || '');
       setLocalBpoValue(selectedCollateral.bpoValue || '');
       setLocalSqft(selectedCollateral.sqft || '');
     }
-  }, [selectedCollateralId]); // Re-init when collateral changes
+  }, [selectedCollateralId, selectedCollateral]); // FIXED: Added selectedCollateral dependency
 
   // Update context when debounced values change
+  // FIXED: Added missing dependencies and collateral ID check to prevent stale closure bugs
   useEffect(() => {
-    if (debouncedListPrice !== undefined && selectedCollateral && debouncedListPrice !== selectedCollateral.listPrice) {
+    if (debouncedListPrice !== undefined && selectedCollateral &&
+        currentCollateralIdRef.current === selectedCollateral.id &&
+        debouncedListPrice !== selectedCollateral.listPrice) {
       handleCollateralFieldChange('listPrice', debouncedListPrice);
     }
-  }, [debouncedListPrice]);
+  }, [debouncedListPrice, selectedCollateral, handleCollateralFieldChange]);
 
   useEffect(() => {
-    if (debouncedAppraisedValue !== undefined && selectedCollateral && debouncedAppraisedValue !== selectedCollateral.appraisedValue) {
+    if (debouncedAppraisedValue !== undefined && selectedCollateral &&
+        currentCollateralIdRef.current === selectedCollateral.id &&
+        debouncedAppraisedValue !== selectedCollateral.appraisedValue) {
       handleCollateralFieldChange('appraisedValue', debouncedAppraisedValue);
     }
-  }, [debouncedAppraisedValue]);
+  }, [debouncedAppraisedValue, selectedCollateral, handleCollateralFieldChange]);
 
   useEffect(() => {
-    if (debouncedOurValue !== undefined && selectedCollateral && debouncedOurValue !== selectedCollateral.ourValue) {
+    if (debouncedOurValue !== undefined && selectedCollateral &&
+        currentCollateralIdRef.current === selectedCollateral.id &&
+        debouncedOurValue !== selectedCollateral.ourValue) {
       handleCollateralFieldChange('ourValue', debouncedOurValue);
     }
-  }, [debouncedOurValue]);
+  }, [debouncedOurValue, selectedCollateral, handleCollateralFieldChange]);
 
   useEffect(() => {
-    if (debouncedBpoValue !== undefined && selectedCollateral && debouncedBpoValue !== selectedCollateral.bpoValue) {
+    if (debouncedBpoValue !== undefined && selectedCollateral &&
+        currentCollateralIdRef.current === selectedCollateral.id &&
+        debouncedBpoValue !== selectedCollateral.bpoValue) {
       handleCollateralFieldChange('bpoValue', debouncedBpoValue);
     }
-  }, [debouncedBpoValue]);
+  }, [debouncedBpoValue, selectedCollateral, handleCollateralFieldChange]);
 
   useEffect(() => {
-    if (debouncedSqft !== undefined && selectedCollateral && debouncedSqft !== selectedCollateral.sqft) {
+    if (debouncedSqft !== undefined && selectedCollateral &&
+        currentCollateralIdRef.current === selectedCollateral.id &&
+        debouncedSqft !== selectedCollateral.sqft) {
       handleCollateralFieldChange('sqft', debouncedSqft);
     }
-  }, [debouncedSqft]);
+  }, [debouncedSqft, selectedCollateral, handleCollateralFieldChange]);
 
   // Helper: Get input border style (red if invalid)
   const getInputStyle = (field: string) => {
@@ -158,17 +184,6 @@ export const CollateralTab: React.FC = () => {
     setSelectedCollateralId(newId);
   };
 
-  // Handle collateral field changes
-  const handleCollateralFieldChange = (field: keyof Collateral, value: string) => {
-    setCollateralList(prev =>
-      prev.map(collateral =>
-        collateral.id === selectedCollateralId
-          ? { ...collateral, [field]: value }
-          : collateral
-      )
-    );
-  };
-
   // Toggle collateral-loan relationship
   const toggleCollateralLoanRelationship = (loanNo: string) => {
     setCollateralLoanRelationships(prev => ({
@@ -186,15 +201,24 @@ export const CollateralTab: React.FC = () => {
   };
 
   // Confirm delete
+  // FIXED: Use updater function to avoid stale state race condition
   const confirmDelete = () => {
     if (deleteCollateralConfirmation.collateralId !== null) {
-      setCollateralList(prev =>
-        prev.filter(c => c.id !== deleteCollateralConfirmation.collateralId)
-      );
-      // Select another collateral
-      const remaining = collateralList.filter(c => c.id !== deleteCollateralConfirmation.collateralId);
-      if (remaining.length > 0) {
-        setSelectedCollateralId(remaining[0].id);
+      let remainingCollateral: number | null = null;
+
+      // Update list and capture remaining collateral in same operation
+      setCollateralList(prev => {
+        const updated = prev.filter(c => c.id !== deleteCollateralConfirmation.collateralId);
+        // Find next collateral to select from UPDATED list (not stale state)
+        if (updated.length > 0) {
+          remainingCollateral = updated[0].id;
+        }
+        return updated;
+      });
+
+      // Select the remaining collateral if found
+      if (remainingCollateral !== null) {
+        setSelectedCollateralId(remainingCollateral);
       }
     }
     setDeleteCollateralConfirmation({ show: false, collateralId: null, collateralDescription: '' });

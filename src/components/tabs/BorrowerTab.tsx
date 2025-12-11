@@ -21,7 +21,6 @@ export const BorrowerTab: React.FC = () => {
     selectedBorrowerId,
     setSelectedBorrowerId,
     selectedBorrower,
-    borrowersList,
     setBorrowersList,
     deleteConfirmation,
     setDeleteConfirmation,
@@ -126,17 +125,25 @@ export const BorrowerTab: React.FC = () => {
   };
 
   // Confirm delete
+  // FIXED: Use updater function to avoid stale state race condition
   const confirmDelete = () => {
     if (deleteConfirmation.borrowerId !== null) {
-      setBorrowersList(prev =>
-        prev.filter(b => b.id !== deleteConfirmation.borrowerId)
-      );
-      // Select another borrower
-      const remaining = borrowersList.filter(b =>
-        b.id !== deleteConfirmation.borrowerId && b.relationship === currentRelationship
-      );
-      if (remaining.length > 0) {
-        setSelectedBorrowerId(remaining[0].id);
+      let remainingBorrower: number | null = null;
+
+      // Update list and capture remaining borrower in same operation
+      setBorrowersList(prev => {
+        const updated = prev.filter(b => b.id !== deleteConfirmation.borrowerId);
+        // Find next borrower to select from UPDATED list (not stale state)
+        const remaining = updated.filter(b => b.relationship === currentRelationship);
+        if (remaining.length > 0) {
+          remainingBorrower = remaining[0].id;
+        }
+        return updated;
+      });
+
+      // Select the remaining borrower if found
+      if (remainingBorrower !== null) {
+        setSelectedBorrowerId(remainingBorrower);
       }
     }
     setDeleteConfirmation({ show: false, borrowerId: null, borrowerName: '' });

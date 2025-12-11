@@ -53,9 +53,13 @@ export const LoanTab: React.FC = () => {
   const debouncedCeiling = useDebounce(localCeiling, 500);
   const debouncedMargin = useDebounce(localMargin, 500);
 
+  // Track the current loan ID to prevent stale updates
+  const currentLoanIdRef = React.useRef<string | null>(null);
+
   // Initialize local state from selectedLoanData when loan changes
   useEffect(() => {
     if (selectedLoanData) {
+      currentLoanIdRef.current = selectedLoanData.mwLoanNo;
       setLocalPrincipal(selectedLoanData.principal.toString());
       setLocalInterest(selectedLoanData.interest.toString());
       setLocalOrigBalance(selectedLoanData.origBalance.toString());
@@ -72,110 +76,111 @@ export const LoanTab: React.FC = () => {
   }, [selectedLoanData?.mwLoanNo]); // Only re-init when loan changes
 
   // Update context when debounced values change
+  // FIXED: Added missing dependencies and loan ID check to prevent stale closure bugs
   useEffect(() => {
-    if (debouncedPrincipal && selectedLoanData) {
+    if (debouncedPrincipal && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
       const value = parseFloat(debouncedPrincipal) || 0;
       if (value !== selectedLoanData.principal) {
         handleLoanFieldChange('principal', value);
       }
     }
-  }, [debouncedPrincipal]);
+  }, [debouncedPrincipal, selectedLoanData, handleLoanFieldChange]);
 
   useEffect(() => {
-    if (debouncedInterest && selectedLoanData) {
+    if (debouncedInterest && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
       const value = parseFloat(debouncedInterest) || 0;
       if (value !== selectedLoanData.interest) {
         handleLoanFieldChange('interest', value);
       }
     }
-  }, [debouncedInterest]);
+  }, [debouncedInterest, selectedLoanData, handleLoanFieldChange]);
 
   useEffect(() => {
-    if (debouncedOrigBalance && selectedLoanData) {
+    if (debouncedOrigBalance && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
       const value = parseFloat(debouncedOrigBalance) || 0;
       if (value !== selectedLoanData.origBalance) {
         handleLoanFieldChange('origBalance', value);
       }
     }
-  }, [debouncedOrigBalance]);
+  }, [debouncedOrigBalance, selectedLoanData, handleLoanFieldChange]);
 
   useEffect(() => {
-    if (debouncedEscrow && selectedLoanData) {
+    if (debouncedEscrow && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
       const value = parseFloat(debouncedEscrow) || 0;
       if (value !== selectedLoanData.escrowBalance) {
         handleLoanFieldChange('escrowBalance', value);
       }
     }
-  }, [debouncedEscrow]);
+  }, [debouncedEscrow, selectedLoanData, handleLoanFieldChange]);
 
   useEffect(() => {
-    if (debouncedOther && selectedLoanData) {
+    if (debouncedOther && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
       const value = parseFloat(debouncedOther) || 0;
       if (value !== selectedLoanData.otherBalance) {
         handleLoanFieldChange('otherBalance', value);
       }
     }
-  }, [debouncedOther]);
+  }, [debouncedOther, selectedLoanData, handleLoanFieldChange]);
 
   useEffect(() => {
-    if (debouncedPmt && selectedLoanData) {
+    if (debouncedPmt && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
       const value = parseFloat(debouncedPmt) || 0;
       if (value !== selectedLoanData.pmt) {
         handleLoanFieldChange('pmt', value);
       }
     }
-  }, [debouncedPmt]);
+  }, [debouncedPmt, selectedLoanData, handleLoanFieldChange]);
 
   useEffect(() => {
-    if (debouncedEscPmt && selectedLoanData) {
+    if (debouncedEscPmt && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
       const value = parseFloat(debouncedEscPmt) || 0;
       if (value !== selectedLoanData.escPmt) {
         handleLoanFieldChange('escPmt', value);
       }
     }
-  }, [debouncedEscPmt]);
+  }, [debouncedEscPmt, selectedLoanData, handleLoanFieldChange]);
 
   useEffect(() => {
-    if (debouncedIntRate && selectedLoanData) {
+    if (debouncedIntRate && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
       const value = parseFloat(debouncedIntRate) || 0;
       if (value !== selectedLoanData.intRate) {
         handleLoanFieldChange('intRate', value);
       }
     }
-  }, [debouncedIntRate]);
+  }, [debouncedIntRate, selectedLoanData, handleLoanFieldChange]);
 
   useEffect(() => {
-    if (debouncedDRate && selectedLoanData) {
+    if (debouncedDRate && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
       const value = parseFloat(debouncedDRate) || 0;
       if (value !== selectedLoanData.dRate) {
         handleLoanFieldChange('dRate', value);
       }
     }
-  }, [debouncedDRate]);
+  }, [debouncedDRate, selectedLoanData, handleLoanFieldChange]);
 
   useEffect(() => {
-    if (debouncedFloor !== undefined && selectedLoanData) {
+    if (debouncedFloor !== undefined && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
       if (debouncedFloor !== selectedLoanData.floor) {
         handleLoanFieldChange('floor', debouncedFloor);
       }
     }
-  }, [debouncedFloor]);
+  }, [debouncedFloor, selectedLoanData, handleLoanFieldChange]);
 
   useEffect(() => {
-    if (debouncedCeiling !== undefined && selectedLoanData) {
+    if (debouncedCeiling !== undefined && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
       if (debouncedCeiling !== selectedLoanData.ceiling) {
         handleLoanFieldChange('ceiling', debouncedCeiling);
       }
     }
-  }, [debouncedCeiling]);
+  }, [debouncedCeiling, selectedLoanData, handleLoanFieldChange]);
 
   useEffect(() => {
-    if (debouncedMargin !== undefined && selectedLoanData) {
+    if (debouncedMargin !== undefined && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
       if (debouncedMargin !== selectedLoanData.margin) {
         handleLoanFieldChange('margin', debouncedMargin);
       }
     }
-  }, [debouncedMargin]);
+  }, [debouncedMargin, selectedLoanData, handleLoanFieldChange]);
 
   // Helper: Handle currency input with validation
   const handleCurrencyChange = (field: string, value: string, setter: React.Dispatch<React.SetStateAction<string>>) => {
