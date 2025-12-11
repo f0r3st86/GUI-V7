@@ -11,6 +11,8 @@ import {
 } from '../../utils';
 
 export const ProjectionsTab: React.FC = () => {
+  console.log('[ProjectionsTab] Component rendering');
+
   const { styles } = useTheme();
   const {
     selectedLoan,
@@ -23,9 +25,24 @@ export const ProjectionsTab: React.FC = () => {
   const { settings: projSettings, updateSetting: updateProjSetting } = useProjection();
   const { settings: exitSettings, updateSetting: updateExitSetting } = useExit();
 
+  console.log('[ProjectionsTab] Context values:', {
+    selectedLoan,
+    hasSelectedLoanData: !!selectedLoanData,
+    projSettings,
+    exitSettings
+  });
+
   if (!selectedLoanData) {
+    console.warn('[ProjectionsTab] No loan data selected');
     return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;
   }
+
+  console.log('[ProjectionsTab] Selected loan data:', {
+    mwLoanNo: selectedLoanData.mwLoanNo,
+    principal: selectedLoanData.principal,
+    intRate: selectedLoanData.intRate,
+    pmt: selectedLoanData.pmt
+  });
 
   // Sanitize exit settings to prevent invalid calculations during user input
   const sanitizedExitSettings = useMemo(() => {

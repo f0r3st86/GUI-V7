@@ -17,6 +17,7 @@ import {
   PayHistTab,
   ProjectionsTab
 } from './components/tabs';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Tab content renderer component
 const TabContent: React.FC = () => {
@@ -34,7 +35,11 @@ const TabContent: React.FC = () => {
     case 'PayHist':
       return <PayHistTab />;
     case 'Projections':
-      return <ProjectionsTab />;
+      return (
+        <ErrorBoundary>
+          <ProjectionsTab />
+        </ErrorBoundary>
+      );
     default:
       // Placeholder for unimplemented tabs
       return (
