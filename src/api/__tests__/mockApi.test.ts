@@ -23,20 +23,16 @@ describe('Mock API', () => {
     });
 
     it('should create a loan', async () => {
+      const allLoansStart = await mockLoanApi.getAll();
+      const firstLoan = allLoansStart[0];
+
+      // Create a new loan based on existing structure
       const newLoan = {
+        ...firstLoan,
         mwLoanNo: '9999',
-        officer: 'Test Officer',
-        branch: 'Test Branch',
-        principal: 100000,
-        interest: 5000,
-        intRate: 5.0,
-        pmt: 2000,
-        maturityDate: '2025-12-31',
-        grade: 'A',
         borrowerName: 'Test Borrower',
-        relatedLoans: 'Test Relationship',
-        status: 'Active',
-        change: 0
+        principal: 100000,
+        interest: 5000
       };
 
       const created = await mockLoanApi.create(newLoan);
