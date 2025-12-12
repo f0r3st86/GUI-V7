@@ -10,21 +10,44 @@ import {
   calculateYearSum,
   debug
 } from '../../utils';
+import {
+  useLoans,
+  usePayments,
+  useCollateral,
+  useCollateralRelationships
+} from '../../hooks';
 
 export const ProjectionsTab = React.memo(() => {
   debug.log('[ProjectionsTab] Component rendering');
 
   const { styles } = useTheme();
-  const {
-    selectedLoan,
-    selectedLoanData,
-    paymentRecords,
-    loans,
-    collateralList,
-    collateralLoanRelationships
-  } = useLoan();
+
+  // UI state from Context
+  const { selectedLoan } = useLoan();
   const { settings: projSettings, updateSetting: updateProjSetting } = useProjection();
   const { settings: exitSettings, updateSetting: updateExitSetting } = useExit();
+
+  // Data from React Query
+  const { data: loans, isLoading: loadingLoans } = useLoans();
+  const { data: payments, isLoading: loadingPayments } = usePayments();
+  const { data: collateral, isLoading: loadingCollateral } = useCollateral();
+  const { data: collateralLoanRelationships } = useCollateralRelationships();
+
+  // Computed values
+  const selectedLoanData = useMemo(
+    () => loans?.find(loan => loan.mwLoanNo === selectedLoan),
+    [loans, selectedLoan]
+  );
+
+  const paymentRecords = useMemo(
+    () => payments || [],
+    [payments]
+  );
+
+  const collateralList = useMemo(
+    () => collateral || [],
+    [collateral]
+  );
 
   // Mode state: 'modern' or 'classic'
   const [mode, setMode] = React.useState<'modern' | 'classic'>('modern');
@@ -47,7 +70,7 @@ export const ProjectionsTab = React.memo(() => {
 
   // Memoize collateral lookup to avoid O(n) search on every render - PERFORMANCE OPTIMIZATION
   const loanCollateral = useMemo(() =>
-    collateralList.find(c => collateralLoanRelationships[c.id]?.[selectedLoan]),
+    collateralList.find(c => collateralLoanRelationships?.[c.id]?.[selectedLoan]),
     [collateralList, collateralLoanRelationships, selectedLoan]
   );
 
@@ -78,6 +101,15 @@ export const ProjectionsTab = React.memo(() => {
     projSettings,
     exitSettings
   });
+
+  // Loading state
+  if (loadingLoans || loadingPayments || loadingCollateral) {
+    return (
+      <div className="p-4">
+        <p className={styles.textMuted}>Loading...</p>
+      </div>
+    );
+  }
 
   if (!selectedLoanData) {
     debug.warn('[ProjectionsTab] No loan data selected');
@@ -262,7 +294,7 @@ export const ProjectionsTab = React.memo(() => {
             parseInt(projSettings.trailPeriod) || 12,
             selectedLoanData.lastImportDate,
             paymentRecords,
-            loans
+            loans || []
           );
           const trailMonthly = trailData?.monthly || 0;
           const trailPercent = parseFloat(projSettings.trailPercentage) || 100;
