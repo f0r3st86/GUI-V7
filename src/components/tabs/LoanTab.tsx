@@ -1,5 +1,5 @@
 // LoanTab component - displays loan details in 5-column grid layout
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme, useLoan } from '../../context';
 import { US_STATES } from '../../data';
 import {
@@ -13,14 +13,35 @@ import {
   sanitizeCurrency,
   sanitizeNumber
 } from '../../utils';
-import { useDebounce } from '../../hooks';
+import { useDebounce, useLoans, useUpdateLoan } from '../../hooks';
 
 export const LoanTab = React.memo(() => {
   const { styles } = useTheme();
-  const {
-    selectedLoanData,
-    handleLoanFieldChange
-  } = useLoan();
+
+  // Get selectedLoan from Context (UI state - which loan is selected)
+  const { selectedLoan } = useLoan();
+
+  // Get loans data from React Query (replaces Context data)
+  const { data: loans, isLoading } = useLoans();
+
+  // Get update mutation from React Query (replaces handleLoanFieldChange)
+  const { mutate: updateLoan } = useUpdateLoan();
+
+  // Find the currently selected loan from React Query data
+  const selectedLoanData = useMemo(
+    () => loans?.find(loan => loan.mwLoanNo === selectedLoan),
+    [loans, selectedLoan]
+  );
+
+  // Helper to update loan field (replaces handleLoanFieldChange)
+  const handleLoanFieldChange = React.useCallback((field: string, value: string | number) => {
+    if (selectedLoan) {
+      updateLoan({
+        mwLoanNo: selectedLoan,
+        updates: { [field]: value }
+      });
+    }
+  }, [selectedLoan, updateLoan]);
 
   // Local state for debounced inputs (to prevent lag during typing)
   const [localPrincipal, setLocalPrincipal] = useState('');
@@ -222,6 +243,16 @@ export const LoanTab = React.memo(() => {
     return `${styles.inputBorder}`;
   };
 
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="p-4">
+        <p className={styles.textMuted}>Loading...</p>
+      </div>
+    );
+  }
+
+  // Show no loan selected
   if (!selectedLoanData) {
     return (
       <div className="p-4">
