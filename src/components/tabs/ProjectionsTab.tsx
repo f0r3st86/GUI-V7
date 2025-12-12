@@ -102,27 +102,6 @@ export const ProjectionsTab = React.memo(() => {
     exitSettings
   });
 
-  // Loading state
-  if (loadingLoans || loadingPayments || loadingCollateral) {
-    return (
-      <div className="p-4">
-        <p className={styles.textMuted}>Loading...</p>
-      </div>
-    );
-  }
-
-  if (!selectedLoanData) {
-    debug.warn('[ProjectionsTab] No loan data selected');
-    return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;
-  }
-
-  debug.log('[ProjectionsTab] Selected loan data:', {
-    mwLoanNo: selectedLoanData.mwLoanNo,
-    principal: selectedLoanData.principal,
-    intRate: selectedLoanData.intRate,
-    pmt: selectedLoanData.pmt
-  });
-
   // Safe handlers for input changes with local state
   const handleStartMonthChange = useCallback((value: string) => {
     // Update local state immediately (allows empty for UX)
@@ -245,22 +224,22 @@ export const ProjectionsTab = React.memo(() => {
         rate = parseFloat(projSettings.userRate) || 0;
         debug.log('[getProjectedRate] Using User Enter:', rate);
       } else {
-        rate = selectedLoanData.intRate;
+        rate = selectedLoanData?.intRate ?? 0;
         debug.log('[getProjectedRate] Using Contractual:', rate);
       }
 
       // Validate rate
       if (!isFinite(rate) || rate < 0) {
-        debug.warn('[getProjectedRate] Invalid rate, using contractual:', selectedLoanData.intRate);
-        return selectedLoanData.intRate;
+        debug.warn('[getProjectedRate] Invalid rate, using contractual:', selectedLoanData?.intRate ?? 0);
+        return selectedLoanData?.intRate ?? 0;
       }
 
       return rate;
     } catch (error) {
       debug.error('Error in getProjectedRate:', error);
-      return selectedLoanData.intRate;
+      return selectedLoanData?.intRate ?? 0;
     }
-  }, [projSettings.rateMethod, projSettings.userRate, selectedLoanData.intRate]);
+  }, [projSettings.rateMethod, projSettings.userRate, selectedLoanData?.intRate ?? 0]);
 
   // Calculate projected payment based on method
   const calculateProjectedPayment = useCallback((): number => {
@@ -270,7 +249,7 @@ export const ProjectionsTab = React.memo(() => {
 
       switch (projSettings.paymentMethod) {
         case 'Contractual':
-          result = selectedLoanData.pmt;
+          result = selectedLoanData?.pmt ?? 0;
           debug.log('[calculateProjectedPayment] Contractual:', result);
           break;
         case 'User Enter':
@@ -279,20 +258,20 @@ export const ProjectionsTab = React.memo(() => {
           break;
         case 'Interest Payment':
           const rate = getProjectedRate();
-          result = selectedLoanData.principal * (rate / 100) / 12;
-          debug.log('[calculateProjectedPayment] Interest Payment - Rate:', rate, 'Principal:', selectedLoanData.principal, 'Result:', result);
+          result = selectedLoanData?.principal ?? 0 * (rate / 100) / 12;
+          debug.log('[calculateProjectedPayment] Interest Payment - Rate:', rate, 'Principal:', selectedLoanData?.principal ?? 0, 'Result:', result);
           break;
         case 'Term Pmt':
           const termRate = getProjectedRate();
           const amortMonths = parseInt(projSettings.amortMonths) || 360;
-          result = calculatePMT(termRate, amortMonths, selectedLoanData.principal);
+          result = calculatePMT(termRate, amortMonths, selectedLoanData?.principal ?? 0);
           debug.log('[calculateProjectedPayment] Term Pmt - Rate:', termRate, 'Months:', amortMonths, 'Result:', result);
           break;
         case '% of Trail Pmt':
           const trailData = calculateTrailingPayments(
             selectedLoan,
             parseInt(projSettings.trailPeriod) || 12,
-            selectedLoanData.lastImportDate,
+            selectedLoanData?.lastImportDate ?? "",
             paymentRecords,
             loans || []
           );
@@ -302,22 +281,22 @@ export const ProjectionsTab = React.memo(() => {
           debug.log('[calculateProjectedPayment] Trail Pmt - Monthly:', trailMonthly, 'Percent:', trailPercent, 'Result:', result);
           break;
         default:
-          result = selectedLoanData.pmt;
+          result = selectedLoanData?.pmt ?? 0;
           debug.log('[calculateProjectedPayment] Default:', result);
       }
 
       // Validate result
       if (!isFinite(result) || result < 0) {
-        debug.warn('[calculateProjectedPayment] Invalid result, using contractual:', selectedLoanData.pmt);
-        return selectedLoanData.pmt;
+        debug.warn('[calculateProjectedPayment] Invalid result, using contractual:', selectedLoanData?.pmt ?? 0);
+        return selectedLoanData?.pmt ?? 0;
       }
 
       return result;
     } catch (error) {
       debug.error('Error in calculateProjectedPayment:', error);
-      return selectedLoanData.pmt;
+      return selectedLoanData?.pmt ?? 0;
     }
-  }, [projSettings.paymentMethod, projSettings.userPayment, projSettings.amortMonths, projSettings.trailPeriod, projSettings.trailPercentage, selectedLoanData.pmt, selectedLoanData.principal, selectedLoanData.lastImportDate, selectedLoan, paymentRecords, loans, getProjectedRate]);
+  }, [projSettings.paymentMethod, projSettings.userPayment, projSettings.amortMonths, projSettings.trailPeriod, projSettings.trailPercentage, selectedLoanData?.pmt ?? 0, selectedLoanData?.principal ?? 0, selectedLoanData?.lastImportDate, selectedLoan, paymentRecords, loans, getProjectedRate]);
 
   // Calculate total holding costs
   const calculateTotalHoldingCosts = useCallback((): number => {
@@ -381,36 +360,36 @@ export const ProjectionsTab = React.memo(() => {
       debug.log('[calculatePayInFull] Using:', {
         rate,
         payment,
-        principal: selectedLoanData.principal,
+        principal: selectedLoanData?.principal ?? 0,
         nper,
         paymentMethod: projSettings.paymentMethod,
         rateMethod: projSettings.rateMethod
       });
 
       // Validate inputs
-      if (!isFinite(rate) || !isFinite(payment) || !isFinite(selectedLoanData.principal)) {
+      if (!isFinite(rate) || !isFinite(payment) || !isFinite(selectedLoanData?.principal ?? 0)) {
         debug.warn('[calculatePayInFull] Invalid inputs, returning principal');
-        return selectedLoanData.principal;
+        return selectedLoanData?.principal ?? 0;
       }
 
       // Calculate future value of balance with payments
       // The FV represents the remaining balance after nper payments, which is the payoff amount
-      const fv = calculateFV(rate, nper, -payment, selectedLoanData.principal);
+      const fv = calculateFV(rate, nper, -payment, selectedLoanData?.principal ?? 0);
 
       debug.log('[calculatePayInFull] Result:', fv);
 
       // Validate output
       if (!isFinite(fv)) {
         debug.warn('[calculatePayInFull] Invalid FV, returning principal');
-        return selectedLoanData.principal;
+        return selectedLoanData?.principal ?? 0;
       }
 
       return fv;
     } catch (error) {
       debug.error('Error in calculatePayInFull:', error);
-      return selectedLoanData.principal;
+      return selectedLoanData?.principal ?? 0;
     }
-  }, [sanitizedExitSettings.startMonth, sanitizedExitSettings.endMonth, selectedLoanData.principal, projSettings.paymentMethod, projSettings.rateMethod, getProjectedRate, calculateProjectedPayment]);
+  }, [sanitizedExitSettings.startMonth, sanitizedExitSettings.endMonth, selectedLoanData?.principal ?? 0, projSettings.paymentMethod, projSettings.rateMethod, getProjectedRate, calculateProjectedPayment]);
 
   // Get calculated exit value - memoized to prevent recalculation on every render
   const calculatedExitValue = useMemo(() => {
@@ -462,9 +441,9 @@ export const ProjectionsTab = React.memo(() => {
           break;
         case 'Liquidation':
           const liquidationMonths = parseInt(exitSettings.liquidationMonths) || 12;
-          let balance = selectedLoanData.principal;
+          let balance = selectedLoanData?.principal ?? 0;
           if (exitSettings.liquidationAddInterest) {
-            balance += selectedLoanData.interest;
+            balance += selectedLoanData?.interest ?? 0;
           }
           const rate = getProjectedRate();
           const monthlyRate = rate / 100 / 12;
@@ -507,8 +486,8 @@ export const ProjectionsTab = React.memo(() => {
     sanitizedExitSettings.startMonth,
     sanitizedExitSettings.endMonth,
     // Loan data - only specific fields
-    selectedLoanData.principal,
-    selectedLoanData.interest,
+    selectedLoanData?.principal ?? 0,
+    selectedLoanData?.interest ?? 0,
     // Memoized collateral (replaces collateralList + relationships + selectedLoan)
     loanCollateral,
     // Calculation functions
@@ -714,6 +693,27 @@ export const ProjectionsTab = React.memo(() => {
     return value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }, []);
 
+  // Loading state (must be after all hooks)
+  if (loadingLoans || loadingPayments || loadingCollateral) {
+    return (
+      <div className="p-4">
+        <p className={styles.textMuted}>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!selectedLoanData) {
+    debug.warn('[ProjectionsTab] No loan data selected');
+    return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;
+  }
+
+  debug.log('[ProjectionsTab] Selected loan data:', {
+    mwLoanNo: selectedLoanData?.mwLoanNo ?? "",
+    principal: selectedLoanData?.principal ?? 0,
+    intRate: selectedLoanData?.intRate ?? 0,
+    pmt: selectedLoanData?.pmt ?? 0
+  });
+
   return (
     <div className="p-4">
       {/* Mode Selector */}
@@ -750,19 +750,19 @@ export const ProjectionsTab = React.memo(() => {
           <div>
             <span className={`text-xs ${styles.textMuted}`}>UPB:</span>
             <span className={`ml-2 font-medium ${styles.textGreen}`}>
-              ${(isFinite(selectedLoanData.principal) ? selectedLoanData.principal : 0).toLocaleString()}
+              ${(isFinite(selectedLoanData?.principal ?? 0) ? selectedLoanData?.principal ?? 0 : 0).toLocaleString()}
             </span>
           </div>
           <div>
             <span className={`text-xs ${styles.textMuted}`}>Contractual Rate:</span>
             <span className={`ml-2 font-medium ${styles.textPrimary}`}>
-              {isFinite(selectedLoanData.intRate) ? selectedLoanData.intRate : 0}%
+              {isFinite(selectedLoanData?.intRate ?? 0) ? selectedLoanData?.intRate ?? 0 : 0}%
             </span>
           </div>
           <div>
             <span className={`text-xs ${styles.textMuted}`}>Contractual Pmt:</span>
             <span className={`ml-2 font-medium ${styles.textPrimary}`}>
-              ${(isFinite(selectedLoanData.pmt) ? selectedLoanData.pmt : 0).toLocaleString()}
+              ${(isFinite(selectedLoanData?.pmt ?? 0) ? selectedLoanData?.pmt ?? 0 : 0).toLocaleString()}
             </span>
           </div>
         </div>
