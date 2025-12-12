@@ -10,26 +10,60 @@ import {
   sanitizeCurrency,
   sanitizeNumber
 } from '../../utils';
-import { useDebounce } from '../../hooks';
+import {
+  useDebounce,
+  useCollateral,
+  useCollateralRelationships,
+  useAddCollateral,
+  useUpdateCollateral,
+  useDeleteCollateral,
+  useUpdateCollateralRelationships,
+  useLoans
+} from '../../hooks';
 import { DeleteModal } from '../ui';
 import type { Collateral } from '../../types';
 
 export const CollateralTab = React.memo(() => {
   const { styles } = useTheme();
+
+  // UI state from Context
   const {
     selectedLoan,
-    collateralList,
-    setCollateralList,
     selectedCollateralId,
     setSelectedCollateralId,
-    selectedCollateral,
-    collateralLoanRelationships,
-    setCollateralLoanRelationships,
     deleteCollateralConfirmation,
-    setDeleteCollateralConfirmation,
-    getSortedLoans,
-    getNextCollateralId
+    setDeleteCollateralConfirmation
   } = useLoan();
+
+  // Data from React Query
+  const { data: collateral, isLoading: loadingCollateral } = useCollateral();
+  const { data: collateralLoanRelationships } = useCollateralRelationships();
+  const { data: loans, isLoading: loadingLoans } = useLoans();
+  const { mutate: addCollateral } = useAddCollateral();
+  const { mutate: updateCollateral } = useUpdateCollateral();
+  const { mutate: deleteCollateral } = useDeleteCollateral();
+  const { mutate: updateRelationships } = useUpdateCollateralRelationships();
+
+  // Computed values
+  const collateralList = React.useMemo(
+    () => collateral || [],
+    [collateral]
+  );
+
+  const selectedCollateral = React.useMemo(
+    () => collateralList.find(c => c.id === selectedCollateralId),
+    [collateralList, selectedCollateralId]
+  );
+
+  const getSortedLoans = React.useMemo(
+    () => loans || [],
+    [loans]
+  );
+
+  const getNextCollateralId = React.useCallback(() => {
+    if (collateralList.length === 0) return 1;
+    return Math.max(...collateralList.map(c => c.id)) + 1;
+  }, [collateralList]);
 
   // Local state for debounced inputs ($/SF calculation triggers)
   const [localListPrice, setLocalListPrice] = useState('');
@@ -45,8 +79,12 @@ export const CollateralTab = React.memo(() => {
   // Previously: Computed on every render with filter operations = 10-20ms
   // Now: Computed only when relationships change = <1ms
   const securingLoansStats = React.useMemo(() => {
+    if (!collateralLoanRelationships) {
+      return { securingCount: 0, totalLoans: 0, totalSecured: 0 };
+    }
+
     const relationships = collateralLoanRelationships[selectedCollateralId] || {};
-    const allLoans = getSortedLoans();
+    const allLoans = getSortedLoans;
 
     const securingCount = Object.values(relationships).filter(Boolean).length;
     const totalLoans = allLoans.length;
@@ -69,14 +107,10 @@ export const CollateralTab = React.memo(() => {
 
   // Handle collateral field changes (moved up and wrapped in useCallback to fix dependency order)
   const handleCollateralFieldChange = React.useCallback((field: keyof Collateral, value: string) => {
-    setCollateralList(prev =>
-      prev.map(collateral =>
-        collateral.id === selectedCollateralId
-          ? { ...collateral, [field]: value }
-          : collateral
-      )
-    );
-  }, [selectedCollateralId, setCollateralList]);
+    if (selectedCollateralId) {
+      updateCollateral({ id: selectedCollateralId, updates: { [field]: value } });
+    }
+  }, [selectedCollateralId, updateCollateral]);
 
   // Initialize local state from selectedCollateral
   useEffect(() => {
@@ -191,24 +225,31 @@ export const CollateralTab = React.memo(() => {
       yearBuilt: '',
       units: ''
     };
-    setCollateralList(prev => [...prev, newCollateral]);
-    // Initialize relationships for this collateral
-    setCollateralLoanRelationships(prev => ({
-      ...prev,
-      [newId]: { [selectedLoan]: true }
-    }));
-    setSelectedCollateralId(newId);
+    addCollateral(newCollateral, {
+      onSuccess: () => {
+        // Initialize relationships for this collateral
+        const newRelationships = {
+          ...collateralLoanRelationships,
+          [newId]: { [selectedLoan]: true }
+        };
+        updateRelationships(newRelationships);
+        setSelectedCollateralId(newId);
+      }
+    });
   };
 
   // Toggle collateral-loan relationship
   const toggleCollateralLoanRelationship = (loanNo: string) => {
-    setCollateralLoanRelationships(prev => ({
-      ...prev,
+    if (!collateralLoanRelationships) return;
+
+    const updatedRelationships = {
+      ...collateralLoanRelationships,
       [selectedCollateralId]: {
-        ...(prev[selectedCollateralId] || {}),
-        [loanNo]: !(prev[selectedCollateralId]?.[loanNo])
+        ...(collateralLoanRelationships[selectedCollateralId] || {}),
+        [loanNo]: !(collateralLoanRelationships[selectedCollateralId]?.[loanNo])
       }
-    }));
+    };
+    updateRelationships(updatedRelationships);
   };
 
   // Show delete confirmation
@@ -217,25 +258,19 @@ export const CollateralTab = React.memo(() => {
   };
 
   // Confirm delete
-  // FIXED: Use updater function to avoid stale state race condition
   const confirmDelete = () => {
     if (deleteCollateralConfirmation.collateralId !== null) {
-      let remainingCollateral: number | null = null;
+      const collateralIdToDelete = deleteCollateralConfirmation.collateralId;
 
-      // Update list and capture remaining collateral in same operation
-      setCollateralList(prev => {
-        const updated = prev.filter(c => c.id !== deleteCollateralConfirmation.collateralId);
-        // Find next collateral to select from UPDATED list (not stale state)
-        if (updated.length > 0) {
-          remainingCollateral = updated[0].id;
+      deleteCollateral(collateralIdToDelete, {
+        onSuccess: () => {
+          // Find remaining collateral to select
+          const remainingCollateral = collateralList.filter(c => c.id !== collateralIdToDelete);
+          if (remainingCollateral.length > 0) {
+            setSelectedCollateralId(remainingCollateral[0].id);
+          }
         }
-        return updated;
       });
-
-      // Select the remaining collateral if found
-      if (remainingCollateral !== null) {
-        setSelectedCollateralId(remainingCollateral);
-      }
     }
     setDeleteCollateralConfirmation({ show: false, collateralId: null, collateralDescription: '' });
   };
@@ -244,6 +279,15 @@ export const CollateralTab = React.memo(() => {
   const cancelDelete = () => {
     setDeleteCollateralConfirmation({ show: false, collateralId: null, collateralDescription: '' });
   };
+
+  // Loading state
+  if (loadingCollateral || loadingLoans) {
+    return (
+      <div className="p-4">
+        <p className={styles.textMuted}>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4">
@@ -534,17 +578,17 @@ export const CollateralTab = React.memo(() => {
               </p>
 
               <div className="space-y-1 max-h-[300px] overflow-y-auto">
-                {getSortedLoans().map((loan) => (
+                {getSortedLoans.map((loan) => (
                   <div
                     key={loan.mwLoanNo}
                     className={`flex items-center p-2 rounded ${styles.inputBorder} border transition-colors ${
-                      collateralLoanRelationships[selectedCollateralId]?.[loan.mwLoanNo] ? styles.activeTabBg : styles.inactiveTabBg
+                      collateralLoanRelationships?.[selectedCollateralId]?.[loan.mwLoanNo] ? styles.activeTabBg : styles.inactiveTabBg
                     }`}
                   >
                     <input
                       type="checkbox"
                       id={`collateral-loan-${loan.mwLoanNo}`}
-                      checked={collateralLoanRelationships[selectedCollateralId]?.[loan.mwLoanNo] || false}
+                      checked={collateralLoanRelationships?.[selectedCollateralId]?.[loan.mwLoanNo] || false}
                       onChange={() => toggleCollateralLoanRelationship(loan.mwLoanNo)}
                       className="mr-2"
                     />
