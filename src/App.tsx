@@ -1,5 +1,6 @@
 // Main App component - assembles all components with providers
 import React, { useEffect } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   ThemeProvider,
   LoanProvider,
@@ -19,6 +20,28 @@ import {
 } from './components/tabs';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { enableHighRefreshRate, FPSMonitor, getFrameBudget } from './utils';
+
+// Create React Query client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Data stays fresh for 5 minutes
+      staleTime: 5 * 60 * 1000,
+      // Cache data for 10 minutes
+      gcTime: 10 * 60 * 1000,
+      // Retry failed requests once
+      retry: 1,
+      // Refetch on window focus for data consistency
+      refetchOnWindowFocus: true,
+      // Don't refetch on mount if data is fresh
+      refetchOnMount: false
+    },
+    mutations: {
+      // Retry failed mutations once
+      retry: 1
+    }
+  }
+});
 
 // Tab content renderer component
 const TabContent: React.FC = () => {
@@ -124,15 +147,17 @@ const AppLayout: React.FC = () => {
 // Main App with all providers
 const App: React.FC = () => {
   return (
-    <ThemeProvider>
-      <LoanProvider>
-        <ProjectionProvider>
-          <ExitProvider>
-            <AppLayout />
-          </ExitProvider>
-        </ProjectionProvider>
-      </LoanProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <LoanProvider>
+          <ProjectionProvider>
+            <ExitProvider>
+              <AppLayout />
+            </ExitProvider>
+          </ProjectionProvider>
+        </LoanProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 };
 
