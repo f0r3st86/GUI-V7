@@ -1,21 +1,37 @@
 // LoanTable component - displays the relationship loans grid
 import React from 'react';
 import { useTheme, useLoan, getStatusColor } from '../../context';
+import { useLoans } from '../../hooks';
 import type { Loan } from '../../types';
 
 export const LoanTable: React.FC = () => {
   const { theme, styles } = useTheme();
-  const { loans, selectedLoan, setSelectedLoan, currentRelationship } = useLoan();
+
+  // UI state from Context
+  const { selectedLoan, setSelectedLoan, currentRelationship } = useLoan();
+
+  // Data from React Query
+  const { data: loans, isLoading } = useLoans();
 
   // Filter loans by current relationship
-  const relationshipLoans = loans.filter(
-    loan => loan.relatedLoans === currentRelationship
+  const relationshipLoans = React.useMemo(
+    () => (loans || []).filter(loan => loan.relatedLoans === currentRelationship),
+    [loans, currentRelationship]
   );
 
   // Handle loan selection
   const handleLoanClick = (loan: Loan) => {
     setSelectedLoan(loan.mwLoanNo);
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className={`${styles.headerBg} ${styles.borderColor} border-b p-4`}>
+        <p className={`text-sm ${styles.textMuted}`}>Loading loans...</p>
+      </div>
+    );
+  }
 
   return (
     <div className={`${styles.headerBg} ${styles.borderColor} border-b`}>
