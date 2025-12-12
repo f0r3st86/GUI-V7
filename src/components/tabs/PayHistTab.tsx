@@ -10,18 +10,58 @@ import {
   validateMonthInput
 } from '../../utils';
 import { MONTH_NAMES } from '../../data';
+import {
+  useLoans,
+  usePayments,
+  useUpdatePayment,
+  useDeletePayment
+} from '../../hooks';
 
 export const PayHistTab = React.memo(() => {
   const { theme, styles } = useTheme();
-  const {
-    selectedLoan,
-    selectedLoanData,
-    paymentRecords,
-    setPaymentRecords,
-    paymentGridData,
-    getFilteredPaymentRecords,
-    loans
-  } = useLoan();
+
+  // UI state from Context
+  const { selectedLoan } = useLoan();
+
+  // Data from React Query
+  const { data: loans, isLoading: loadingLoans } = useLoans();
+  const { data: payments, isLoading: loadingPayments } = usePayments();
+  const { mutate: updatePayment } = useUpdatePayment();
+  const { mutate: deletePayment } = useDeletePayment();
+
+  // Computed values
+  const selectedLoanData = useMemo(
+    () => loans?.find(loan => loan.mwLoanNo === selectedLoan),
+    [loans, selectedLoan]
+  );
+
+  const paymentRecords = useMemo(
+    () => payments || [],
+    [payments]
+  );
+
+  const getFilteredPaymentRecords = useMemo(() => {
+    if (!payments) return [];
+    return payments.filter(p => p.loanNo === selectedLoan);
+  }, [payments, selectedLoan]);
+
+  // Convert payment records to grid data (year -> month -> amount)
+  const paymentGridData = useMemo(() => {
+    const gridData: Record<string, Record<number, number>> = {};
+    getFilteredPaymentRecords.forEach(record => {
+      if (record.year && record.month && record.amount) {
+        const year = record.year;
+        const month = parseInt(record.month);
+        const amount = parseFloat(record.amount);
+
+        if (!gridData[year]) {
+          gridData[year] = {};
+        }
+        gridData[year][month] = (gridData[year][month] || 0) + amount;
+      }
+    });
+    return gridData;
+  }, [getFilteredPaymentRecords]);
 
   // Validation state (track invalid inputs by record ID + field)
   const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
@@ -57,6 +97,15 @@ export const PayHistTab = React.memo(() => {
     return validationErrors[getValidationKey(id, field)] || false;
   };
 
+  // Loading state
+  if (loadingLoans || loadingPayments) {
+    return (
+      <div className="p-4">
+        <p className={styles.textMuted}>Loading...</p>
+      </div>
+    );
+  }
+
   if (!selectedLoanData) {
     return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;
   }
@@ -82,27 +131,19 @@ export const PayHistTab = React.memo(() => {
 
     // Only update if valid OR if clearing the field
     if (isValid || value === '') {
-      setPaymentRecords(prev =>
-        prev.map(record =>
-          record.id === id ? { ...record, [field]: value } : record
-        )
-      );
+      updatePayment({ id, updates: { [field]: value } });
     }
   };
 
   // Handle amount blur - evaluate expression
   const handleAmountBlur = (id: number, value: string) => {
     const result = calculateExpression(value);
-    setPaymentRecords(prev =>
-      prev.map(record =>
-        record.id === id ? { ...record, amount: result } : record
-      )
-    );
+    updatePayment({ id, updates: { amount: result } });
   };
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent, id: number, field: string) => {
-    const filteredRecords = getFilteredPaymentRecords();
+    const filteredRecords = getFilteredPaymentRecords;
     const currentIndex = filteredRecords.findIndex(r => r.id === id);
 
     if (e.key === 'Enter' || e.key === 'ArrowDown') {
@@ -125,12 +166,12 @@ export const PayHistTab = React.memo(() => {
 
   // Delete payment row
   const deletePaymentRow = (id: number) => {
-    setPaymentRecords(prev => prev.filter(r => r.id !== id));
+    deletePayment(id);
   };
 
   // Export payment history
   const exportPaymentHistory = () => {
-    const filtered = getFilteredPaymentRecords().filter(r => r.year && r.month && r.amount);
+    const filtered = getFilteredPaymentRecords.filter(r => r.year && r.month && r.amount);
     const csvContent = [
       ['Year', 'Month', 'Amount'],
       ...filtered.map(r => [r.year, r.month, r.amount])
@@ -145,10 +186,10 @@ export const PayHistTab = React.memo(() => {
     URL.revokeObjectURL(url);
   };
 
-  const filteredRecords = getFilteredPaymentRecords();
-  const trailing12 = calculateTrailingPayments(selectedLoan, 12, selectedLoanData.lastImportDate, paymentRecords, loans);
-  const trailing6 = calculateTrailingPayments(selectedLoan, 6, selectedLoanData.lastImportDate, paymentRecords, loans);
-  const trailing3 = calculateTrailingPayments(selectedLoan, 3, selectedLoanData.lastImportDate, paymentRecords, loans);
+  const filteredRecords = getFilteredPaymentRecords;
+  const trailing12 = calculateTrailingPayments(selectedLoan, 12, selectedLoanData.lastImportDate, paymentRecords, loans || []);
+  const trailing6 = calculateTrailingPayments(selectedLoan, 6, selectedLoanData.lastImportDate, paymentRecords, loans || []);
+  const trailing3 = calculateTrailingPayments(selectedLoan, 3, selectedLoanData.lastImportDate, paymentRecords, loans || []);
 
   return (
     <div className="p-4">
