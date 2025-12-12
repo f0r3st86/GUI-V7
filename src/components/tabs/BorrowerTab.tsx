@@ -1,5 +1,5 @@
 // BorrowerTab component - displays borrower/guarantor information and loan relationships
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useTheme, useLoan } from '../../context';
 import {
@@ -12,23 +12,66 @@ import {
   validateCreditScore
 } from '../../utils';
 import { DeleteModal } from '../ui';
-import type { Borrower } from '../../types';
+import type { Borrower, DeleteConfirmation } from '../../types';
+import {
+  useBorrowers,
+  useAddBorrower,
+  useUpdateBorrower,
+  useDeleteBorrower,
+  useLoans
+} from '../../hooks';
 
 export const BorrowerTab = React.memo(() => {
   const { styles } = useTheme();
-  const {
-    currentRelationship,
-    selectedBorrowerId,
-    setSelectedBorrowerId,
-    selectedBorrower,
-    setBorrowersList,
-    deleteConfirmation,
-    setDeleteConfirmation,
-    getSortedLoans,
-    getRelationshipBorrowers,
-    getCurrentBorrowerLoanRelationships,
-    getNextBorrowerId
-  } = useLoan();
+
+  // Get UI state from Context (which borrower is selected, current relationship)
+  const { currentRelationship, selectedBorrowerId, setSelectedBorrowerId } = useLoan();
+
+  // Get borrowers data from React Query
+  const { data: borrowers, isLoading: loadingBorrowers } = useBorrowers();
+  const { data: loans, isLoading: loadingLoans } = useLoans();
+
+  // Get mutations from React Query
+  const { mutate: addBorrower } = useAddBorrower();
+  const { mutate: updateBorrower } = useUpdateBorrower();
+  const { mutate: deleteBorrower } = useDeleteBorrower();
+
+  // Delete confirmation state (local to this component)
+  const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation>({
+    show: false,
+    borrowerId: null,
+    borrowerName: ''
+  });
+
+  // Generate next borrower ID
+  const getNextBorrowerId = () => {
+    if (!borrowers || borrowers.length === 0) return 1;
+    return Math.max(...borrowers.map(b => b.id)) + 1;
+  };
+
+  // Find selected borrower from React Query data
+  const selectedBorrower = useMemo(
+    () => borrowers?.find(b => b.id === selectedBorrowerId),
+    [borrowers, selectedBorrowerId]
+  );
+
+  // Get borrowers for current relationship
+  const getRelationshipBorrowers = useMemo(
+    () => borrowers?.filter(b => b.relationship === currentRelationship) || [],
+    [borrowers, currentRelationship]
+  );
+
+  // Get sorted loans (same as Context version)
+  const getSortedLoans = useMemo(
+    () => loans || [],
+    [loans]
+  );
+
+  // Get current borrower's loan relationships
+  const getCurrentBorrowerLoanRelationships = useMemo(
+    () => selectedBorrower?.loanRelationships || {},
+    [selectedBorrower]
+  );
 
   // Validation state (track invalid inputs)
   const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
@@ -36,9 +79,9 @@ export const BorrowerTab = React.memo(() => {
   // PERFORMANCE OPTIMIZATION: Memoize selected loans count and total exposure
   // Previously: Computed on every render with filter operations = 10-20ms
   // Now: Computed only when relationships change = <1ms
-  const selectedLoansStats = React.useMemo(() => {
-    const relationships = getCurrentBorrowerLoanRelationships();
-    const allLoans = getSortedLoans();
+  const selectedLoansStats = useMemo(() => {
+    const relationships = getCurrentBorrowerLoanRelationships;
+    const allLoans = getSortedLoans;
 
     const selectedCount = Object.values(relationships).filter(r => r?.selected).length;
     const totalLoans = allLoans.length;
@@ -120,19 +163,18 @@ export const BorrowerTab = React.memo(() => {
       type: 'Borrower',
       loanRelationships: {}
     };
-    setBorrowersList(prev => [...prev, newBorrower]);
+    addBorrower(newBorrower);
     setSelectedBorrowerId(newId);
   };
 
   // Handle borrower field changes
   const handleBorrowerFieldChange = (field: keyof Borrower, value: string) => {
-    setBorrowersList(prev =>
-      prev.map(borrower =>
-        borrower.id === selectedBorrowerId
-          ? { ...borrower, [field]: value }
-          : borrower
-      )
-    );
+    if (selectedBorrowerId) {
+      updateBorrower({
+        id: selectedBorrowerId,
+        updates: { [field]: value }
+      });
+    }
   };
 
   // Show delete confirmation
@@ -141,25 +183,19 @@ export const BorrowerTab = React.memo(() => {
   };
 
   // Confirm delete
-  // FIXED: Use updater function to avoid stale state race condition
   const confirmDelete = () => {
     if (deleteConfirmation.borrowerId !== null) {
-      let remainingBorrower: number | null = null;
+      // Find next borrower to select before deletion
+      const remaining = getRelationshipBorrowers.filter(
+        b => b.id !== deleteConfirmation.borrowerId
+      );
 
-      // Update list and capture remaining borrower in same operation
-      setBorrowersList(prev => {
-        const updated = prev.filter(b => b.id !== deleteConfirmation.borrowerId);
-        // Find next borrower to select from UPDATED list (not stale state)
-        const remaining = updated.filter(b => b.relationship === currentRelationship);
-        if (remaining.length > 0) {
-          remainingBorrower = remaining[0].id;
-        }
-        return updated;
-      });
+      // Delete borrower via React Query
+      deleteBorrower(deleteConfirmation.borrowerId);
 
-      // Select the remaining borrower if found
-      if (remainingBorrower !== null) {
-        setSelectedBorrowerId(remainingBorrower);
+      // Select the next borrower if available
+      if (remaining.length > 0) {
+        setSelectedBorrowerId(remaining[0].id);
       }
     }
     setDeleteConfirmation({ show: false, borrowerId: null, borrowerName: '' });
@@ -172,47 +208,56 @@ export const BorrowerTab = React.memo(() => {
 
   // Toggle loan relationship
   const toggleLoanRelationship = (loanNo: string) => {
-    setBorrowersList(prev =>
-      prev.map(borrower => {
-        if (borrower.id !== selectedBorrowerId) return borrower;
-        const currentRels = borrower.loanRelationships || {};
-        const currentLoanRel = currentRels[loanNo] || { selected: false, role: 'Borrower' };
-        return {
-          ...borrower,
-          loanRelationships: {
-            ...currentRels,
-            [loanNo]: {
-              ...currentLoanRel,
-              selected: !currentLoanRel.selected
-            }
-          }
-        };
-      })
-    );
+    if (!selectedBorrower || !selectedBorrowerId) return;
+
+    const currentRels = selectedBorrower.loanRelationships || {};
+    const currentLoanRel = currentRels[loanNo] || { selected: false, role: 'Borrower' };
+
+    const updatedRelationships = {
+      ...currentRels,
+      [loanNo]: {
+        ...currentLoanRel,
+        selected: !currentLoanRel.selected
+      }
+    };
+
+    updateBorrower({
+      id: selectedBorrowerId,
+      updates: { loanRelationships: updatedRelationships }
+    });
   };
 
   // Change loan role
   const changeLoanRole = (loanNo: string, role: string) => {
-    setBorrowersList(prev =>
-      prev.map(borrower => {
-        if (borrower.id !== selectedBorrowerId) return borrower;
-        const currentRels = borrower.loanRelationships || {};
-        const currentLoanRel = currentRels[loanNo] || { selected: false, role: 'Borrower' };
-        return {
-          ...borrower,
-          loanRelationships: {
-            ...currentRels,
-            [loanNo]: {
-              ...currentLoanRel,
-              role
-            }
-          }
-        };
-      })
-    );
+    if (!selectedBorrower || !selectedBorrowerId) return;
+
+    const currentRels = selectedBorrower.loanRelationships || {};
+    const currentLoanRel = currentRels[loanNo] || { selected: false, role: 'Borrower' };
+
+    const updatedRelationships = {
+      ...currentRels,
+      [loanNo]: {
+        ...currentLoanRel,
+        role
+      }
+    };
+
+    updateBorrower({
+      id: selectedBorrowerId,
+      updates: { loanRelationships: updatedRelationships }
+    });
   };
 
-  const relationshipBorrowers = getRelationshipBorrowers();
+  // Show loading state
+  if (loadingBorrowers || loadingLoans) {
+    return (
+      <div className="p-4">
+        <p className={styles.textMuted}>Loading...</p>
+      </div>
+    );
+  }
+
+  const relationshipBorrowers = getRelationshipBorrowers;
 
   return (
     <div className="p-4">
@@ -523,8 +568,8 @@ export const BorrowerTab = React.memo(() => {
               </p>
 
               <div className="space-y-1 max-h-[500px] overflow-y-auto">
-                {getSortedLoans().map((loan) => {
-                  const borrowerLoanRels = getCurrentBorrowerLoanRelationships();
+                {getSortedLoans.map((loan) => {
+                  const borrowerLoanRels = getCurrentBorrowerLoanRelationships;
                   const loanRel = borrowerLoanRels[loan.mwLoanNo] || { selected: false, role: 'Borrower' };
                   return (
                     <div
