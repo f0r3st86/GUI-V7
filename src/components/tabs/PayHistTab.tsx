@@ -107,7 +107,7 @@ export const PayHistTab = React.memo(() => {
   // Pay history date for trailing calculations (format: M-D-YY or MM-DD-YY)
   const [payHistDate, setPayHistDate] = useState<string>('');
 
-  // Parse pay history date to ISO format for calculations
+  // Parse pay history date to MM/DD/YY format for calculations (matches lastImportDate format)
   const parsedPayHistDate = useMemo(() => {
     if (!payHistDate) return null;
     // Parse M-D-YY or MM-DD-YY format
@@ -115,13 +115,11 @@ export const PayHistTab = React.memo(() => {
     if (parts.length !== 3) return null;
     const month = parseInt(parts[0]);
     const day = parseInt(parts[1]);
-    let year = parseInt(parts[2]);
+    const year = parseInt(parts[2]);
     if (isNaN(month) || isNaN(day) || isNaN(year)) return null;
     if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-    // Convert 2-digit year to 4-digit (assume 2000s)
-    if (year < 100) year += 2000;
-    // Return as YYYY-MM-DD
-    return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    // Return as MM/DD/YY format (what calculateTrailingPayments expects)
+    return `${month}/${day}/${year < 100 ? year : year % 100}`;
   }, [payHistDate]);
 
   // Use pay history date if entered, otherwise fall back to loan's lastImportDate
