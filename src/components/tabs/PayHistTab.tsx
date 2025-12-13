@@ -376,7 +376,7 @@ export const PayHistTab = React.memo(() => {
           {/* Trailing Payment Analytics */}
           {selectedLoanData?.lastImportDate && trailing12 && trailing6 && trailing3 ? (
             <div className="mt-3">
-              <table className="w-full text-xs border-collapse">
+              <table className="text-xs border-collapse" style={{ width: 'auto', minWidth: '280px' }}>
                 <thead>
                   <tr>
                     <th className={`${styles.inputBorder} border px-1 py-0.5`}></th>
