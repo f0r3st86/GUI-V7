@@ -536,15 +536,21 @@ export const calculateBidStatistics = (params: {
   const maxMonth = Math.min(endMonth, 60);
   const cashFlows = buildMonthlyCashFlowArray(netCashFlow, 1, maxMonth);
 
-  // 1. Bid Price = NPV of net cash flows at discount rate
-  const bidPrice = calculateNPV(discountRate, cashFlows);
+  // 1. Bid Price = NPV of net cash flows + PV of exit proceeds at discount rate
+  // Exit proceeds occur at the end of the hold period, discounted back to present
+  const monthlyRate = discountRate / 100 / 12;
+  const npvCashFlows = calculateNPV(discountRate, cashFlows);
+  const exitPV = exitProceeds / Math.pow(1 + monthlyRate, endMonth);
+  const bidPrice = npvCashFlows + exitPV;
 
   // 2. Bid Percentage = Bid Price / UPB
   const bidPercentage = upb > 0 ? (bidPrice / upb) * 100 : 0;
 
-  // 3. MOIC = Sum of Net Cash Flow / UPB
+  // 3. MOIC = Total Cash Received / Capital Invested (Bid Price)
+  // Total cash = sum of net cash flows + exit proceeds
   const totalNetCashFlow = cashFlows.reduce((sum, cf) => sum + cf, 0);
-  const moic = upb > 0 ? totalNetCashFlow / upb : 0;
+  const totalCashReceived = totalNetCashFlow + exitProceeds;
+  const moic = bidPrice > 0 ? totalCashReceived / bidPrice : 0;
 
   // 4. Cash Yield = First 12 months of Net Cash Flow / Bid Price
   const first12MonthsCF = cashFlows.slice(0, 12).reduce((sum, cf) => sum + cf, 0);
