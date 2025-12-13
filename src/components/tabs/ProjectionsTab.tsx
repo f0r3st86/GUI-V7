@@ -1320,9 +1320,52 @@ export const ProjectionsTab = React.memo(() => {
           </div>
         </div>
 
+        {/* Expense Table */}
+        <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+          <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Projected Expenses</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr>
+                  <th className={`text-left px-2 py-1 ${styles.textMuted} font-medium`}></th>
+                  {MONTH_NAMES_SHORT.map(month => (
+                    <th key={month} className={`text-center px-1 py-1 ${styles.textMuted} font-medium`}>{month}</th>
+                  ))}
+                  <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium ${styles.borderColor} border-l`}>Sum</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(projectionGrid.expenses)
+                  .filter(year => calculateYearSum(projectionGrid.expenses[year]) > 0)
+                  .map((year, index) => {
+                    const yearData = projectionGrid.expenses[year] || {};
+                    const yearSum = calculateYearSum(yearData);
+                    return (
+                      <tr key={year} className={index === 0 ? styles.borderColor + ' border-t' : ''}>
+                        <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
+                          const amount = yearData[month];
+                          const isValidAmount = amount != null && isFinite(amount);
+                          return (
+                            <td key={month} className={`text-center px-1 py-2 ${isValidAmount && amount > 0 ? 'text-red-500' : styles.textSecondary}`}>
+                              {isValidAmount && amount > 0 ? amount.toFixed(0) : '-'}
+                            </td>
+                          );
+                        })}
+                        <td className={`text-center px-2 py-2 font-medium ${yearSum > 0 ? 'text-red-500' : styles.textSecondary} ${styles.borderColor} border-l`}>
+                          ${yearSum.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* Net Cash Flow Table */}
         <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
-          <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Net Cash Flow</h3>
+          <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Net Cash Flow (Income - Expenses)</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
