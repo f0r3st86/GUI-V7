@@ -1,5 +1,5 @@
 // PayHistTab component - payment history with Excel-like grid
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useTheme, useLoan } from '../../context';
 import {
@@ -31,9 +31,9 @@ export const PayHistTab = React.memo(() => {
   const { mutate: deletePayment } = useDeletePayment();
   const { mutate: addPayment } = useAddPayment();
 
-  // Track next payment ID and last processed state for empty row creation
+  // Track next payment ID for new row creation
   const nextIdRef = useRef<number>(1000);
-  const lastProcessedRef = useRef<{ loan: string | null; count: number }>({ loan: null, count: 0 });
+  const lastLoanRef = useRef<string | null>(null);
 
   // Computed values
   const selectedLoanData = useMemo(
@@ -51,43 +51,42 @@ export const PayHistTab = React.memo(() => {
     return payments.filter(p => p.loanNo === selectedLoan);
   }, [payments, selectedLoan]);
 
-  // Ensure there's always an empty row for new entries
+  // Helper to add an empty row for data entry
+  const addEmptyRow = useCallback(() => {
+    // Update the max ID from existing payments
+    if (payments && payments.length > 0) {
+      const maxId = Math.max(...payments.map(p => p.id));
+      if (maxId >= nextIdRef.current) {
+        nextIdRef.current = maxId + 1;
+      }
+    }
+
+    addPayment({
+      id: nextIdRef.current++,
+      loanNo: selectedLoan,
+      year: '',
+      month: '',
+      amount: ''
+    });
+  }, [addPayment, selectedLoan, payments]);
+
+  // Add empty row only when loan changes (not on every payment update)
   useEffect(() => {
     if (loadingPayments || !selectedLoan) return;
 
-    const filteredRecords = payments?.filter(p => p.loanNo === selectedLoan) || [];
-    const lastRecord = filteredRecords[filteredRecords.length - 1];
-    const currentCount = filteredRecords.length;
+    // Only add empty row when switching to a new loan
+    if (lastLoanRef.current !== selectedLoan) {
+      lastLoanRef.current = selectedLoan;
 
-    // Check if we need to add an empty row
-    const needsEmptyRow = !lastRecord || (lastRecord.year && lastRecord.month && lastRecord.amount);
+      const filteredRecords = payments?.filter(p => p.loanNo === selectedLoan) || [];
+      const lastRecord = filteredRecords[filteredRecords.length - 1];
 
-    // Only process if loan changed or count changed
-    const stateChanged =
-      lastProcessedRef.current.loan !== selectedLoan ||
-      lastProcessedRef.current.count !== currentCount;
-
-    if (needsEmptyRow && stateChanged) {
-      // Update the max ID from existing payments
-      if (payments && payments.length > 0) {
-        const maxId = Math.max(...payments.map(p => p.id));
-        if (maxId >= nextIdRef.current) {
-          nextIdRef.current = maxId + 1;
-        }
+      // Add empty row if there's none or the last one is filled
+      if (!lastRecord || (lastRecord.year && lastRecord.month && lastRecord.amount)) {
+        addEmptyRow();
       }
-
-      addPayment({
-        id: nextIdRef.current++,
-        loanNo: selectedLoan,
-        year: '',
-        month: '',
-        amount: ''
-      });
-
-      // Update refs to prevent re-triggering
-      lastProcessedRef.current = { loan: selectedLoan, count: currentCount + 1 };
     }
-  }, [selectedLoan, payments, loadingPayments, addPayment]);
+  }, [selectedLoan, loadingPayments, payments, addEmptyRow]);
 
   // Convert payment records to grid data (year -> month -> amount)
   const paymentGridData = useMemo(() => {
@@ -179,10 +178,20 @@ export const PayHistTab = React.memo(() => {
     }
   };
 
-  // Handle amount blur - evaluate expression
+  // Handle amount blur - evaluate expression and add new row if needed
   const handleAmountBlur = (id: number, value: string) => {
     const result = calculateExpression(value);
     updatePayment({ id, updates: { amount: result } });
+
+    // Check if this completes the last row - if so, add a new empty row
+    const filteredRecords = getFilteredPaymentRecords;
+    const lastRecord = filteredRecords[filteredRecords.length - 1];
+    if (lastRecord && lastRecord.id === id) {
+      // This is the last row - check if all fields will be filled after this update
+      if (lastRecord.year && lastRecord.month && result) {
+        addEmptyRow();
+      }
+    }
   };
 
   // Handle keyboard navigation
