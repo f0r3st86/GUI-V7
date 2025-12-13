@@ -373,127 +373,113 @@ export const PayHistTab = React.memo(() => {
             </tbody>
           </table>
 
-          {/* Trailing Payment Analytics */}
+          {/* Trailing Payment Analytics - Modern Card Design */}
           {selectedLoanData?.lastImportDate && trailing12 && trailing6 && trailing3 ? (
-            <div className="mt-3">
-              <table className="text-xs border-collapse" style={{ width: 'auto', minWidth: '280px' }}>
-                <thead>
-                  <tr>
-                    <th className={`${styles.inputBorder} border px-1 py-0.5`}></th>
-                    <th className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textPrimary}`}>T12</th>
-                    <th className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textPrimary}`}>T6</th>
-                    <th className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textPrimary}`}>T3</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* $/Mo Row */}
-                  <tr>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>$/Mo</td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      ${trailing12.monthly.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      ${trailing6.monthly.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      ${trailing3.monthly.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                    </td>
-                  </tr>
+            <div className="mt-4">
+              <h4 className={`text-xs font-medium ${styles.textMuted} mb-2`}>Payment Analytics</h4>
+              <div className="grid grid-cols-3 gap-3" style={{ maxWidth: '420px' }}>
+                {/* T12 Card */}
+                <div className={`${styles.inputBorder} border rounded-lg p-3`}>
+                  <div className={`text-xs font-semibold ${styles.textPrimary} mb-2 text-center`}>Trailing 12</div>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs ${styles.textMuted}`}>$/Mo</span>
+                      <span className={`text-xs font-medium ${styles.textPrimary}`}>
+                        ${trailing12.monthly.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs ${styles.textMuted}`}>Actual</span>
+                      <span className={`text-xs font-medium ${styles.textGreen}`}>
+                        ${trailing12.actual.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs ${styles.textMuted}`}>% Cont.</span>
+                      <span className={`text-xs font-medium ${
+                        trailing12.percentOfContractual >= 100 ? styles.textGreen :
+                        trailing12.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
+                      }`}>
+                        {trailing12.percentOfContractual.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs ${styles.textMuted}`}>Mo Pd</span>
+                      <span className={`text-xs font-medium ${styles.textPrimary}`}>
+                        {trailing12.monthsPaidContractual.toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-                  {/* $/Yr Row */}
-                  <tr>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>$/Yr</td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      ${trailing12.actual.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      ${(trailing6.actual * 2).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      ${(trailing3.actual * 4).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                    </td>
-                  </tr>
+                {/* T6 Card */}
+                <div className={`${styles.inputBorder} border rounded-lg p-3`}>
+                  <div className={`text-xs font-semibold ${styles.textPrimary} mb-2 text-center`}>Trailing 6</div>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs ${styles.textMuted}`}>$/Mo</span>
+                      <span className={`text-xs font-medium ${styles.textPrimary}`}>
+                        ${trailing6.monthly.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs ${styles.textMuted}`}>Actual</span>
+                      <span className={`text-xs font-medium ${styles.textGreen}`}>
+                        ${trailing6.actual.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs ${styles.textMuted}`}>% Cont.</span>
+                      <span className={`text-xs font-medium ${
+                        trailing6.percentOfContractual >= 100 ? styles.textGreen :
+                        trailing6.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
+                      }`}>
+                        {trailing6.percentOfContractual.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs ${styles.textMuted}`}>Mo Pd</span>
+                      <span className={`text-xs font-medium ${styles.textPrimary}`}>
+                        {trailing6.monthsPaidContractual.toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-                  {/* Actual Row */}
-                  <tr>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>Actual</td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      ${trailing12.actual.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      ${trailing6.actual.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      ${trailing3.actual.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                    </td>
-                  </tr>
-
-                  {/* % Cont. Row */}
-                  <tr>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>% Cont.</td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${
-                      trailing12.percentOfContractual >= 100 ? styles.textGreen :
-                      trailing12.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
-                    }`}>
-                      {trailing12.percentOfContractual.toFixed(1)}%
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${
-                      trailing6.percentOfContractual >= 100 ? styles.textGreen :
-                      trailing6.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
-                    }`}>
-                      {trailing6.percentOfContractual.toFixed(1)}%
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${
-                      trailing3.percentOfContractual >= 100 ? styles.textGreen :
-                      trailing3.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
-                    }`}>
-                      {trailing3.percentOfContractual.toFixed(1)}%
-                    </td>
-                  </tr>
-
-                  {/* % Int. Row */}
-                  <tr>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>% Int.</td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      {trailing12.percentOfInterestOnly.toFixed(1)}%
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      {trailing6.percentOfInterestOnly.toFixed(1)}%
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      {trailing3.percentOfInterestOnly.toFixed(1)}%
-                    </td>
-                  </tr>
-
-                  {/* Mo Pd (Cont.) Row */}
-                  <tr>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>Mo Pd (Cont.)</td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      {trailing12.monthsPaidContractual.toFixed(1)}
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      {trailing6.monthsPaidContractual.toFixed(1)}
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      {trailing3.monthsPaidContractual.toFixed(1)}
-                    </td>
-                  </tr>
-
-                  {/* Mo Pd (Int.) Row */}
-                  <tr>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>Mo Pd (Int.)</td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      {trailing12.monthsPaidInterest.toFixed(1)}
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      {trailing6.monthsPaidInterest.toFixed(1)}
-                    </td>
-                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
-                      {trailing3.monthsPaidInterest.toFixed(1)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                {/* T3 Card */}
+                <div className={`${styles.inputBorder} border rounded-lg p-3`}>
+                  <div className={`text-xs font-semibold ${styles.textPrimary} mb-2 text-center`}>Trailing 3</div>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs ${styles.textMuted}`}>$/Mo</span>
+                      <span className={`text-xs font-medium ${styles.textPrimary}`}>
+                        ${trailing3.monthly.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs ${styles.textMuted}`}>Actual</span>
+                      <span className={`text-xs font-medium ${styles.textGreen}`}>
+                        ${trailing3.actual.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs ${styles.textMuted}`}>% Cont.</span>
+                      <span className={`text-xs font-medium ${
+                        trailing3.percentOfContractual >= 100 ? styles.textGreen :
+                        trailing3.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
+                      }`}>
+                        {trailing3.percentOfContractual.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs ${styles.textMuted}`}>Mo Pd</span>
+                      <span className={`text-xs font-medium ${styles.textPrimary}`}>
+                        {trailing3.monthsPaidContractual.toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <div className={`mt-3 p-2 ${styles.inputBg} ${styles.inputBorder} rounded border`}>
