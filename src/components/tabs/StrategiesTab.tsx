@@ -3,11 +3,35 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../../context';
 
+const STORAGE_KEY = 'gui-v7-strategies';
+
 export const StrategiesTab = React.memo(() => {
   const { styles } = useTheme();
 
+  // Load initial state from localStorage
+  const getInitialState = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return saved;
+      }
+    } catch (e) {
+      console.error('Failed to load strategies data:', e);
+    }
+    return '';
+  };
+
   // Relationship-level state (static across all loans)
-  const [strategies, setStrategies] = useState('');
+  const [strategies, setStrategies] = useState(getInitialState);
+
+  // Save to localStorage when value changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, strategies);
+    } catch (e) {
+      console.error('Failed to save strategies data:', e);
+    }
+  }, [strategies]);
 
   // Ref for auto-growing textarea
   const textareaRef = useRef<HTMLTextAreaElement>(null);

@@ -3,13 +3,43 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../../context';
 
+const STORAGE_KEY = 'gui-v7-overview';
+
 export const OverviewTab = React.memo(() => {
   const { styles } = useTheme();
 
+  // Load initial state from localStorage
+  const getInitialState = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to load overview data:', e);
+    }
+    return { relationshipOverview: '', collateralOverview: '', bidConditions: '' };
+  };
+
+  const initialState = getInitialState();
+
   // Relationship-level state (static across all loans)
-  const [relationshipOverview, setRelationshipOverview] = useState('');
-  const [collateralOverview, setCollateralOverview] = useState('');
-  const [bidConditions, setBidConditions] = useState('');
+  const [relationshipOverview, setRelationshipOverview] = useState(initialState.relationshipOverview);
+  const [collateralOverview, setCollateralOverview] = useState(initialState.collateralOverview);
+  const [bidConditions, setBidConditions] = useState(initialState.bidConditions);
+
+  // Save to localStorage when values change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        relationshipOverview,
+        collateralOverview,
+        bidConditions
+      }));
+    } catch (e) {
+      console.error('Failed to save overview data:', e);
+    }
+  }, [relationshipOverview, collateralOverview, bidConditions]);
 
   // Refs for auto-growing textareas
   const relationshipRef = useRef<HTMLTextAreaElement>(null);
