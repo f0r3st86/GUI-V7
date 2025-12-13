@@ -104,6 +104,29 @@ export const PayHistTab = React.memo(() => {
   // Validation state (track invalid inputs by record ID + field)
   const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
 
+  // Pay history date for trailing calculations (format: M-D-YY or MM-DD-YY)
+  const [payHistDate, setPayHistDate] = useState<string>('');
+
+  // Parse pay history date to ISO format for calculations
+  const parsedPayHistDate = useMemo(() => {
+    if (!payHistDate) return null;
+    // Parse M-D-YY or MM-DD-YY format
+    const parts = payHistDate.split('-');
+    if (parts.length !== 3) return null;
+    const month = parseInt(parts[0]);
+    const day = parseInt(parts[1]);
+    let year = parseInt(parts[2]);
+    if (isNaN(month) || isNaN(day) || isNaN(year)) return null;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    // Convert 2-digit year to 4-digit (assume 2000s)
+    if (year < 100) year += 2000;
+    // Return as YYYY-MM-DD
+    return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+  }, [payHistDate]);
+
+  // Use pay history date if entered, otherwise fall back to loan's lastImportDate
+  const effectiveDate = parsedPayHistDate || selectedLoanData?.lastImportDate || null;
+
   // PERFORMANCE: Memoize year sums to avoid O(n×m) redundant calculations
   // Previously calculated 3+ times per render for same data
   const yearSums = useMemo(() => {
@@ -130,22 +153,22 @@ export const PayHistTab = React.memo(() => {
   // Memoize trailing payment calculations to update when payments change
   // These must be called before any early returns to satisfy React's rules of hooks
   const trailing12 = useMemo(
-    () => selectedLoanData?.lastImportDate
-      ? calculateTrailingPayments(selectedLoan, 12, selectedLoanData.lastImportDate, payments || [], loans || [])
+    () => effectiveDate
+      ? calculateTrailingPayments(selectedLoan, 12, effectiveDate, payments || [], loans || [])
       : null,
-    [selectedLoan, selectedLoanData?.lastImportDate, payments, loans]
+    [selectedLoan, effectiveDate, payments, loans]
   );
   const trailing6 = useMemo(
-    () => selectedLoanData?.lastImportDate
-      ? calculateTrailingPayments(selectedLoan, 6, selectedLoanData.lastImportDate, payments || [], loans || [])
+    () => effectiveDate
+      ? calculateTrailingPayments(selectedLoan, 6, effectiveDate, payments || [], loans || [])
       : null,
-    [selectedLoan, selectedLoanData?.lastImportDate, payments, loans]
+    [selectedLoan, effectiveDate, payments, loans]
   );
   const trailing3 = useMemo(
-    () => selectedLoanData?.lastImportDate
-      ? calculateTrailingPayments(selectedLoan, 3, selectedLoanData.lastImportDate, payments || [], loans || [])
+    () => effectiveDate
+      ? calculateTrailingPayments(selectedLoan, 3, effectiveDate, payments || [], loans || [])
       : null,
-    [selectedLoan, selectedLoanData?.lastImportDate, payments, loans]
+    [selectedLoan, effectiveDate, payments, loans]
   );
 
   // Helper: Get validation key for a record field
@@ -390,6 +413,28 @@ export const PayHistTab = React.memo(() => {
             <p>Press Tab to move right</p>
             <p>Amount supports calculations: 500+108.15</p>
           </div>
+
+          {/* Pay History Date Input */}
+          <div className={`mt-4 p-3 ${theme === 'dark' ? 'bg-zinc-800' : 'bg-gray-50'} rounded border ${styles.borderColor}`}>
+            <label className={`block text-xs font-medium ${styles.textMuted} mb-1`}>
+              Pay History Date (last month of data)
+            </label>
+            <input
+              type="text"
+              value={payHistDate}
+              onChange={(e) => setPayHistDate(e.target.value)}
+              placeholder="M-D-YY (e.g., 9-12-25)"
+              className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+            />
+            {payHistDate && !parsedPayHistDate && (
+              <p className="text-red-500 text-xs mt-1">Invalid date format. Use M-D-YY</p>
+            )}
+            {parsedPayHistDate && (
+              <p className={`text-xs mt-1 ${styles.textGreen}`}>
+                Using: {parsedPayHistDate}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Right Panel - Payment History Grid */}
@@ -441,7 +486,7 @@ export const PayHistTab = React.memo(() => {
           </table>
 
           {/* Trailing Payment Analytics - Modern Card Design */}
-          {selectedLoanData?.lastImportDate && trailing12 && trailing6 && trailing3 ? (
+          {effectiveDate && trailing12 && trailing6 && trailing3 ? (
             <div className="mt-4">
               <h4 className={`text-base font-medium ${styles.textMuted} mb-2`}>Payment Analytics</h4>
               <div className="grid grid-cols-3 gap-4" style={{ maxWidth: '540px' }}>
@@ -551,7 +596,7 @@ export const PayHistTab = React.memo(() => {
           ) : (
             <div className={`mt-3 p-2 ${styles.inputBg} ${styles.inputBorder} rounded border`}>
               <div className={`text-xs ${styles.textMuted} text-center`}>
-                Set Last Import Date in Loan tab for analytics
+                Enter Pay History Date above for trailing analytics
               </div>
             </div>
           )}
