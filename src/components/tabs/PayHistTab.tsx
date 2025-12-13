@@ -127,6 +127,27 @@ export const PayHistTab = React.memo(() => {
     return Object.values(yearSums).reduce((total, sum) => total + sum, 0);
   }, [yearSums]);
 
+  // Memoize trailing payment calculations to update when payments change
+  // These must be called before any early returns to satisfy React's rules of hooks
+  const trailing12 = useMemo(
+    () => selectedLoanData?.lastImportDate
+      ? calculateTrailingPayments(selectedLoan, 12, selectedLoanData.lastImportDate, payments || [], loans || [])
+      : null,
+    [selectedLoan, selectedLoanData?.lastImportDate, payments, loans]
+  );
+  const trailing6 = useMemo(
+    () => selectedLoanData?.lastImportDate
+      ? calculateTrailingPayments(selectedLoan, 6, selectedLoanData.lastImportDate, payments || [], loans || [])
+      : null,
+    [selectedLoan, selectedLoanData?.lastImportDate, payments, loans]
+  );
+  const trailing3 = useMemo(
+    () => selectedLoanData?.lastImportDate
+      ? calculateTrailingPayments(selectedLoan, 3, selectedLoanData.lastImportDate, payments || [], loans || [])
+      : null,
+    [selectedLoan, selectedLoanData?.lastImportDate, payments, loans]
+  );
+
   // Helper: Get validation key for a record field
   const getValidationKey = (id: number, field: string) => `${id}-${field}`;
 
@@ -236,20 +257,6 @@ export const PayHistTab = React.memo(() => {
   };
 
   const filteredRecords = getFilteredPaymentRecords;
-
-  // Memoize trailing payment calculations to update when payments change
-  const trailing12 = useMemo(
-    () => calculateTrailingPayments(selectedLoan, 12, selectedLoanData?.lastImportDate, payments || [], loans || []),
-    [selectedLoan, selectedLoanData?.lastImportDate, payments, loans]
-  );
-  const trailing6 = useMemo(
-    () => calculateTrailingPayments(selectedLoan, 6, selectedLoanData?.lastImportDate, payments || [], loans || []),
-    [selectedLoan, selectedLoanData?.lastImportDate, payments, loans]
-  );
-  const trailing3 = useMemo(
-    () => calculateTrailingPayments(selectedLoan, 3, selectedLoanData?.lastImportDate, payments || [], loans || []),
-    [selectedLoan, selectedLoanData?.lastImportDate, payments, loans]
-  );
 
   return (
     <div className="p-4">
