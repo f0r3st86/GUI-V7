@@ -44,6 +44,8 @@ export const isDuplicatePayment = (
  */
 export const validateCreditScore = (value: string): boolean => {
   if (!value) return true; // Allow empty
+  // Must be integer (no decimals)
+  if (!/^\d+$/.test(value)) return false;
   const num = parseInt(value, 10);
   return !isNaN(num) && num >= 300 && num <= 850;
 };
@@ -163,4 +165,111 @@ export const validateYearInput = (value: string): boolean => {
   // Limit to 4 characters
   if (value.length > 4) return false;
   return true;
+};
+
+// ==================== NEW VALIDATION HELPERS ====================
+
+/**
+ * Sanitize currency input - remove all non-numeric except decimal point
+ * @param value - Raw input value
+ * @returns Sanitized numeric string
+ */
+export const sanitizeCurrency = (value: string): string => {
+  return value.replace(/[^0-9.]/g, '');
+};
+
+/**
+ * Validate currency input (positive numbers, optional decimals, max 2 decimal places)
+ * @param value - Currency value to validate
+ * @param min - Minimum allowed value (default: 0)
+ * @param max - Maximum allowed value (default: 1 billion)
+ * @returns Whether the value is valid
+ */
+export const validateCurrency = (
+  value: string,
+  min: number = 0,
+  max: number = 1_000_000_000
+): boolean => {
+  if (!value || value === '') return true; // Allow empty
+
+  // Check format: optional digits, optional single decimal, up to 2 decimal places
+  if (!/^\d*\.?\d{0,2}$/.test(value)) return false;
+
+  const num = parseFloat(value);
+  if (isNaN(num)) return false;
+
+  return num >= min && num <= max;
+};
+
+/**
+ * Validate interest rate (0-100 with up to 3 decimal places)
+ * @param value - Interest rate value
+ * @returns Whether the value is valid
+ */
+export const validateInterestRate = (value: string): boolean => {
+  if (!value || value === '') return true; // Allow empty
+
+  // Allow up to 3 decimal places for precision (e.g., 8.375%)
+  if (!/^\d*\.?\d{0,3}$/.test(value)) return false;
+
+  const num = parseFloat(value);
+  if (isNaN(num)) return false;
+
+  return num >= 0 && num <= 100;
+};
+
+/**
+ * Validate positive integer (for NPER, months, etc.)
+ * @param value - Integer value
+ * @param min - Minimum allowed value (default: 1)
+ * @param max - Maximum allowed value (default: 1200 months = 100 years)
+ * @returns Whether the value is valid
+ */
+export const validatePositiveInteger = (
+  value: string,
+  min: number = 1,
+  max: number = 1200
+): boolean => {
+  if (!value || value === '') return true; // Allow empty
+
+  if (!/^\d+$/.test(value)) return false;
+
+  const num = parseInt(value, 10);
+  return num >= min && num <= max;
+};
+
+/**
+ * Sanitize and format a number input
+ * Removes invalid characters, limits decimal places
+ * @param value - Raw input
+ * @param decimals - Max decimal places (default: 2)
+ * @returns Sanitized value
+ */
+export const sanitizeNumber = (value: string, decimals: number = 2): string => {
+  // Remove all except digits and decimal point
+  let cleaned = value.replace(/[^0-9.]/g, '');
+
+  // Handle multiple decimal points (keep only first one)
+  const parts = cleaned.split('.');
+  if (parts.length > 2) {
+    cleaned = parts[0] + '.' + parts.slice(1).join('');
+  }
+
+  // Limit decimal places
+  if (parts.length === 2 && parts[1].length > decimals) {
+    cleaned = parts[0] + '.' + parts[1].substring(0, decimals);
+  }
+
+  return cleaned;
+};
+
+/**
+ * Validate that a value is within range
+ * @param value - Numeric value
+ * @param min - Minimum value
+ * @param max - Maximum value
+ * @returns Whether value is in range
+ */
+export const isInRange = (value: number, min: number, max: number): boolean => {
+  return value >= min && value <= max;
 };

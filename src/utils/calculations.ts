@@ -19,9 +19,23 @@ export const calculateMonthsBetween = (startDate: string, endDate: string): numb
     let day = parseInt(parts[1]);
     let year = parseInt(parts[2]);
 
-    // Handle 2-digit years
+    // Handle 2-digit years with sliding window algorithm
+    // Fixes Y2.1K bug - works correctly past year 2100
     if (year < 100) {
-      year += year < 50 ? 2000 : 1900;
+      const currentYear = new Date().getFullYear();
+      const currentCentury = Math.floor(currentYear / 100) * 100;
+      const currentTwoDigit = currentYear % 100;
+
+      // Use 50-year sliding window centered on current year
+      // If 2-digit year is within +50 years, use current or next century
+      // If 2-digit year is more than 50 years forward, assume previous century
+      if (year >= currentTwoDigit - 50 && year <= currentTwoDigit + 50) {
+        year += currentCentury;
+      } else if (year < currentTwoDigit - 50) {
+        year += currentCentury + 100; // Next century
+      } else {
+        year += currentCentury - 100; // Previous century
+      }
     }
 
     return new Date(year, month, day);
@@ -141,7 +155,8 @@ export const calculatePMT = (
 
 /**
  * Calculate FV (Excel FV function equivalent)
- * FV = PV * (1 + rate)^nper - Payment * [((1 + rate)^nper - 1) / rate]
+ * FV = PV * (1 + rate)^nper + Payment * [((1 + rate)^nper - 1) / rate]
+ * Note: Use negative payment for loan paydown scenarios
  */
 export const calculateFV = (
   annualRate: number,
@@ -155,7 +170,7 @@ export const calculateFV = (
     return pv + payment * nper;
   }
 
-  const fv = pv * Math.pow(1 + rate, nper) - payment * ((Math.pow(1 + rate, nper) - 1) / rate);
+  const fv = pv * Math.pow(1 + rate, nper) + payment * ((Math.pow(1 + rate, nper) - 1) / rate);
   return fv;
 };
 
@@ -191,9 +206,26 @@ export const calculateTrailingPayments = (
 ): TrailingPaymentData | null => {
   if (!lastImportDate) return null;
 
-  // Parse last import date (MM/DD/YY format)
+  // Parse last import date (MM/DD/YY format) - use sliding window for Y2.1K compliance
   const [endMonth, endDay, endYear] = lastImportDate.split('/');
-  const endDate = new Date(2000 + parseInt(endYear), parseInt(endMonth) - 1, parseInt(endDay));
+  let year = parseInt(endYear);
+
+  // Apply same sliding window algorithm as calculateMonthsBetween
+  if (year < 100) {
+    const currentYear = new Date().getFullYear();
+    const currentCentury = Math.floor(currentYear / 100) * 100;
+    const currentTwoDigit = currentYear % 100;
+
+    if (year >= currentTwoDigit - 50 && year <= currentTwoDigit + 50) {
+      year += currentCentury;
+    } else if (year < currentTwoDigit - 50) {
+      year += currentCentury + 100;
+    } else {
+      year += currentCentury - 100;
+    }
+  }
+
+  const endDate = new Date(year, parseInt(endMonth) - 1, parseInt(endDay));
 
   // Calculate start date
   const startDate = new Date(endDate);

@@ -1,20 +1,258 @@
 // LoanTab component - displays loan details in 5-column grid layout
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme, useLoan } from '../../context';
 import { US_STATES } from '../../data';
 import {
   calculateInterestAccrued,
   calculateMonthsToMaturity,
-  calculateAmortizationMonths
+  calculateAmortizationMonths,
+  validateCurrency,
+  validateInterestRate,
+  validateDateFormat,
+  validateZip,
+  sanitizeCurrency,
+  sanitizeNumber
 } from '../../utils';
+import { useDebounce, useLoans, useUpdateLoan } from '../../hooks';
 
-export const LoanTab: React.FC = () => {
+export const LoanTab = React.memo(() => {
   const { styles } = useTheme();
-  const {
-    selectedLoanData,
-    handleLoanFieldChange
-  } = useLoan();
 
+  // Get selectedLoan from Context (UI state - which loan is selected)
+  const { selectedLoan } = useLoan();
+
+  // Get loans data from React Query (replaces Context data)
+  const { data: loans, isLoading } = useLoans();
+
+  // Get update mutation from React Query (replaces handleLoanFieldChange)
+  const { mutate: updateLoan } = useUpdateLoan();
+
+  // Find the currently selected loan from React Query data
+  const selectedLoanData = useMemo(
+    () => loans?.find(loan => loan.mwLoanNo === selectedLoan),
+    [loans, selectedLoan]
+  );
+
+  // Helper to update loan field (replaces handleLoanFieldChange)
+  const handleLoanFieldChange = React.useCallback((field: string, value: string | number) => {
+    if (selectedLoan) {
+      updateLoan({
+        mwLoanNo: selectedLoan,
+        updates: { [field]: value }
+      });
+    }
+  }, [selectedLoan, updateLoan]);
+
+  // Local state for debounced inputs (to prevent lag during typing)
+  const [localPrincipal, setLocalPrincipal] = useState('');
+  const [localInterest, setLocalInterest] = useState('');
+  const [localOrigBalance, setLocalOrigBalance] = useState('');
+  const [localEscrow, setLocalEscrow] = useState('');
+  const [localOther, setLocalOther] = useState('');
+  const [localPmt, setLocalPmt] = useState('');
+  const [localEscPmt, setLocalEscPmt] = useState('');
+  const [localIntRate, setLocalIntRate] = useState('');
+  const [localDRate, setLocalDRate] = useState('');
+  const [localFloor, setLocalFloor] = useState('');
+  const [localCeiling, setLocalCeiling] = useState('');
+  const [localMargin, setLocalMargin] = useState('');
+
+  // Validation state (track invalid inputs)
+  const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
+
+  // Debounce expensive calculation inputs (500ms delay)
+  const debouncedPrincipal = useDebounce(localPrincipal, 500);
+  const debouncedInterest = useDebounce(localInterest, 500);
+  const debouncedOrigBalance = useDebounce(localOrigBalance, 500);
+  const debouncedEscrow = useDebounce(localEscrow, 500);
+  const debouncedOther = useDebounce(localOther, 500);
+  const debouncedPmt = useDebounce(localPmt, 500);
+  const debouncedEscPmt = useDebounce(localEscPmt, 500);
+  const debouncedIntRate = useDebounce(localIntRate, 500);
+  const debouncedDRate = useDebounce(localDRate, 500);
+  const debouncedFloor = useDebounce(localFloor, 500);
+  const debouncedCeiling = useDebounce(localCeiling, 500);
+  const debouncedMargin = useDebounce(localMargin, 500);
+
+  // Track the current loan ID to prevent stale updates
+  const currentLoanIdRef = React.useRef<string | null>(null);
+
+  // Initialize local state from selectedLoanData when loan changes
+  useEffect(() => {
+    if (selectedLoanData) {
+      currentLoanIdRef.current = selectedLoanData.mwLoanNo;
+      setLocalPrincipal(selectedLoanData.principal.toString());
+      setLocalInterest(selectedLoanData.interest.toString());
+      setLocalOrigBalance(selectedLoanData.origBalance.toString());
+      setLocalEscrow(selectedLoanData.escrowBalance.toString());
+      setLocalOther(selectedLoanData.otherBalance.toString());
+      setLocalPmt(selectedLoanData.pmt.toString());
+      setLocalEscPmt(selectedLoanData.escPmt.toString());
+      setLocalIntRate(selectedLoanData.intRate.toString());
+      setLocalDRate(selectedLoanData.dRate.toString());
+      setLocalFloor(selectedLoanData.floor || '');
+      setLocalCeiling(selectedLoanData.ceiling || '');
+      setLocalMargin(selectedLoanData.margin || '');
+    }
+  }, [selectedLoanData?.mwLoanNo]); // Only re-init when loan changes
+
+  // Update context when debounced values change
+  // FIXED: Added missing dependencies and loan ID check to prevent stale closure bugs
+  useEffect(() => {
+    if (debouncedPrincipal && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
+      const value = parseFloat(debouncedPrincipal) || 0;
+      if (value !== selectedLoanData.principal) {
+        handleLoanFieldChange('principal', value);
+      }
+    }
+  }, [debouncedPrincipal, selectedLoanData, handleLoanFieldChange]);
+
+  useEffect(() => {
+    if (debouncedInterest && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
+      const value = parseFloat(debouncedInterest) || 0;
+      if (value !== selectedLoanData.interest) {
+        handleLoanFieldChange('interest', value);
+      }
+    }
+  }, [debouncedInterest, selectedLoanData, handleLoanFieldChange]);
+
+  useEffect(() => {
+    if (debouncedOrigBalance && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
+      const value = parseFloat(debouncedOrigBalance) || 0;
+      if (value !== selectedLoanData.origBalance) {
+        handleLoanFieldChange('origBalance', value);
+      }
+    }
+  }, [debouncedOrigBalance, selectedLoanData, handleLoanFieldChange]);
+
+  useEffect(() => {
+    if (debouncedEscrow && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
+      const value = parseFloat(debouncedEscrow) || 0;
+      if (value !== selectedLoanData.escrowBalance) {
+        handleLoanFieldChange('escrowBalance', value);
+      }
+    }
+  }, [debouncedEscrow, selectedLoanData, handleLoanFieldChange]);
+
+  useEffect(() => {
+    if (debouncedOther && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
+      const value = parseFloat(debouncedOther) || 0;
+      if (value !== selectedLoanData.otherBalance) {
+        handleLoanFieldChange('otherBalance', value);
+      }
+    }
+  }, [debouncedOther, selectedLoanData, handleLoanFieldChange]);
+
+  useEffect(() => {
+    if (debouncedPmt && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
+      const value = parseFloat(debouncedPmt) || 0;
+      if (value !== selectedLoanData.pmt) {
+        handleLoanFieldChange('pmt', value);
+      }
+    }
+  }, [debouncedPmt, selectedLoanData, handleLoanFieldChange]);
+
+  useEffect(() => {
+    if (debouncedEscPmt && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
+      const value = parseFloat(debouncedEscPmt) || 0;
+      if (value !== selectedLoanData.escPmt) {
+        handleLoanFieldChange('escPmt', value);
+      }
+    }
+  }, [debouncedEscPmt, selectedLoanData, handleLoanFieldChange]);
+
+  useEffect(() => {
+    if (debouncedIntRate && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
+      const value = parseFloat(debouncedIntRate) || 0;
+      if (value !== selectedLoanData.intRate) {
+        handleLoanFieldChange('intRate', value);
+      }
+    }
+  }, [debouncedIntRate, selectedLoanData, handleLoanFieldChange]);
+
+  useEffect(() => {
+    if (debouncedDRate && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
+      const value = parseFloat(debouncedDRate) || 0;
+      if (value !== selectedLoanData.dRate) {
+        handleLoanFieldChange('dRate', value);
+      }
+    }
+  }, [debouncedDRate, selectedLoanData, handleLoanFieldChange]);
+
+  useEffect(() => {
+    if (debouncedFloor !== undefined && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
+      if (debouncedFloor !== selectedLoanData.floor) {
+        handleLoanFieldChange('floor', debouncedFloor);
+      }
+    }
+  }, [debouncedFloor, selectedLoanData, handleLoanFieldChange]);
+
+  useEffect(() => {
+    if (debouncedCeiling !== undefined && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
+      if (debouncedCeiling !== selectedLoanData.ceiling) {
+        handleLoanFieldChange('ceiling', debouncedCeiling);
+      }
+    }
+  }, [debouncedCeiling, selectedLoanData, handleLoanFieldChange]);
+
+  useEffect(() => {
+    if (debouncedMargin !== undefined && selectedLoanData && currentLoanIdRef.current === selectedLoanData.mwLoanNo) {
+      if (debouncedMargin !== selectedLoanData.margin) {
+        handleLoanFieldChange('margin', debouncedMargin);
+      }
+    }
+  }, [debouncedMargin, selectedLoanData, handleLoanFieldChange]);
+
+  // Helper: Handle currency input with validation
+  const handleCurrencyChange = (field: string, value: string, setter: React.Dispatch<React.SetStateAction<string>>) => {
+    const sanitized = sanitizeCurrency(value);
+    const isValid = validateCurrency(sanitized);
+
+    setter(sanitized);
+    setValidationErrors(prev => ({ ...prev, [field]: !isValid }));
+  };
+
+  // Helper: Handle rate/percentage input with validation
+  const handleRateChange = (field: string, value: string, setter: React.Dispatch<React.SetStateAction<string>>) => {
+    const sanitized = sanitizeNumber(value, 3); // Allow 3 decimals for rates
+    const isValid = validateInterestRate(sanitized);
+
+    setter(sanitized);
+    setValidationErrors(prev => ({ ...prev, [field]: !isValid }));
+  };
+
+  // Helper: Handle date input with validation
+  const handleDateChange = (field: string, value: string) => {
+    const isValid = validateDateFormat(value);
+    setValidationErrors(prev => ({ ...prev, [field]: !isValid }));
+    handleLoanFieldChange(field, value);
+  };
+
+  // Helper: Handle zip code with validation
+  const handleZipChange = (value: string) => {
+    const isValid = validateZip(value);
+    setValidationErrors(prev => ({ ...prev, zip: !isValid }));
+    handleLoanFieldChange('zip', value);
+  };
+
+  // Helper: Get input border style (red if invalid)
+  const getInputStyle = (field: string) => {
+    if (validationErrors[field]) {
+      return 'border-red-500';
+    }
+    return `${styles.inputBorder}`;
+  };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="p-4">
+        <p className={styles.textMuted}>Loading...</p>
+      </div>
+    );
+  }
+
+  // Show no loan selected
   if (!selectedLoanData) {
     return (
       <div className="p-4">
@@ -89,9 +327,9 @@ export const LoanTab: React.FC = () => {
                 <input
                   type="text"
                   value={selectedLoanData.lastImportDate || ''}
-                  onChange={(e) => handleLoanFieldChange('lastImportDate', e.target.value)}
+                  onChange={(e) => handleDateChange('lastImportDate', e.target.value)}
                   placeholder="MM/DD/YY"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  className={`${styles.inputBg} ${getInputStyle('lastImportDate')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 />
               </div>
             </div>
@@ -106,45 +344,50 @@ export const LoanTab: React.FC = () => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Orig Balance:</label>
                 <input
                   type="text"
-                  value={selectedLoanData.origBalance.toLocaleString()}
-                  onChange={(e) => handleLoanFieldChange('origBalance', parseFloat(e.target.value.replace(/,/g, '')) || 0)}
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  value={localOrigBalance}
+                  onChange={(e) => handleCurrencyChange('origBalance', e.target.value, setLocalOrigBalance)}
+                  className={`${styles.inputBg} ${getInputStyle('origBalance')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  placeholder="0.00"
                 />
               </div>
               <div>
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Principal:</label>
                 <input
                   type="text"
-                  value={selectedLoanData.principal.toLocaleString()}
-                  onChange={(e) => handleLoanFieldChange('principal', parseFloat(e.target.value.replace(/,/g, '')) || 0)}
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  value={localPrincipal}
+                  onChange={(e) => handleCurrencyChange('principal', e.target.value, setLocalPrincipal)}
+                  className={`${styles.inputBg} ${getInputStyle('principal')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  placeholder="0.00"
                 />
               </div>
               <div>
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Interest:</label>
                 <input
                   type="text"
-                  value={selectedLoanData.interest.toLocaleString()}
-                  onChange={(e) => handleLoanFieldChange('interest', parseFloat(e.target.value.replace(/,/g, '')) || 0)}
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  value={localInterest}
+                  onChange={(e) => handleCurrencyChange('interest', e.target.value, setLocalInterest)}
+                  className={`${styles.inputBg} ${getInputStyle('interest')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  placeholder="0.00"
                 />
               </div>
               <div>
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Escrow:</label>
                 <input
                   type="text"
-                  value={selectedLoanData.escrowBalance.toLocaleString()}
-                  onChange={(e) => handleLoanFieldChange('escrowBalance', parseFloat(e.target.value.replace(/,/g, '')) || 0)}
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  value={localEscrow}
+                  onChange={(e) => handleCurrencyChange('escrow', e.target.value, setLocalEscrow)}
+                  className={`${styles.inputBg} ${getInputStyle('escrow')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  placeholder="0.00"
                 />
               </div>
               <div>
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Other:</label>
                 <input
                   type="text"
-                  value={selectedLoanData.otherBalance.toLocaleString()}
-                  onChange={(e) => handleLoanFieldChange('otherBalance', parseFloat(e.target.value.replace(/,/g, '')) || 0)}
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  value={localOther}
+                  onChange={(e) => handleCurrencyChange('other', e.target.value, setLocalOther)}
+                  className={`${styles.inputBg} ${getInputStyle('other')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  placeholder="0.00"
                 />
               </div>
               <div>
@@ -168,36 +411,40 @@ export const LoanTab: React.FC = () => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Int Rate:</label>
                 <input
                   type="text"
-                  value={selectedLoanData.intRate}
-                  onChange={(e) => handleLoanFieldChange('intRate', parseFloat(e.target.value) || 0)}
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  value={localIntRate}
+                  onChange={(e) => handleRateChange('intRate', e.target.value, setLocalIntRate)}
+                  className={`${styles.inputBg} ${getInputStyle('intRate')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  placeholder="0.000"
                 />
               </div>
               <div>
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Default Rate:</label>
                 <input
                   type="text"
-                  value={selectedLoanData.dRate}
-                  onChange={(e) => handleLoanFieldChange('dRate', parseFloat(e.target.value) || 0)}
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  value={localDRate}
+                  onChange={(e) => handleRateChange('dRate', e.target.value, setLocalDRate)}
+                  className={`${styles.inputBg} ${getInputStyle('dRate')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  placeholder="0.000"
                 />
               </div>
               <div>
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Payment:</label>
                 <input
                   type="text"
-                  value={selectedLoanData.pmt.toLocaleString()}
-                  onChange={(e) => handleLoanFieldChange('pmt', parseFloat(e.target.value.replace(/,/g, '')) || 0)}
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  value={localPmt}
+                  onChange={(e) => handleCurrencyChange('pmt', e.target.value, setLocalPmt)}
+                  className={`${styles.inputBg} ${getInputStyle('pmt')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  placeholder="0.00"
                 />
               </div>
               <div>
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Escrow Pmt:</label>
                 <input
                   type="text"
-                  value={selectedLoanData.escPmt.toLocaleString()}
-                  onChange={(e) => handleLoanFieldChange('escPmt', parseFloat(e.target.value.replace(/,/g, '')) || 0)}
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  value={localEscPmt}
+                  onChange={(e) => handleCurrencyChange('escPmt', e.target.value, setLocalEscPmt)}
+                  className={`${styles.inputBg} ${getInputStyle('escPmt')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  placeholder="0.00"
                 />
               </div>
               <div>
@@ -235,9 +482,9 @@ export const LoanTab: React.FC = () => {
                 <input
                   type="text"
                   value={selectedLoanData.notDue || ''}
-                  onChange={(e) => handleLoanFieldChange('notDue', e.target.value)}
+                  onChange={(e) => handleDateChange('notDue', e.target.value)}
                   placeholder="MM/DD/YY"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  className={`${styles.inputBg} ${getInputStyle('notDue')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 />
               </div>
               <div>
@@ -245,9 +492,9 @@ export const LoanTab: React.FC = () => {
                 <input
                   type="text"
                   value={selectedLoanData.lastPmt || ''}
-                  onChange={(e) => handleLoanFieldChange('lastPmt', e.target.value)}
+                  onChange={(e) => handleDateChange('lastPmt', e.target.value)}
                   placeholder="MM/DD/YY"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  className={`${styles.inputBg} ${getInputStyle('lastPmt')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 />
               </div>
               <div>
@@ -255,9 +502,9 @@ export const LoanTab: React.FC = () => {
                 <input
                   type="text"
                   value={selectedLoanData.origDt || ''}
-                  onChange={(e) => handleLoanFieldChange('origDt', e.target.value)}
+                  onChange={(e) => handleDateChange('origDt', e.target.value)}
                   placeholder="MM/DD/YY"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  className={`${styles.inputBg} ${getInputStyle('origDt')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 />
               </div>
               <div>
@@ -265,9 +512,9 @@ export const LoanTab: React.FC = () => {
                 <input
                   type="text"
                   value={selectedLoanData.matDt || ''}
-                  onChange={(e) => handleLoanFieldChange('matDt', e.target.value)}
+                  onChange={(e) => handleDateChange('matDt', e.target.value)}
                   placeholder="MM/DD/YY"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  className={`${styles.inputBg} ${getInputStyle('matDt')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 />
               </div>
               <div>
@@ -275,9 +522,9 @@ export const LoanTab: React.FC = () => {
                 <input
                   type="text"
                   value={selectedLoanData.accDt || ''}
-                  onChange={(e) => handleLoanFieldChange('accDt', e.target.value)}
+                  onChange={(e) => handleDateChange('accDt', e.target.value)}
                   placeholder="MM/DD/YY"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  className={`${styles.inputBg} ${getInputStyle('accDt')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 />
               </div>
               <div>
@@ -285,9 +532,9 @@ export const LoanTab: React.FC = () => {
                 <input
                   type="text"
                   value={selectedLoanData.dueDt || ''}
-                  onChange={(e) => handleLoanFieldChange('dueDt', e.target.value)}
+                  onChange={(e) => handleDateChange('dueDt', e.target.value)}
                   placeholder="MM/DD/YY"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  className={`${styles.inputBg} ${getInputStyle('dueDt')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                 />
               </div>
             </div>
@@ -343,8 +590,10 @@ export const LoanTab: React.FC = () => {
                   <input
                     type="text"
                     value={selectedLoanData.zip || ''}
-                    onChange={(e) => handleLoanFieldChange('zip', e.target.value)}
-                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    onChange={(e) => handleZipChange(e.target.value)}
+                    placeholder="12345"
+                    maxLength={10}
+                    className={`${styles.inputBg} ${getInputStyle('zip')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
               </div>
@@ -375,27 +624,30 @@ export const LoanTab: React.FC = () => {
               <label className={`text-xs ${styles.textMuted} block mb-1`}>Floor:</label>
               <input
                 type="text"
-                value={selectedLoanData.floor || ''}
-                onChange={(e) => handleLoanFieldChange('floor', e.target.value)}
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                value={localFloor}
+                onChange={(e) => handleRateChange('floor', e.target.value, setLocalFloor)}
+                placeholder="0.000"
+                className={`${styles.inputBg} ${getInputStyle('floor')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
               />
             </div>
             <div>
               <label className={`text-xs ${styles.textMuted} block mb-1`}>Ceiling:</label>
               <input
                 type="text"
-                value={selectedLoanData.ceiling || ''}
-                onChange={(e) => handleLoanFieldChange('ceiling', e.target.value)}
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                value={localCeiling}
+                onChange={(e) => handleRateChange('ceiling', e.target.value, setLocalCeiling)}
+                placeholder="0.000"
+                className={`${styles.inputBg} ${getInputStyle('ceiling')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
               />
             </div>
             <div>
               <label className={`text-xs ${styles.textMuted} block mb-1`}>Margin:</label>
               <input
                 type="text"
-                value={selectedLoanData.margin || ''}
-                onChange={(e) => handleLoanFieldChange('margin', e.target.value)}
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                value={localMargin}
+                onChange={(e) => handleRateChange('margin', e.target.value, setLocalMargin)}
+                placeholder="0.000"
+                className={`${styles.inputBg} ${getInputStyle('margin')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
               />
             </div>
             <div>
@@ -403,9 +655,9 @@ export const LoanTab: React.FC = () => {
               <input
                 type="text"
                 value={selectedLoanData.chDt || ''}
-                onChange={(e) => handleLoanFieldChange('chDt', e.target.value)}
+                onChange={(e) => handleDateChange('chDt', e.target.value)}
                 placeholder="MM/DD/YY"
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                className={`${styles.inputBg} ${getInputStyle('chDt')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
               />
             </div>
             <div>
@@ -504,4 +756,4 @@ export const LoanTab: React.FC = () => {
       </div>
     </div>
   );
-};
+});

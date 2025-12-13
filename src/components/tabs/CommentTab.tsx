@@ -4,20 +4,56 @@ import { AlertCircle } from 'lucide-react';
 import { useTheme, useLoan } from '../../context';
 import { COMMENT_TYPES } from '../../data';
 import { getCommentPreview } from '../../utils';
+import {
+  useLoans,
+  useComments,
+  useAddComment,
+  useUpdateComment,
+  useDeleteComment
+} from '../../hooks';
 import type { Comment } from '../../types';
 
-export const CommentTab: React.FC = () => {
+export const CommentTab = React.memo(() => {
   const { theme, styles } = useTheme();
+
+  // UI state from Context
   const {
-    loans,
     selectedLoan,
-    commentsList,
-    setCommentsList,
     selectedCommentId,
-    setSelectedCommentId,
-    selectedComment,
-    getNextCommentId
+    setSelectedCommentId
   } = useLoan();
+
+  // Data from React Query
+  const { data: loans, isLoading: loadingLoans } = useLoans();
+  const { data: comments, isLoading: loadingComments } = useComments();
+  const { mutate: addComment } = useAddComment();
+  const { mutate: updateComment } = useUpdateComment();
+  const { mutate: deleteComment } = useDeleteComment();
+
+  // Computed values
+  const commentsList = React.useMemo(
+    () => comments || [],
+    [comments]
+  );
+
+  const selectedComment = React.useMemo(
+    () => commentsList.find(c => c.id === selectedCommentId),
+    [commentsList, selectedCommentId]
+  );
+
+  const getNextCommentId = React.useCallback(() => {
+    if (commentsList.length === 0) return 1;
+    return Math.max(...commentsList.map(c => c.id)) + 1;
+  }, [commentsList]);
+
+  // Loading state
+  if (loadingLoans || loadingComments) {
+    return (
+      <div className="p-4">
+        <p className={styles.textMuted}>Loading...</p>
+      </div>
+    );
+  }
 
   // Add new comment
   const addNewComment = () => {
@@ -32,30 +68,33 @@ export const CommentTab: React.FC = () => {
       date: dateStr,
       text: ''
     };
-    setCommentsList(prev => [...prev, newComment]);
-    setSelectedCommentId(newId);
+    addComment(newComment, {
+      onSuccess: () => {
+        setSelectedCommentId(newId);
+      }
+    });
   };
 
   // Handle comment field changes
   const handleCommentFieldChange = (field: keyof Comment, value: string) => {
-    setCommentsList(prev =>
-      prev.map(comment =>
-        comment.id === selectedCommentId
-          ? { ...comment, [field]: value }
-          : comment
-      )
-    );
+    if (selectedCommentId) {
+      updateComment({ id: selectedCommentId, updates: { [field]: value } });
+    }
   };
 
   // Delete comment
-  const deleteComment = (id: number) => {
+  const handleDeleteComment = (id: number) => {
     if (commentsList.length <= 1) return;
-    setCommentsList(prev => prev.filter(c => c.id !== id));
-    // Select another comment
-    const remaining = commentsList.filter(c => c.id !== id);
-    if (remaining.length > 0) {
-      setSelectedCommentId(remaining[0].id);
-    }
+
+    deleteComment(id, {
+      onSuccess: () => {
+        // Select another comment
+        const remaining = commentsList.filter(c => c.id !== id);
+        if (remaining.length > 0) {
+          setSelectedCommentId(remaining[0].id);
+        }
+      }
+    });
   };
 
   return (
@@ -105,7 +144,7 @@ export const CommentTab: React.FC = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteComment(comment.id);
+                            handleDeleteComment(comment.id);
                           }}
                           className={`${styles.textMuted} hover:text-red-500 text-xs`}
                           title="Delete comment"
@@ -142,7 +181,7 @@ export const CommentTab: React.FC = () => {
                     onChange={(e) => handleCommentFieldChange('loanNo', e.target.value)}
                     className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} font-medium focus:outline-none ${styles.focusBorder}`}
                   >
-                    {loans.map(loan => (
+                    {(loans || []).map(loan => (
                       <option key={loan.mwLoanNo} value={loan.mwLoanNo}>
                         {loan.mwLoanNo}
                       </option>
@@ -207,4 +246,4 @@ export const CommentTab: React.FC = () => {
       </div>
     </div>
   );
-};
+});

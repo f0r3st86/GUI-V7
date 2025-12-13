@@ -1,48 +1,149 @@
 // PayHistTab component - payment history with Excel-like grid
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useTheme, useLoan } from '../../context';
-import { calculateExpression, calculateTrailingPayments, calculateYearSum } from '../../utils';
+import {
+  calculateExpression,
+  calculateTrailingPayments,
+  calculateYearSum,
+  validateYearInput,
+  validateMonthInput
+} from '../../utils';
 import { MONTH_NAMES } from '../../data';
+import {
+  useLoans,
+  usePayments,
+  useUpdatePayment,
+  useDeletePayment
+} from '../../hooks';
 
-export const PayHistTab: React.FC = () => {
+export const PayHistTab = React.memo(() => {
   const { theme, styles } = useTheme();
-  const {
-    selectedLoan,
-    selectedLoanData,
-    paymentRecords,
-    setPaymentRecords,
-    paymentGridData,
-    getFilteredPaymentRecords,
-    loans
-  } = useLoan();
+
+  // UI state from Context
+  const { selectedLoan } = useLoan();
+
+  // Data from React Query
+  const { data: loans, isLoading: loadingLoans } = useLoans();
+  const { data: payments, isLoading: loadingPayments } = usePayments();
+  const { mutate: updatePayment } = useUpdatePayment();
+  const { mutate: deletePayment } = useDeletePayment();
+
+  // Computed values
+  const selectedLoanData = useMemo(
+    () => loans?.find(loan => loan.mwLoanNo === selectedLoan),
+    [loans, selectedLoan]
+  );
+
+  const paymentRecords = useMemo(
+    () => payments || [],
+    [payments]
+  );
+
+  const getFilteredPaymentRecords = useMemo(() => {
+    if (!payments) return [];
+    return payments.filter(p => p.loanNo === selectedLoan);
+  }, [payments, selectedLoan]);
+
+  // Convert payment records to grid data (year -> month -> amount)
+  const paymentGridData = useMemo(() => {
+    const gridData: Record<string, Record<number, number>> = {};
+    getFilteredPaymentRecords.forEach(record => {
+      if (record.year && record.month && record.amount) {
+        const year = record.year;
+        const month = parseInt(record.month);
+        const amount = parseFloat(record.amount);
+
+        if (!gridData[year]) {
+          gridData[year] = {};
+        }
+        gridData[year][month] = (gridData[year][month] || 0) + amount;
+      }
+    });
+    return gridData;
+  }, [getFilteredPaymentRecords]);
+
+  // Validation state (track invalid inputs by record ID + field)
+  const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
+
+  // PERFORMANCE: Memoize year sums to avoid O(n×m) redundant calculations
+  // Previously calculated 3+ times per render for same data
+  const yearSums = useMemo(() => {
+    const sums: Record<string, number> = {};
+    Object.keys(paymentGridData).forEach(year => {
+      const yearData = paymentGridData[year] || {};
+      sums[year] = calculateYearSum(yearData);
+    });
+    return sums;
+  }, [paymentGridData]);
+
+  // Memoize sorted years with non-zero sums
+  const sortedYears = useMemo(() => {
+    return Object.keys(yearSums)
+      .filter(year => yearSums[year] > 0)
+      .sort((a, b) => parseInt(a) - parseInt(b));
+  }, [yearSums]);
+
+  // Memoize grand total
+  const grandTotal = useMemo(() => {
+    return Object.values(yearSums).reduce((total, sum) => total + sum, 0);
+  }, [yearSums]);
+
+  // Helper: Get validation key for a record field
+  const getValidationKey = (id: number, field: string) => `${id}-${field}`;
+
+  // Helper: Check if field is invalid
+  const isFieldInvalid = (id: number, field: string) => {
+    return validationErrors[getValidationKey(id, field)] || false;
+  };
+
+  // Loading state
+  if (loadingLoans || loadingPayments) {
+    return (
+      <div className="p-4">
+        <p className={styles.textMuted}>Loading...</p>
+      </div>
+    );
+  }
 
   if (!selectedLoanData) {
     return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;
   }
 
-  // Handle cell edit
+  // Handle cell edit with validation
   const handleCellEdit = (id: number, field: string, value: string) => {
-    setPaymentRecords(prev =>
-      prev.map(record =>
-        record.id === id ? { ...record, [field]: value } : record
-      )
-    );
+    let isValid = true;
+
+    // Validate based on field type
+    if (field === 'year') {
+      isValid = validateYearInput(value);
+    } else if (field === 'month') {
+      isValid = validateMonthInput(value);
+    } else if (field === 'amount') {
+      // For amount, allow expressions (will be validated on blur)
+      // Just prevent completely invalid input
+      isValid = /^[0-9+\-*/.() ]*$/.test(value);
+    }
+
+    // Update validation state
+    const key = getValidationKey(id, field);
+    setValidationErrors(prev => ({ ...prev, [key]: !isValid }));
+
+    // Only update if valid OR if clearing the field
+    if (isValid || value === '') {
+      updatePayment({ id, updates: { [field]: value } });
+    }
   };
 
   // Handle amount blur - evaluate expression
   const handleAmountBlur = (id: number, value: string) => {
     const result = calculateExpression(value);
-    setPaymentRecords(prev =>
-      prev.map(record =>
-        record.id === id ? { ...record, amount: result } : record
-      )
-    );
+    updatePayment({ id, updates: { amount: result } });
   };
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent, id: number, field: string) => {
-    const filteredRecords = getFilteredPaymentRecords();
+    const filteredRecords = getFilteredPaymentRecords;
     const currentIndex = filteredRecords.findIndex(r => r.id === id);
 
     if (e.key === 'Enter' || e.key === 'ArrowDown') {
@@ -65,12 +166,12 @@ export const PayHistTab: React.FC = () => {
 
   // Delete payment row
   const deletePaymentRow = (id: number) => {
-    setPaymentRecords(prev => prev.filter(r => r.id !== id));
+    deletePayment(id);
   };
 
   // Export payment history
   const exportPaymentHistory = () => {
-    const filtered = getFilteredPaymentRecords().filter(r => r.year && r.month && r.amount);
+    const filtered = getFilteredPaymentRecords.filter(r => r.year && r.month && r.amount);
     const csvContent = [
       ['Year', 'Month', 'Amount'],
       ...filtered.map(r => [r.year, r.month, r.amount])
@@ -85,10 +186,10 @@ export const PayHistTab: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const filteredRecords = getFilteredPaymentRecords();
-  const trailing12 = calculateTrailingPayments(selectedLoan, 12, selectedLoanData.lastImportDate, paymentRecords, loans);
-  const trailing6 = calculateTrailingPayments(selectedLoan, 6, selectedLoanData.lastImportDate, paymentRecords, loans);
-  const trailing3 = calculateTrailingPayments(selectedLoan, 3, selectedLoanData.lastImportDate, paymentRecords, loans);
+  const filteredRecords = getFilteredPaymentRecords;
+  const trailing12 = calculateTrailingPayments(selectedLoan, 12, selectedLoanData.lastImportDate, paymentRecords, loans || []);
+  const trailing6 = calculateTrailingPayments(selectedLoan, 6, selectedLoanData.lastImportDate, paymentRecords, loans || []);
+  const trailing3 = calculateTrailingPayments(selectedLoan, 3, selectedLoanData.lastImportDate, paymentRecords, loans || []);
 
   return (
     <div className="p-4">
@@ -156,7 +257,11 @@ export const PayHistTab: React.FC = () => {
                         onKeyDown={(e) => handleKeyDown(e, record.id, 'year')}
                         placeholder="YYYY"
                         maxLength={4}
-                        className={`w-full px-3 py-2 text-xs ${styles.textPrimary} bg-transparent focus:outline-none focus:ring-1 focus:ring-green-500`}
+                        className={`w-full px-3 py-2 text-xs ${styles.textPrimary} bg-transparent focus:outline-none ${
+                          isFieldInvalid(record.id, 'year')
+                            ? 'ring-1 ring-red-500'
+                            : 'focus:ring-1 focus:ring-green-500'
+                        }`}
                         style={{ border: 'none' }}
                       />
                     </td>
@@ -169,7 +274,11 @@ export const PayHistTab: React.FC = () => {
                         onKeyDown={(e) => handleKeyDown(e, record.id, 'month')}
                         placeholder="1-12"
                         maxLength={2}
-                        className={`w-full px-3 py-2 text-xs ${styles.textPrimary} bg-transparent focus:outline-none focus:ring-1 focus:ring-green-500`}
+                        className={`w-full px-3 py-2 text-xs ${styles.textPrimary} bg-transparent focus:outline-none ${
+                          isFieldInvalid(record.id, 'month')
+                            ? 'ring-1 ring-red-500'
+                            : 'focus:ring-1 focus:ring-green-500'
+                        }`}
                         style={{ border: 'none' }}
                       />
                     </td>
@@ -183,7 +292,11 @@ export const PayHistTab: React.FC = () => {
                         onKeyDown={(e) => handleKeyDown(e, record.id, 'amount')}
                         placeholder="0.00"
                         title="You can enter calculations like 500+108.15 or 608.15*2"
-                        className={`w-full px-3 py-2 text-xs ${styles.textGreen} bg-transparent focus:outline-none focus:ring-1 focus:ring-green-500`}
+                        className={`w-full px-3 py-2 text-xs ${styles.textGreen} bg-transparent focus:outline-none ${
+                          isFieldInvalid(record.id, 'amount')
+                            ? 'ring-1 ring-red-500'
+                            : 'focus:ring-1 focus:ring-green-500'
+                        }`}
                         style={{ border: 'none' }}
                       />
                     </td>
@@ -228,42 +341,33 @@ export const PayHistTab: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {Object.keys(paymentGridData)
-                .filter(year => {
-                  const yearData = paymentGridData[year] || {};
-                  return calculateYearSum(yearData) > 0;
-                })
-                .sort((a, b) => parseInt(a) - parseInt(b))
-                .map((year, index) => {
-                  const yearData = paymentGridData[year] || {};
-                  const yearSum = calculateYearSum(yearData);
-                  return (
-                    <tr key={year} className={index === 0 ? styles.borderColor + ' border-t' : ''}>
-                      <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
-                        const amount = yearData[month];
-                        return (
-                          <td key={month} className={`text-center px-1 py-2 ${amount ? styles.textGreen : styles.textSecondary}`}>
-                            {amount ? amount.toFixed(2) : '-'}
-                          </td>
-                        );
-                      })}
-                      <td className={`text-center px-2 py-2 font-medium ${yearSum > 0 ? styles.textPrimary : styles.textSecondary} ${styles.borderColor} border-l`}>
-                        ${yearSum.toFixed(2)}
-                      </td>
-                    </tr>
-                  );
-                })
-              }
+              {sortedYears.map((year, index) => {
+                const yearData = paymentGridData[year] || {};
+                const yearSum = yearSums[year];
+                return (
+                  <tr key={year} className={index === 0 ? styles.borderColor + ' border-t' : ''}>
+                    <td className={`px-2 py-2 font-medium ${styles.textPrimary}`}>{year}</td>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => {
+                      const amount = yearData[month];
+                      return (
+                        <td key={month} className={`text-center px-1 py-2 ${amount ? styles.textGreen : styles.textSecondary}`}>
+                          {amount ? amount.toFixed(2) : '-'}
+                        </td>
+                      );
+                    })}
+                    <td className={`text-center px-2 py-2 font-medium ${yearSum > 0 ? styles.textPrimary : styles.textSecondary} ${styles.borderColor} border-l`}>
+                      ${yearSum.toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })}
 
               {/* Total Row */}
               <tr className={`${styles.borderColor} border-t font-medium`}>
                 <td className={`px-2 py-2 ${styles.textPrimary}`}>TOTAL</td>
                 <td colSpan={12} className={`text-right px-2 py-2 ${styles.textPrimary}`}>Grand Total:</td>
                 <td className={`text-center px-2 py-2 ${styles.textGreen} ${styles.borderColor} border-l`}>
-                  ${Object.values(paymentGridData)
-                    .reduce((total, yearData) => total + calculateYearSum(yearData), 0)
-                    .toFixed(2)}
+                  ${grandTotal.toFixed(2)}
                 </td>
               </tr>
             </tbody>
@@ -416,4 +520,4 @@ export const PayHistTab: React.FC = () => {
       </div>
     </div>
   );
-};
+});

@@ -65,6 +65,21 @@ export const LoanProvider: React.FC<LoanProviderProps> = ({ children }) => {
   const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>(initialPaymentRecords);
   const [paymentGridData, setPaymentGridData] = useState<PaymentGridData>({});
 
+  // ==================== ID COUNTER REFS (O(1) instead of O(n)) ====================
+  // Initialize with max ID from initial data + 1
+  const nextPaymentIdRef = React.useRef<number>(
+    Math.max(...initialPaymentRecords.map(r => r.id), 0) + 1
+  );
+  const nextBorrowerIdRef = React.useRef<number>(
+    Math.max(...initialBorrowers.map(b => b.id), 0) + 1
+  );
+  const nextCollateralIdRef = React.useRef<number>(
+    Math.max(...initialCollateral.map(c => c.id), 0) + 1
+  );
+  const nextCommentIdRef = React.useRef<number>(
+    Math.max(...initialComments.map(c => c.id), 0) + 1
+  );
+
   // ==================== DERIVED STATE ====================
 
   // Get currently selected loan data
@@ -142,22 +157,30 @@ export const LoanProvider: React.FC<LoanProviderProps> = ({ children }) => {
     return paymentRecords.filter(record => record.loanNo === selectedLoan);
   }, [paymentRecords, selectedLoan]);
 
-  // ID generators
+  // ID generators - OPTIMIZED: O(1) using refs instead of O(n) array scanning
   const getNextPaymentId = useCallback((): number => {
-    return Math.max(...paymentRecords.map(r => r.id), 0) + 1;
-  }, [paymentRecords]);
+    const id = nextPaymentIdRef.current;
+    nextPaymentIdRef.current += 1;
+    return id;
+  }, []);
 
   const getNextBorrowerId = useCallback((): number => {
-    return Math.max(...borrowersList.map(b => b.id), 0) + 1;
-  }, [borrowersList]);
+    const id = nextBorrowerIdRef.current;
+    nextBorrowerIdRef.current += 1;
+    return id;
+  }, []);
 
   const getNextCollateralId = useCallback((): number => {
-    return Math.max(...collateralList.map(c => c.id), 0) + 1;
-  }, [collateralList]);
+    const id = nextCollateralIdRef.current;
+    nextCollateralIdRef.current += 1;
+    return id;
+  }, []);
 
   const getNextCommentId = useCallback((): number => {
-    return Math.max(...commentsList.map(c => c.id), 0) + 1;
-  }, [commentsList]);
+    const id = nextCommentIdRef.current;
+    nextCommentIdRef.current += 1;
+    return id;
+  }, []);
 
   // ==================== EFFECTS ====================
 
@@ -183,12 +206,27 @@ export const LoanProvider: React.FC<LoanProviderProps> = ({ children }) => {
   }, [paymentRecords, selectedLoan]);
 
   // Ensure there's always an empty row for new entries in payment records
+  // FIXED: Use ref to prevent infinite loop risk
+  const lastProcessedLoan = React.useRef<string | null>(null);
+  const lastRecordCount = React.useRef<number>(0);
+
   useEffect(() => {
     const filteredRecords = paymentRecords.filter(record => record.loanNo === selectedLoan);
     const lastRecord = filteredRecords[filteredRecords.length - 1];
+    const currentCount = filteredRecords.length;
 
-    // Add empty row if the last row has data or if there are no records
-    if (!lastRecord || (lastRecord.year && lastRecord.month && lastRecord.amount)) {
+    // Only add empty row if:
+    // 1. Loan changed, OR
+    // 2. Record count changed (user added/deleted a record)
+    const shouldAddRow =
+      !lastRecord ||
+      (lastRecord.year && lastRecord.month && lastRecord.amount);
+
+    const stateChanged =
+      lastProcessedLoan.current !== selectedLoan ||
+      lastRecordCount.current !== currentCount;
+
+    if (shouldAddRow && stateChanged) {
       setPaymentRecords(prev => [
         ...prev,
         {
@@ -199,6 +237,10 @@ export const LoanProvider: React.FC<LoanProviderProps> = ({ children }) => {
           amount: ''
         }
       ]);
+
+      // Update refs to prevent re-triggering
+      lastProcessedLoan.current = selectedLoan;
+      lastRecordCount.current = currentCount + 1; // +1 for the row we just added
     }
   }, [selectedLoan, paymentRecords, getNextPaymentId]);
 
