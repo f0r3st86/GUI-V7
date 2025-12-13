@@ -2,8 +2,8 @@
  * LoanTab Component Tests
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '../../test/test-utils';
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '../../test/test-utils';
 import { LoanTab } from './LoanTab';
 
 describe('LoanTab', () => {

@@ -3,12 +3,27 @@
  * Provides custom render function with all providers and mock utilities
  */
 
-import React, { ReactElement, createContext, useContext } from 'react';
+import React, { ReactElement, createContext } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { LoanProvider, useLoan } from '../context/LoanContext';
 import { ProjectionProvider, useProjection } from '../context/ProjectionContext';
 import { ExitProvider, useExit } from '../context/ExitContext';
+
+// Create a new QueryClient for each test to prevent state leakage
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      gcTime: 0,
+      staleTime: 0,
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
 
 // Extended render options with context overrides
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
@@ -26,24 +41,27 @@ const ContextOverrideProvider: React.FC<{
   projectionContextValue?: Partial<ReturnType<typeof useProjection>>;
   exitContextValue?: Partial<ReturnType<typeof useExit>>;
 }> = ({ children, loanContextValue, themeContextValue, projectionContextValue, exitContextValue }) => {
+  const queryClient = createTestQueryClient();
   return (
-    <ThemeProvider>
-      <ThemeOverride overrides={themeContextValue}>
-        <LoanProvider>
-          <LoanOverride overrides={loanContextValue}>
-            <ProjectionProvider>
-              <ProjectionOverride overrides={projectionContextValue}>
-                <ExitProvider>
-                  <ExitOverride overrides={exitContextValue}>
-                    {children}
-                  </ExitOverride>
-                </ExitProvider>
-              </ProjectionOverride>
-            </ProjectionProvider>
-          </LoanOverride>
-        </LoanProvider>
-      </ThemeOverride>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <ThemeOverride overrides={themeContextValue}>
+          <LoanProvider>
+            <LoanOverride overrides={loanContextValue}>
+              <ProjectionProvider>
+                <ProjectionOverride overrides={projectionContextValue}>
+                  <ExitProvider>
+                    <ExitOverride overrides={exitContextValue}>
+                      {children}
+                    </ExitOverride>
+                  </ExitProvider>
+                </ProjectionOverride>
+              </ProjectionProvider>
+            </LoanOverride>
+          </LoanProvider>
+        </ThemeOverride>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 };
 
@@ -64,7 +82,6 @@ const ThemeOverride: React.FC<{ children: React.ReactNode; overrides?: Partial<R
 const LoanOverride: React.FC<{ children: React.ReactNode; overrides?: Partial<ReturnType<typeof useLoan>> }> = ({ children, overrides }) => {
   const realContext = useLoan();
   const merged = { ...realContext, ...overrides };
-  const LoanOverrideContext = createContext(merged);
 
   if (!overrides) return <>{children}</>;
 
@@ -122,16 +139,19 @@ const ExitOverride: React.FC<{ children: React.ReactNode; overrides?: Partial<Re
  * All Providers wrapper for testing
  */
 const AllProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const queryClient = createTestQueryClient();
   return (
-    <ThemeProvider>
-      <LoanProvider>
-        <ProjectionProvider>
-          <ExitProvider>
-            {children}
-          </ExitProvider>
-        </ProjectionProvider>
-      </LoanProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <LoanProvider>
+          <ProjectionProvider>
+            <ExitProvider>
+              {children}
+            </ExitProvider>
+          </ProjectionProvider>
+        </LoanProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 };
 

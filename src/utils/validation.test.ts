@@ -80,9 +80,9 @@ describe('validateYear', () => {
 
 describe('isDuplicatePayment', () => {
   const mockPayments: PaymentRecord[] = [
-    { id: 1, loanNo: '7758', year: '2024', month: '10', amount: 750 },
-    { id: 2, loanNo: '7758', year: '2024', month: '9', amount: 750 },
-    { id: 3, loanNo: '7759', year: '2024', month: '10', amount: 500 },
+    { id: 1, loanNo: '7758', year: '2024', month: '10', amount: '750' },
+    { id: 2, loanNo: '7758', year: '2024', month: '9', amount: '750' },
+    { id: 3, loanNo: '7759', year: '2024', month: '10', amount: '500' },
   ];
 
   it('should return true for duplicate entry', () => {
