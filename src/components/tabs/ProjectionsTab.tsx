@@ -760,10 +760,35 @@ export const ProjectionsTab = React.memo(() => {
     );
   }, [selectedLoan, selectedLoanData?.lastImportDate, paymentRecords, loans]);
 
+  // Calculate start/end months for classic mode from entries
+  const classicMonthRange = useMemo(() => {
+    if (classicEntries.length === 0) {
+      return { startMonth: 1, endMonth: 24, totalMonths: 24 };
+    }
+
+    // Find the earliest and latest months across all entries
+    let minYearMonth = Infinity;
+    let maxYearMonth = -Infinity;
+
+    classicEntries.forEach(entry => {
+      const startYM = parseInt(entry.startYear) * 12 + parseInt(entry.startMonth);
+      const endYM = parseInt(entry.endYear) * 12 + parseInt(entry.endMonth);
+      minYearMonth = Math.min(minYearMonth, startYM);
+      maxYearMonth = Math.max(maxYearMonth, endYM);
+    });
+
+    const totalMonths = maxYearMonth - minYearMonth + 1;
+    return { startMonth: 1, endMonth: totalMonths, totalMonths };
+  }, [classicEntries]);
+
   // Calculate bid statistics
   const bidStatistics: BidStatistics = useMemo(() => {
-    const startMonth = parseInt(sanitizedExitSettings.startMonth) || 1;
-    const endMonth = parseInt(sanitizedExitSettings.endMonth) || 24;
+    // In Classic Mode: use classic entries data, no exit proceeds from Modern Mode
+    // In Modern Mode: use normal settings
+    const isClassicMode = mode === 'classic';
+
+    const startMonth = isClassicMode ? classicMonthRange.startMonth : (parseInt(sanitizedExitSettings.startMonth) || 1);
+    const endMonth = isClassicMode ? classicMonthRange.endMonth : (parseInt(sanitizedExitSettings.endMonth) || 24);
     const upb = selectedLoanData?.principal ?? 0;
     const collateralValue = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : 0;
     const discRate = parseFloat(discountRate) || 15;
@@ -777,9 +802,14 @@ export const ProjectionsTab = React.memo(() => {
     const monthsToMat = calculateMonthsToMaturity(selectedLoanData?.matDt ?? '');
     const trailingP12 = trailingPaymentData?.actual ?? 0;
 
-    // For Liquidation: exit is already in income grid, so don't pass separately to avoid double-counting
-    const isLiquidation = exitSettings?.method === 'Liquidation';
-    const exitProceedsForStats = isLiquidation ? 0 : totalExitProceeds;
+    // Classic Mode: no exit proceeds (all cash flows are in the tables)
+    // Modern Mode Liquidation: exit is already in income grid, so don't pass separately
+    // Modern Mode other methods: use totalExitProceeds
+    let exitProceedsForStats = 0;
+    if (!isClassicMode) {
+      const isLiquidation = exitSettings?.method === 'Liquidation';
+      exitProceedsForStats = isLiquidation ? 0 : totalExitProceeds;
+    }
 
     return calculateBidStatistics({
       netCashFlow: projectionGrid.netCashFlow,
@@ -796,6 +826,8 @@ export const ProjectionsTab = React.memo(() => {
       trailingP12
     });
   }, [
+    mode,
+    classicMonthRange,
     projectionGrid.netCashFlow,
     sanitizedExitSettings.startMonth,
     sanitizedExitSettings.endMonth,
@@ -806,6 +838,7 @@ export const ProjectionsTab = React.memo(() => {
     loanCollateral,
     discountRate,
     totalExitProceeds,
+    exitSettings?.method,
     trailingPaymentData?.actual
   ]);
 
