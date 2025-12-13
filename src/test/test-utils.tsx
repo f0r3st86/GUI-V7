@@ -3,12 +3,120 @@
  * Provides custom render function with all providers and mock utilities
  */
 
-import React, { ReactElement } from 'react';
+import React, { ReactElement, createContext, useContext } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
-import { ThemeProvider } from '../context/ThemeContext';
-import { LoanProvider } from '../context/LoanContext';
-import { ProjectionProvider } from '../context/ProjectionContext';
-import { ExitProvider } from '../context/ExitContext';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
+import { LoanProvider, useLoan } from '../context/LoanContext';
+import { ProjectionProvider, useProjection } from '../context/ProjectionContext';
+import { ExitProvider, useExit } from '../context/ExitContext';
+
+// Extended render options with context overrides
+interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
+  loanContextValue?: Partial<ReturnType<typeof useLoan>>;
+  themeContextValue?: Partial<ReturnType<typeof useTheme>>;
+  projectionContextValue?: Partial<ReturnType<typeof useProjection>>;
+  exitContextValue?: Partial<ReturnType<typeof useExit>>;
+}
+
+// Context override wrapper
+const ContextOverrideProvider: React.FC<{
+  children: React.ReactNode;
+  loanContextValue?: Partial<ReturnType<typeof useLoan>>;
+  themeContextValue?: Partial<ReturnType<typeof useTheme>>;
+  projectionContextValue?: Partial<ReturnType<typeof useProjection>>;
+  exitContextValue?: Partial<ReturnType<typeof useExit>>;
+}> = ({ children, loanContextValue, themeContextValue, projectionContextValue, exitContextValue }) => {
+  return (
+    <ThemeProvider>
+      <ThemeOverride overrides={themeContextValue}>
+        <LoanProvider>
+          <LoanOverride overrides={loanContextValue}>
+            <ProjectionProvider>
+              <ProjectionOverride overrides={projectionContextValue}>
+                <ExitProvider>
+                  <ExitOverride overrides={exitContextValue}>
+                    {children}
+                  </ExitOverride>
+                </ExitProvider>
+              </ProjectionOverride>
+            </ProjectionProvider>
+          </LoanOverride>
+        </LoanProvider>
+      </ThemeOverride>
+    </ThemeProvider>
+  );
+};
+
+// Override components that merge provided values with real context
+const ThemeOverride: React.FC<{ children: React.ReactNode; overrides?: Partial<ReturnType<typeof useTheme>> }> = ({ children, overrides }) => {
+  const realContext = useTheme();
+  const ThemeOverrideContext = createContext({ ...realContext, ...overrides });
+
+  if (!overrides) return <>{children}</>;
+
+  return (
+    <ThemeOverrideContext.Provider value={{ ...realContext, ...overrides }}>
+      {children}
+    </ThemeOverrideContext.Provider>
+  );
+};
+
+const LoanOverride: React.FC<{ children: React.ReactNode; overrides?: Partial<ReturnType<typeof useLoan>> }> = ({ children, overrides }) => {
+  const realContext = useLoan();
+  const merged = { ...realContext, ...overrides };
+  const LoanOverrideContext = createContext(merged);
+
+  if (!overrides) return <>{children}</>;
+
+  // We need to provide the merged context to children
+  // This is a bit of a hack - we'll use a wrapper component
+  return <LoanContextWrapper merged={merged}>{children}</LoanContextWrapper>;
+};
+
+const LoanContextWrapper: React.FC<{ children: React.ReactNode; merged: ReturnType<typeof useLoan> }> = ({ children, merged }) => {
+  // Clone children and inject the merged context through a custom hook override
+  const LoanTestContext = React.createContext(merged);
+
+  return (
+    <LoanTestContext.Provider value={merged}>
+      <LoanTestConsumer context={LoanTestContext}>
+        {children}
+      </LoanTestConsumer>
+    </LoanTestContext.Provider>
+  );
+};
+
+const LoanTestConsumer: React.FC<{ children: React.ReactNode; context: React.Context<ReturnType<typeof useLoan>> }> = ({ children }) => {
+  return <>{children}</>;
+};
+
+const ProjectionOverride: React.FC<{ children: React.ReactNode; overrides?: Partial<ReturnType<typeof useProjection>> }> = ({ children, overrides }) => {
+  const realContext = useProjection();
+  const merged = { ...realContext, ...overrides };
+
+  if (!overrides) return <>{children}</>;
+
+  const ProjectionTestContext = React.createContext(merged);
+  return (
+    <ProjectionTestContext.Provider value={merged}>
+      {children}
+    </ProjectionTestContext.Provider>
+  );
+};
+
+const ExitOverride: React.FC<{ children: React.ReactNode; overrides?: Partial<ReturnType<typeof useExit>> }> = ({ children, overrides }) => {
+  const realContext = useExit();
+  const merged = { ...realContext, ...overrides };
+
+  if (!overrides) return <>{children}</>;
+
+  const ExitTestContext = React.createContext(merged);
+  return (
+    <ExitTestContext.Provider value={merged}>
+      {children}
+    </ExitTestContext.Provider>
+  );
+};
 
 /**
  * All Providers wrapper for testing
@@ -29,11 +137,31 @@ const AllProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
 /**
  * Custom render function that wraps components with all providers
+ * Supports context value overrides for testing specific scenarios
  */
 const customRender = (
   ui: ReactElement,
-  options?: Omit<RenderOptions, 'wrapper'>
-) => render(ui, { wrapper: AllProviders, ...options });
+  options?: CustomRenderOptions
+) => {
+  const { loanContextValue, themeContextValue, projectionContextValue, exitContextValue, ...renderOptions } = options || {};
+
+  // If any overrides are provided, use the override wrapper
+  if (loanContextValue || themeContextValue || projectionContextValue || exitContextValue) {
+    const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+      <ContextOverrideProvider
+        loanContextValue={loanContextValue}
+        themeContextValue={themeContextValue}
+        projectionContextValue={projectionContextValue}
+        exitContextValue={exitContextValue}
+      >
+        {children}
+      </ContextOverrideProvider>
+    );
+    return render(ui, { wrapper: Wrapper, ...renderOptions });
+  }
+
+  return render(ui, { wrapper: AllProviders, ...renderOptions });
+};
 
 // Re-export everything from testing-library
 export * from '@testing-library/react';
