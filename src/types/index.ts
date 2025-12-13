@@ -181,6 +181,86 @@ export interface ProjectionGridData {
   netCashFlow: Record<string, Record<number, number>>;
 }
 
+// ==================== CASH FLOW STORAGE TYPES (SQL) ====================
+
+/**
+ * Individual cash flow record for SQL storage
+ * Table: cash_flow_records
+ */
+export interface CashFlowRecord {
+  id?: number;                    // Auto-increment primary key
+  mwLoanNo: string;               // Foreign key to loans table
+  projectionId: number;           // Foreign key to cash_flow_projections
+  year: number;                   // Calendar year (e.g., 2025)
+  month: number;                  // Calendar month (1-12)
+  projectionMonth: number;        // Projection month (1-60)
+  cashFlowType: 'income' | 'expense' | 'net'; // Type of cash flow
+  amount: number;                 // Cash flow amount
+  createdAt?: string;             // ISO timestamp
+  updatedAt?: string;             // ISO timestamp
+}
+
+/**
+ * Cash flow projection header for SQL storage
+ * Table: cash_flow_projections
+ */
+export interface CashFlowProjection {
+  id?: number;                    // Auto-increment primary key
+  mwLoanNo: string;               // Foreign key to loans table
+  mode: 'modern' | 'classic';     // Projection mode used
+  discountRate: number;           // Discount rate used for NPV
+  startMonth: number;             // Projection start month (1-60)
+  endMonth: number;               // Projection end month (1-60)
+  projectionSettingsId?: number;  // Foreign key to projection_settings
+  exitSettingsId?: number;        // Foreign key to exit_settings
+  createdAt?: string;             // ISO timestamp
+  updatedAt?: string;             // ISO timestamp
+}
+
+/**
+ * Bid statistics snapshot for SQL storage
+ * Table: bid_statistics
+ */
+export interface BidStatisticsRecord {
+  id?: number;                    // Auto-increment primary key
+  mwLoanNo: string;               // Foreign key to loans table
+  projectionId: number;           // Foreign key to cash_flow_projections
+  bidPrice: number;               // NPV of net cash flows
+  bidPercentage: number;          // Bid Price / UPB * 100
+  moic: number;                   // Sum of NCF / UPB
+  cashYield: number;              // F12 NCF / Bid Price * 100
+  f12CashFlow: number;            // Forward 12 months cash flow
+  p12CashFlow: number;            // Prior 12 months actual payments
+  f12vsP12Change: number;         // Percentage change F12 vs P12
+  bidToCollateralPct: number;     // Bid Price / Collateral Value * 100
+  ytmIrr: number;                 // Yield to maturity (IRR method)
+  ytmXirr: number;                // Yield to maturity (XIRR method)
+  totalExitProceeds: number;      // Exit value + add back recovery
+  upbAtBid: number;               // UPB used for bid calculation
+  collateralValueAtBid: number;   // Collateral value used
+  createdAt?: string;             // ISO timestamp
+}
+
+/**
+ * Aggregated projection summary for reporting
+ * Table: projection_summaries
+ */
+export interface ProjectionSummary {
+  id?: number;
+  mwLoanNo: string;
+  projectionId: number;
+  totalIncome: number;            // Sum of all income
+  totalExpenses: number;          // Sum of all expenses
+  totalNetCashFlow: number;       // Sum of all net cash flows
+  year1Income: number;            // First year income total
+  year1Expenses: number;          // First year expense total
+  year1NetCashFlow: number;       // First year NCF total
+  avgMonthlyIncome: number;       // Average monthly income
+  avgMonthlyExpense: number;      // Average monthly expense
+  avgMonthlyNCF: number;          // Average monthly NCF
+  createdAt?: string;
+}
+
 // ==================== EXIT TYPES ====================
 
 export type ExitMethod = 'Pay in Full' | 'DPO' | 'Value Cap' | 'User Enter' | 'YTM Sell Solve' | 'Liquidation';
