@@ -1214,7 +1214,7 @@ export const ProjectionsTab = React.memo(() => {
               </div>
 
               {/* Secondary Metrics */}
-              <div className="grid grid-cols-3 gap-2 mt-3">
+              <div className="grid grid-cols-4 gap-2 mt-3">
                 <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
                   <div className={`text-xs ${styles.textMuted}`}>MOIC</div>
                   <div className={`text-lg font-medium ${bidStatistics.moic >= 1 ? styles.textGreen : styles.textYellow}`}>
@@ -1237,36 +1237,18 @@ export const ProjectionsTab = React.memo(() => {
                     {bidStatistics.bidToCollateralPercentage.toFixed(1)}%
                   </div>
                 </div>
-              </div>
-
-              {/* Cash Flow Comparison */}
-              <div className={`mt-3 pt-3 border-t ${styles.borderColor}`}>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
-                    <div className={`text-xs ${styles.textMuted}`}>F12 (Fwd)</div>
-                    <div className={`text-sm font-medium ${bidStatistics.f12CashFlow >= 0 ? styles.textGreen : 'text-red-500'}`}>
-                      ${bidStatistics.f12CashFlow.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                    </div>
-                  </div>
-                  <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
-                    <div className={`text-xs ${styles.textMuted}`}>P12 (Prior)</div>
-                    <div className={`text-sm font-medium ${styles.textPrimary}`}>
-                      ${bidStatistics.p12CashFlow.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                    </div>
-                  </div>
-                  <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
-                    <div className={`text-xs ${styles.textMuted}`}>F12 vs P12</div>
-                    <div className={`text-sm font-medium ${
-                      bidStatistics.f12vsP12Change > 0 ? styles.textGreen :
-                      bidStatistics.f12vsP12Change < 0 ? 'text-red-500' :
-                      styles.textPrimary
-                    }`}>
-                      {bidStatistics.p12CashFlow > 0 ? (
-                        <>{bidStatistics.f12vsP12Change >= 0 ? '+' : ''}{bidStatistics.f12vsP12Change.toFixed(1)}%</>
-                      ) : (
-                        <span className={styles.textMuted}>N/A</span>
-                      )}
-                    </div>
+                <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                  <div className={`text-xs ${styles.textMuted}`}>F12/P12</div>
+                  <div className={`text-lg font-medium ${
+                    bidStatistics.f12vsP12Change > 0 ? styles.textGreen :
+                    bidStatistics.f12vsP12Change < 0 ? 'text-red-500' :
+                    styles.textPrimary
+                  }`}>
+                    {bidStatistics.p12CashFlow > 0 ? (
+                      <>{bidStatistics.f12vsP12Change >= 0 ? '+' : ''}{bidStatistics.f12vsP12Change.toFixed(1)}%</>
+                    ) : (
+                      <span className={styles.textMuted}>N/A</span>
+                    )}
                   </div>
                 </div>
               </div>
