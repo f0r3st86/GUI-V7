@@ -379,71 +379,71 @@ export const PayHistTab = React.memo(() => {
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr>
-                    <th className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5`}></th>
-                    <th className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textPrimary}`}>T12</th>
-                    <th className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textPrimary}`}>T6</th>
-                    <th className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textPrimary}`}>T3</th>
+                    <th className={`${styles.inputBorder} border px-1 py-0.5`}></th>
+                    <th className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textPrimary}`}>T12</th>
+                    <th className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textPrimary}`}>T6</th>
+                    <th className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textPrimary}`}>T3</th>
                   </tr>
                 </thead>
                 <tbody>
                   {/* $/Mo Row */}
                   <tr>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>$/Mo</td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>$/Mo</td>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       ${trailing12.monthly.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       ${trailing6.monthly.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       ${trailing3.monthly.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </td>
                   </tr>
 
                   {/* $/Yr Row */}
                   <tr>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>$/Yr</td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>$/Yr</td>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       ${trailing12.actual.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       ${(trailing6.actual * 2).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       ${(trailing3.actual * 4).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </td>
                   </tr>
 
                   {/* Actual Row */}
                   <tr>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>Actual</td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>Actual</td>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       ${trailing12.actual.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       ${trailing6.actual.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       ${trailing3.actual.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </td>
                   </tr>
 
                   {/* % Cont. Row */}
                   <tr>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>% Cont.</td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>% Cont.</td>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${
                       trailing12.percentOfContractual >= 100 ? styles.textGreen :
                       trailing12.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
                     }`}>
                       {trailing12.percentOfContractual.toFixed(1)}%
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${
                       trailing6.percentOfContractual >= 100 ? styles.textGreen :
                       trailing6.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
                     }`}>
                       {trailing6.percentOfContractual.toFixed(1)}%
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${
                       trailing3.percentOfContractual >= 100 ? styles.textGreen :
                       trailing3.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
                     }`}>
@@ -453,42 +453,42 @@ export const PayHistTab = React.memo(() => {
 
                   {/* % Int. Row */}
                   <tr>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>% Int.</td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>% Int.</td>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       {trailing12.percentOfInterestOnly.toFixed(1)}%
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       {trailing6.percentOfInterestOnly.toFixed(1)}%
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       {trailing3.percentOfInterestOnly.toFixed(1)}%
                     </td>
                   </tr>
 
                   {/* Mo Pd (Cont.) Row */}
                   <tr>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>Mo Pd (Cont.)</td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>Mo Pd (Cont.)</td>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       {trailing12.monthsPaidContractual.toFixed(1)}
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       {trailing6.monthsPaidContractual.toFixed(1)}
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       {trailing3.monthsPaidContractual.toFixed(1)}
                     </td>
                   </tr>
 
                   {/* Mo Pd (Int.) Row */}
                   <tr>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>Mo Pd (Int.)</td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 ${styles.textMuted} font-medium`}>Mo Pd (Int.)</td>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       {trailing12.monthsPaidInterest.toFixed(1)}
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       {trailing6.monthsPaidInterest.toFixed(1)}
                     </td>
-                    <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
+                    <td className={`${styles.inputBorder} border px-1 py-0.5 text-center font-medium ${styles.textYellow}`}>
                       {trailing3.monthsPaidInterest.toFixed(1)}
                     </td>
                   </tr>
