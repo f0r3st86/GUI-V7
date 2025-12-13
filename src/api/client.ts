@@ -7,7 +7,9 @@ import {
   mockBorrowerApi,
   mockCollateralApi,
   mockCommentApi,
-  mockPaymentApi
+  mockPaymentApi,
+  mockProjectionSettingsApi,
+  mockExitSettingsApi
 } from './mockApi';
 
 // When you have a real backend, import axios here:
@@ -22,6 +24,8 @@ export const borrowerApi = mockBorrowerApi;
 export const collateralApi = mockCollateralApi;
 export const commentApi = mockCommentApi;
 export const paymentApi = mockPaymentApi;
+export const projectionSettingsApi = mockProjectionSettingsApi;
+export const exitSettingsApi = mockExitSettingsApi;
 
 // Example of how this will look with real backend:
 /*

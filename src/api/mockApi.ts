@@ -9,7 +9,9 @@ import type {
   Comment,
   PaymentRecord,
   CollateralLoanRelationships,
-  LoanRelationship
+  LoanRelationship,
+  ProjectionSettings,
+  ExitSettings
 } from '../types';
 import {
   initialLoans,
@@ -32,6 +34,39 @@ let mockComments: Comment[] = [...initialComments];
 let mockPayments: PaymentRecord[] = [...initialPaymentRecords];
 let mockCollateralRelationships: CollateralLoanRelationships = { ...initialCollateralLoanRelationships };
 let mockBorrowerRelationships: Record<number, Record<string, LoanRelationship>> = {};
+
+// Projection and Exit settings storage (per loan)
+let mockProjectionSettings: Record<string, ProjectionSettings> = {};
+let mockExitSettings: Record<string, ExitSettings> = {};
+
+// Default settings (matching context defaults)
+const defaultProjectionSettings: ProjectionSettings = {
+  paymentMethod: 'Contractual',
+  rateMethod: 'Contractual',
+  userPayment: '',
+  userRate: '',
+  amortMonths: '360',
+  trailPeriod: '12',
+  trailPercentage: '100',
+  initialLegal: '',
+  initialLegalStartMonth: '1',
+  holdingCosts: '',
+  holdingCostsEndMonth: '12',
+  addBackPercentage: '0',
+  addBackBasis: 'Initial Only'
+};
+
+const defaultExitSettings: ExitSettings = {
+  method: 'Pay in Full',
+  startMonth: '1',
+  endMonth: '24',
+  dpoPercentage: '95',
+  valueCapPercentage: '90',
+  userEnterAmount: '',
+  ytmDesired: '12',
+  liquidationMonths: '12',
+  liquidationAddInterest: false
+};
 
 // Initialize borrower relationships from initial data
 initialBorrowers.forEach(borrower => {
@@ -275,6 +310,88 @@ export const mockPaymentApi = {
   }
 };
 
+// ==================== PROJECTION SETTINGS API ====================
+
+export const mockProjectionSettingsApi = {
+  // Get projection settings for a loan (returns defaults if none saved)
+  getByLoan: async (mwLoanNo: string): Promise<ProjectionSettings> => {
+    await mockDelay();
+    return mockProjectionSettings[mwLoanNo] || { ...defaultProjectionSettings };
+  },
+
+  // Save projection settings for a loan
+  save: async (mwLoanNo: string, settings: ProjectionSettings): Promise<ProjectionSettings> => {
+    await mockDelay();
+    mockProjectionSettings[mwLoanNo] = { ...settings };
+    return mockProjectionSettings[mwLoanNo];
+  },
+
+  // Update a single setting for a loan
+  updateSetting: async <K extends keyof ProjectionSettings>(
+    mwLoanNo: string,
+    key: K,
+    value: ProjectionSettings[K]
+  ): Promise<ProjectionSettings> => {
+    await mockDelay();
+    if (!mockProjectionSettings[mwLoanNo]) {
+      mockProjectionSettings[mwLoanNo] = { ...defaultProjectionSettings };
+    }
+    mockProjectionSettings[mwLoanNo] = {
+      ...mockProjectionSettings[mwLoanNo],
+      [key]: value
+    };
+    return mockProjectionSettings[mwLoanNo];
+  },
+
+  // Reset settings for a loan to defaults
+  reset: async (mwLoanNo: string): Promise<ProjectionSettings> => {
+    await mockDelay();
+    mockProjectionSettings[mwLoanNo] = { ...defaultProjectionSettings };
+    return mockProjectionSettings[mwLoanNo];
+  }
+};
+
+// ==================== EXIT SETTINGS API ====================
+
+export const mockExitSettingsApi = {
+  // Get exit settings for a loan (returns defaults if none saved)
+  getByLoan: async (mwLoanNo: string): Promise<ExitSettings> => {
+    await mockDelay();
+    return mockExitSettings[mwLoanNo] || { ...defaultExitSettings };
+  },
+
+  // Save exit settings for a loan
+  save: async (mwLoanNo: string, settings: ExitSettings): Promise<ExitSettings> => {
+    await mockDelay();
+    mockExitSettings[mwLoanNo] = { ...settings };
+    return mockExitSettings[mwLoanNo];
+  },
+
+  // Update a single setting for a loan
+  updateSetting: async <K extends keyof ExitSettings>(
+    mwLoanNo: string,
+    key: K,
+    value: ExitSettings[K]
+  ): Promise<ExitSettings> => {
+    await mockDelay();
+    if (!mockExitSettings[mwLoanNo]) {
+      mockExitSettings[mwLoanNo] = { ...defaultExitSettings };
+    }
+    mockExitSettings[mwLoanNo] = {
+      ...mockExitSettings[mwLoanNo],
+      [key]: value
+    };
+    return mockExitSettings[mwLoanNo];
+  },
+
+  // Reset settings for a loan to defaults
+  reset: async (mwLoanNo: string): Promise<ExitSettings> => {
+    await mockDelay();
+    mockExitSettings[mwLoanNo] = { ...defaultExitSettings };
+    return mockExitSettings[mwLoanNo];
+  }
+};
+
 // ==================== RESET (for testing) ====================
 
 export const resetMockData = () => {
@@ -285,6 +402,8 @@ export const resetMockData = () => {
   mockPayments = [...initialPaymentRecords];
   mockCollateralRelationships = { ...initialCollateralLoanRelationships };
   mockBorrowerRelationships = {};
+  mockProjectionSettings = {};
+  mockExitSettings = {};
   initialBorrowers.forEach(borrower => {
     if (borrower.loanRelationships) {
       mockBorrowerRelationships[borrower.id] = { ...borrower.loanRelationships };

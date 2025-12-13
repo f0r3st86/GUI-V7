@@ -1,6 +1,6 @@
 // ProjectionsTab component - cash flow projections and exit scenarios
 import React, { useMemo, useCallback } from 'react';
-import { useTheme, useLoan, useProjection, useExit } from '../../context';
+import { useTheme, useLoan } from '../../context';
 import { PAYMENT_METHODS, RATE_METHODS, EXIT_METHODS, MONTH_NAMES_SHORT } from '../../data';
 import {
   calculatePMT,
@@ -14,8 +14,13 @@ import {
   useLoans,
   usePayments,
   useCollateral,
-  useCollateralRelationships
+  useCollateralRelationships,
+  useProjectionSettings,
+  useUpdateProjectionSetting,
+  useExitSettings,
+  useUpdateExitSetting
 } from '../../hooks';
+import type { ProjectionSettings, ExitSettings } from '../../types';
 
 export const ProjectionsTab = React.memo(() => {
   debug.log('[ProjectionsTab] Component rendering');
@@ -24,8 +29,31 @@ export const ProjectionsTab = React.memo(() => {
 
   // UI state from Context
   const { selectedLoan } = useLoan();
-  const { settings: projSettings, updateSetting: updateProjSetting } = useProjection();
-  const { settings: exitSettings, updateSetting: updateExitSetting } = useExit();
+
+  // Projection and Exit settings from React Query (persisted per loan)
+  const { data: projSettings, isLoading: loadingProjSettings } = useProjectionSettings(selectedLoan);
+  const { data: exitSettings, isLoading: loadingExitSettings } = useExitSettings(selectedLoan);
+  const updateProjSettingMutation = useUpdateProjectionSetting();
+  const updateExitSettingMutation = useUpdateExitSetting();
+
+  // Wrapper functions to match the original API (key, value) -> mutation({ mwLoanNo, key, value })
+  const updateProjSetting = useCallback(<K extends keyof ProjectionSettings>(
+    key: K,
+    value: ProjectionSettings[K]
+  ) => {
+    if (selectedLoan) {
+      updateProjSettingMutation.mutate({ mwLoanNo: selectedLoan, key, value });
+    }
+  }, [selectedLoan, updateProjSettingMutation]);
+
+  const updateExitSetting = useCallback(<K extends keyof ExitSettings>(
+    key: K,
+    value: ExitSettings[K]
+  ) => {
+    if (selectedLoan) {
+      updateExitSettingMutation.mutate({ mwLoanNo: selectedLoan, key, value });
+    }
+  }, [selectedLoan, updateExitSettingMutation]);
 
   // Data from React Query
   const { data: loans, isLoading: loadingLoans } = useLoans();
@@ -65,8 +93,8 @@ export const ProjectionsTab = React.memo(() => {
   const [classicEntries, setClassicEntries] = React.useState<ClassicEntry[]>([]);
 
   // Local state for input fields to allow empty display while keeping valid context state
-  const [startMonthInput, setStartMonthInput] = React.useState(exitSettings.startMonth);
-  const [endMonthInput, setEndMonthInput] = React.useState(exitSettings.endMonth);
+  const [startMonthInput, setStartMonthInput] = React.useState(exitSettings?.startMonth || '1');
+  const [endMonthInput, setEndMonthInput] = React.useState(exitSettings?.endMonth || '24');
 
   // Memoize collateral lookup to avoid O(n) search on every render - PERFORMANCE OPTIMIZATION
   const loanCollateral = useMemo(() =>
@@ -82,18 +110,18 @@ export const ProjectionsTab = React.memo(() => {
   const classicAmountRef = React.useRef<HTMLInputElement>(null);
   const classicTypeRef = React.useRef<HTMLSelectElement>(null);
 
-  // Sync local state when context changes (but not during typing)
+  // Sync local state when settings change (but not during typing)
   React.useEffect(() => {
-    if (document.activeElement?.getAttribute('name') !== 'startMonth') {
+    if (exitSettings && document.activeElement?.getAttribute('name') !== 'startMonth') {
       setStartMonthInput(exitSettings.startMonth);
     }
-  }, [exitSettings.startMonth]);
+  }, [exitSettings?.startMonth]);
 
   React.useEffect(() => {
-    if (document.activeElement?.getAttribute('name') !== 'endMonth') {
+    if (exitSettings && document.activeElement?.getAttribute('name') !== 'endMonth') {
       setEndMonthInput(exitSettings.endMonth);
     }
-  }, [exitSettings.endMonth]);
+  }, [exitSettings?.endMonth]);
 
   debug.log('[ProjectionsTab] Context values:', {
     selectedLoan,
@@ -206,6 +234,9 @@ export const ProjectionsTab = React.memo(() => {
 
   // Sanitize exit settings to prevent invalid calculations during user input
   const sanitizedExitSettings = useMemo(() => {
+    if (!exitSettings) {
+      return { startMonth: '1', endMonth: '24' };
+    }
     const startMonth = parseInt(exitSettings.startMonth) || 1;
     const endMonth = parseInt(exitSettings.endMonth) || 24;
 
@@ -220,8 +251,8 @@ export const ProjectionsTab = React.memo(() => {
   const getProjectedRate = useCallback((): number => {
     try {
       let rate = 0;
-      if (projSettings.rateMethod === 'User Enter') {
-        rate = parseFloat(projSettings.userRate) || 0;
+      if (projSettings?.rateMethod === 'User Enter') {
+        rate = parseFloat(projSettings?.userRate || '') || 0;
         debug.log('[getProjectedRate] Using User Enter:', rate);
       } else {
         rate = selectedLoanData?.intRate ?? 0;
@@ -239,21 +270,22 @@ export const ProjectionsTab = React.memo(() => {
       debug.error('Error in getProjectedRate:', error);
       return selectedLoanData?.intRate ?? 0;
     }
-  }, [projSettings.rateMethod, projSettings.userRate, selectedLoanData?.intRate ?? 0]);
+  }, [projSettings?.rateMethod, projSettings?.userRate, selectedLoanData?.intRate ?? 0]);
 
   // Calculate projected payment based on method
   const calculateProjectedPayment = useCallback((): number => {
     try {
       let result = 0;
-      debug.log('[calculateProjectedPayment] Method:', projSettings.paymentMethod);
+      const paymentMethod = projSettings?.paymentMethod || 'Contractual';
+      debug.log('[calculateProjectedPayment] Method:', paymentMethod);
 
-      switch (projSettings.paymentMethod) {
+      switch (paymentMethod) {
         case 'Contractual':
           result = selectedLoanData?.pmt ?? 0;
           debug.log('[calculateProjectedPayment] Contractual:', result);
           break;
         case 'User Enter':
-          result = parseFloat(projSettings.userPayment) || 0;
+          result = parseFloat(projSettings?.userPayment || '') || 0;
           debug.log('[calculateProjectedPayment] User Enter:', result);
           break;
         case 'Interest Payment':
@@ -263,20 +295,20 @@ export const ProjectionsTab = React.memo(() => {
           break;
         case 'Term Pmt':
           const termRate = getProjectedRate();
-          const amortMonths = parseInt(projSettings.amortMonths) || 360;
+          const amortMonths = parseInt(projSettings?.amortMonths || '') || 360;
           result = calculatePMT(termRate, amortMonths, selectedLoanData?.principal ?? 0);
           debug.log('[calculateProjectedPayment] Term Pmt - Rate:', termRate, 'Months:', amortMonths, 'Result:', result);
           break;
         case '% of Trail Pmt':
           const trailData = calculateTrailingPayments(
             selectedLoan,
-            parseInt(projSettings.trailPeriod) || 12,
+            parseInt(projSettings?.trailPeriod || '') || 12,
             selectedLoanData?.lastImportDate ?? "",
             paymentRecords,
             loans || []
           );
           const trailMonthly = trailData?.monthly || 0;
-          const trailPercent = parseFloat(projSettings.trailPercentage) || 100;
+          const trailPercent = parseFloat(projSettings?.trailPercentage || '') || 100;
           result = trailMonthly * trailPercent / 100;
           debug.log('[calculateProjectedPayment] Trail Pmt - Monthly:', trailMonthly, 'Percent:', trailPercent, 'Result:', result);
           break;
@@ -296,14 +328,14 @@ export const ProjectionsTab = React.memo(() => {
       debug.error('Error in calculateProjectedPayment:', error);
       return selectedLoanData?.pmt ?? 0;
     }
-  }, [projSettings.paymentMethod, projSettings.userPayment, projSettings.amortMonths, projSettings.trailPeriod, projSettings.trailPercentage, selectedLoanData?.pmt ?? 0, selectedLoanData?.principal ?? 0, selectedLoanData?.lastImportDate, selectedLoan, paymentRecords, loans, getProjectedRate]);
+  }, [projSettings?.paymentMethod, projSettings?.userPayment, projSettings?.amortMonths, projSettings?.trailPeriod, projSettings?.trailPercentage, selectedLoanData?.pmt ?? 0, selectedLoanData?.principal ?? 0, selectedLoanData?.lastImportDate, selectedLoan, paymentRecords, loans, getProjectedRate]);
 
   // Calculate total holding costs
   const calculateTotalHoldingCosts = useCallback((): number => {
-    const legalStartMonth = parseInt(projSettings.initialLegalStartMonth) || 0;
-    const holdingEndMonth = parseInt(projSettings.holdingCostsEndMonth) || 0;
+    const legalStartMonth = parseInt(projSettings?.initialLegalStartMonth || '') || 0;
+    const holdingEndMonth = parseInt(projSettings?.holdingCostsEndMonth || '') || 0;
     const numberOfMonths = Math.max(0, holdingEndMonth - legalStartMonth);
-    const monthlyHolding = parseFloat(projSettings.holdingCosts) || 0;
+    const monthlyHolding = parseFloat(projSettings?.holdingCosts || '') || 0;
     const total = numberOfMonths * monthlyHolding;
 
     debug.log('[calculateTotalHoldingCosts]:', {
@@ -315,21 +347,22 @@ export const ProjectionsTab = React.memo(() => {
     });
 
     return total;
-  }, [projSettings.initialLegalStartMonth, projSettings.holdingCostsEndMonth, projSettings.holdingCosts]);
+  }, [projSettings?.initialLegalStartMonth, projSettings?.holdingCostsEndMonth, projSettings?.holdingCosts]);
 
   // Calculate add back to exit
   const calculateAddBackToExit = useCallback((): number => {
     try {
-      const initialLegal = parseFloat(projSettings.initialLegal) || 0;
+      const initialLegal = parseFloat(projSettings?.initialLegal || '') || 0;
       const totalHolding = calculateTotalHoldingCosts();
-      const basis = projSettings.addBackBasis === 'Initial Only' ? initialLegal : initialLegal + totalHolding;
-      const percentage = parseFloat(projSettings.addBackPercentage) || 0;
+      const addBackBasis = projSettings?.addBackBasis || 'Initial Only';
+      const basis = addBackBasis === 'Initial Only' ? initialLegal : initialLegal + totalHolding;
+      const percentage = parseFloat(projSettings?.addBackPercentage || '') || 0;
       const result = basis * percentage / 100;
 
       debug.log('[calculateAddBackToExit] Expense Recovery:', {
         initialLegal,
         totalHolding,
-        addBackBasis: projSettings.addBackBasis,
+        addBackBasis,
         basis,
         percentage,
         result
@@ -346,7 +379,7 @@ export const ProjectionsTab = React.memo(() => {
       debug.error('Error in calculateAddBackToExit:', error);
       return 0;
     }
-  }, [projSettings.initialLegal, projSettings.addBackBasis, projSettings.addBackPercentage, calculateTotalHoldingCosts]);
+  }, [projSettings?.initialLegal, projSettings?.addBackBasis, projSettings?.addBackPercentage, calculateTotalHoldingCosts]);
 
   // Calculate pay in full value
   const calculatePayInFull = useCallback((): number => {
@@ -362,8 +395,8 @@ export const ProjectionsTab = React.memo(() => {
         payment,
         principal: selectedLoanData?.principal ?? 0,
         nper,
-        paymentMethod: projSettings.paymentMethod,
-        rateMethod: projSettings.rateMethod
+        paymentMethod: projSettings?.paymentMethod,
+        rateMethod: projSettings?.rateMethod
       });
 
       // Validate inputs
@@ -389,38 +422,39 @@ export const ProjectionsTab = React.memo(() => {
       debug.error('Error in calculatePayInFull:', error);
       return selectedLoanData?.principal ?? 0;
     }
-  }, [sanitizedExitSettings.startMonth, sanitizedExitSettings.endMonth, selectedLoanData?.principal ?? 0, projSettings.paymentMethod, projSettings.rateMethod, getProjectedRate, calculateProjectedPayment]);
+  }, [sanitizedExitSettings.startMonth, sanitizedExitSettings.endMonth, selectedLoanData?.principal ?? 0, projSettings?.paymentMethod, projSettings?.rateMethod, getProjectedRate, calculateProjectedPayment]);
 
   // Get calculated exit value - memoized to prevent recalculation on every render
   const calculatedExitValue = useMemo(() => {
     try {
       let result = 0;
-      debug.log(`[calculatedExitValue] Method: ${exitSettings.method}`);
+      const exitMethod = exitSettings?.method || 'Pay in Full';
+      debug.log(`[calculatedExitValue] Method: ${exitMethod}`);
 
-      switch (exitSettings.method) {
+      switch (exitMethod) {
         case 'Pay in Full':
           result = calculatePayInFull();
           debug.log('[Pay in Full] Result:', result);
           break;
         case 'DPO':
           const payInFull = calculatePayInFull();
-          const dpoPercent = parseFloat(exitSettings.dpoPercentage) || 95;
+          const dpoPercent = parseFloat(exitSettings?.dpoPercentage || '') || 95;
           result = payInFull * dpoPercent / 100;
           debug.log('[DPO] Pay in Full:', payInFull, 'Percentage:', dpoPercent, 'Result:', result);
           break;
         case 'Value Cap':
           // Use memoized collateral lookup for O(1) performance
           const collateralValue = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : 0;
-          const capPercent = parseFloat(exitSettings.valueCapPercentage) || 90;
+          const capPercent = parseFloat(exitSettings?.valueCapPercentage || '') || 90;
           result = collateralValue * capPercent / 100;
           debug.log('[Value Cap] Collateral:', collateralValue, 'Percentage:', capPercent, 'Result:', result);
           break;
         case 'User Enter':
-          result = parseFloat(exitSettings.userEnterAmount) || 0;
+          result = parseFloat(exitSettings?.userEnterAmount || '') || 0;
           debug.log('[User Enter] Amount:', result);
           break;
         case 'YTM Sell Solve':
-          const desiredYield = parseFloat(exitSettings.ytmDesired) || 12;
+          const desiredYield = parseFloat(exitSettings?.ytmDesired || '') || 12;
           const startMonthYTM = parseInt(sanitizedExitSettings.startMonth) || 1;
           const endMonthYTM = parseInt(sanitizedExitSettings.endMonth) || 24;
           const months = Math.max(1, endMonthYTM - startMonthYTM + 1); // Ensure positive months
@@ -431,8 +465,8 @@ export const ProjectionsTab = React.memo(() => {
             months,
             monthlyPmt,
             finalPayoff,
-            paymentMethod: projSettings.paymentMethod,
-            rateMethod: projSettings.rateMethod
+            paymentMethod: projSettings?.paymentMethod,
+            rateMethod: projSettings?.rateMethod
           });
           // Calculate present value: what to sell loan for today to achieve desired yield
           // With positive payments (cash inflows) and positive final payoff
@@ -440,14 +474,14 @@ export const ProjectionsTab = React.memo(() => {
           debug.log('[YTM Sell Solve] Result:', result);
           break;
         case 'Liquidation':
-          const liquidationMonths = parseInt(exitSettings.liquidationMonths) || 12;
+          const liquidationMonths = parseInt(exitSettings?.liquidationMonths || '') || 12;
           let balance = selectedLoanData?.principal ?? 0;
-          if (exitSettings.liquidationAddInterest) {
+          if (exitSettings?.liquidationAddInterest) {
             balance += selectedLoanData?.interest ?? 0;
           }
           const rate = getProjectedRate();
           const monthlyRate = rate / 100 / 12;
-          debug.log('[Liquidation] Starting balance:', balance, 'Rate:', rate, 'Months:', liquidationMonths, 'Rate method:', projSettings.rateMethod);
+          debug.log('[Liquidation] Starting balance:', balance, 'Rate:', rate, 'Months:', liquidationMonths, 'Rate method:', projSettings?.rateMethod);
           // Calculate interest accrual during liquidation
           for (let i = 0; i < liquidationMonths; i++) {
             balance += balance * monthlyRate;
@@ -466,7 +500,7 @@ export const ProjectionsTab = React.memo(() => {
         return 0;
       }
 
-      debug.log(`[calculatedExitValue] Final result for ${exitSettings.method}:`, result);
+      debug.log(`[calculatedExitValue] Final result for ${exitMethod}:`, result);
       return result;
     } catch (error) {
       debug.error('Error calculating exit value:', error);
@@ -475,13 +509,13 @@ export const ProjectionsTab = React.memo(() => {
     // OPTIMIZED DEPENDENCIES: Only include what's actually used, not entire objects
   }, [
     // Exit settings - only specific fields used in switch cases
-    exitSettings.method,
-    exitSettings.dpoPercentage,
-    exitSettings.valueCapPercentage,
-    exitSettings.userEnterAmount,
-    exitSettings.ytmDesired,
-    exitSettings.liquidationMonths,
-    exitSettings.liquidationAddInterest,
+    exitSettings?.method,
+    exitSettings?.dpoPercentage,
+    exitSettings?.valueCapPercentage,
+    exitSettings?.userEnterAmount,
+    exitSettings?.ytmDesired,
+    exitSettings?.liquidationMonths,
+    exitSettings?.liquidationAddInterest,
     // Sanitized start/end months (not entire object)
     sanitizedExitSettings.startMonth,
     sanitizedExitSettings.endMonth,
@@ -493,7 +527,10 @@ export const ProjectionsTab = React.memo(() => {
     // Calculation functions
     calculateProjectedPayment,
     calculatePayInFull,
-    getProjectedRate
+    getProjectedRate,
+    // Projection settings used in logging
+    projSettings?.paymentMethod,
+    projSettings?.rateMethod
   ]);
 
   // Memoized projected payment value - don't call function in render
@@ -544,10 +581,10 @@ export const ProjectionsTab = React.memo(() => {
     const startMonth = parseInt(sanitizedExitSettings.startMonth) || 1;
     const endMonth = Math.min(Math.max(1, parseInt(sanitizedExitSettings.endMonth) || 24), 60); // Ensure valid range
     const monthlyPayment = projectedPaymentValue;
-    const initialLegal = parseFloat(projSettings.initialLegal) || 0;
-    const initialLegalStart = parseInt(projSettings.initialLegalStartMonth) || 1;
-    const holdingCosts = parseFloat(projSettings.holdingCosts) || 0;
-    const holdingCostsEnd = parseInt(projSettings.holdingCostsEndMonth) || 12;
+    const initialLegal = parseFloat(projSettings?.initialLegal || '') || 0;
+    const initialLegalStart = parseInt(projSettings?.initialLegalStartMonth || '') || 1;
+    const holdingCosts = parseFloat(projSettings?.holdingCosts || '') || 0;
+    const holdingCostsEnd = parseInt(projSettings?.holdingCostsEndMonth || '') || 12;
 
     // Get current date for starting year
     const currentYear = new Date().getFullYear();
@@ -694,7 +731,7 @@ export const ProjectionsTab = React.memo(() => {
   }, []);
 
   // Loading state (must be after all hooks)
-  if (loadingLoans || loadingPayments || loadingCollateral) {
+  if (loadingLoans || loadingPayments || loadingCollateral || loadingProjSettings || loadingExitSettings) {
     return (
       <div className="p-4">
         <p className={styles.textMuted}>Loading...</p>
@@ -702,8 +739,8 @@ export const ProjectionsTab = React.memo(() => {
     );
   }
 
-  if (!selectedLoanData) {
-    debug.warn('[ProjectionsTab] No loan data selected');
+  if (!selectedLoanData || !projSettings || !exitSettings) {
+    debug.warn('[ProjectionsTab] No loan data or settings available');
     return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;
   }
 

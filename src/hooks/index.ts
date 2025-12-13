@@ -7,3 +7,5 @@ export * from './useBorrowers';
 export * from './useCollateral';
 export * from './useComments';
 export * from './usePayments';
+export * from './useProjectionSettings';
+export * from './useExitSettings';
