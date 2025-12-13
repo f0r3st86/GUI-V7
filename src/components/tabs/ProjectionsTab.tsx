@@ -871,458 +871,432 @@ export const ProjectionsTab = React.memo(() => {
       {/* Modern Mode Content */}
       {mode === 'modern' && (
         <>
-          {/* Projection Settings */}
-          <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
-        <h3 className={`font-medium mb-4 ${styles.textPrimary}`}>Projection Settings</h3>
+          {/* Two Column Layout: Settings (Left) | Bid Statistics (Right) */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Left Column - Settings */}
+            <div className="space-y-4">
+              {/* Projection Settings */}
+              <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+                <h3 className={`font-medium mb-4 ${styles.textPrimary}`}>Projection Settings</h3>
 
-        <div className="grid grid-cols-2 gap-6">
-          {/* Payment Method Section */}
-          <div>
-            <h4 className={`text-sm font-medium ${styles.textPrimary} mb-3`}>Payment Method</h4>
-            <div className="mb-3">
-              <label className={`text-xs ${styles.textMuted} block mb-1`}>Payment Type:</label>
-              <select
-                value={projSettings.paymentMethod}
-                onChange={(e) => updateProjSetting('paymentMethod', e.target.value as typeof projSettings.paymentMethod)}
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-              >
-                {PAYMENT_METHODS.map(method => (
-                  <option key={method} value={method}>{method}</option>
-                ))}
-              </select>
-              <div className={`mt-2 px-2 py-1 ${styles.readOnlyBg} rounded ${styles.inputBorder} border`}>
-                <span className={`text-xs ${styles.textMuted}`}>Calculated: </span>
-                <span className={`text-sm font-medium ${styles.textYellow}`}>
-                  ${projectedPaymentValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}/mo
-                </span>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Payment Method Section */}
+                  <div>
+                    <h4 className={`text-sm font-medium ${styles.textPrimary} mb-2`}>Payment Method</h4>
+                    <select
+                      value={projSettings.paymentMethod}
+                      onChange={(e) => updateProjSetting('paymentMethod', e.target.value as typeof projSettings.paymentMethod)}
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    >
+                      {PAYMENT_METHODS.map(method => (
+                        <option key={method} value={method}>{method}</option>
+                      ))}
+                    </select>
+                    <div className={`mt-1 px-2 py-1 ${styles.readOnlyBg} rounded ${styles.inputBorder} border`}>
+                      <span className={`text-xs ${styles.textMuted}`}>Calc: </span>
+                      <span className={`text-sm font-medium ${styles.textYellow}`}>
+                        ${projectedPaymentValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}/mo
+                      </span>
+                    </div>
+
+                    {projSettings.paymentMethod === 'User Enter' && (
+                      <div className="mt-2">
+                        <label className={`text-xs ${styles.textMuted} block mb-1`}>Amount:</label>
+                        <input
+                          type="text"
+                          value={projSettings.userPayment}
+                          onChange={(e) => updateProjSetting('userPayment', e.target.value)}
+                          placeholder="0.00"
+                          className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                        />
+                      </div>
+                    )}
+
+                    {projSettings.paymentMethod === 'Term Pmt' && (
+                      <div className="mt-2">
+                        <label className={`text-xs ${styles.textMuted} block mb-1`}>Amort (mo):</label>
+                        <input
+                          type="text"
+                          value={projSettings.amortMonths}
+                          onChange={(e) => updateProjSetting('amortMonths', e.target.value)}
+                          placeholder="360"
+                          className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Rate Method Section */}
+                  <div>
+                    <h4 className={`text-sm font-medium ${styles.textPrimary} mb-2`}>Rate Method</h4>
+                    <select
+                      value={projSettings.rateMethod}
+                      onChange={(e) => updateProjSetting('rateMethod', e.target.value as typeof projSettings.rateMethod)}
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    >
+                      {RATE_METHODS.map(method => (
+                        <option key={method} value={method}>{method}</option>
+                      ))}
+                    </select>
+                    <div className={`mt-1 px-2 py-1 ${styles.readOnlyBg} rounded ${styles.inputBorder} border`}>
+                      <span className={`text-xs ${styles.textMuted}`}>Rate: </span>
+                      <span className={`text-sm font-medium ${styles.textYellow}`}>{getProjectedRate().toFixed(2)}%</span>
+                    </div>
+
+                    {projSettings.rateMethod === 'User Enter' && (
+                      <div className="mt-2">
+                        <label className={`text-xs ${styles.textMuted} block mb-1`}>Rate (%):</label>
+                        <input
+                          type="text"
+                          value={projSettings.userRate}
+                          onChange={(e) => updateProjSetting('userRate', e.target.value)}
+                          placeholder="0.00"
+                          className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Expense Assumptions - Compact */}
+                <div className={`mt-4 pt-3 border-t ${styles.borderColor}`}>
+                  <h4 className={`text-sm font-medium ${styles.textPrimary} mb-2`}>Expenses</h4>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div>
+                      <label className={`text-xs ${styles.textMuted} block mb-1`}>Legal ($):</label>
+                      <input
+                        type="text"
+                        value={projSettings.initialLegal}
+                        onChange={(e) => updateProjSetting('initialLegal', e.target.value)}
+                        placeholder="0"
+                        className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`text-xs ${styles.textMuted} block mb-1`}>Start Mo:</label>
+                      <input
+                        type="text"
+                        value={projSettings.initialLegalStartMonth}
+                        onChange={(e) => updateProjSetting('initialLegalStartMonth', e.target.value)}
+                        placeholder="1"
+                        className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`text-xs ${styles.textMuted} block mb-1`}>Hold ($/mo):</label>
+                      <input
+                        type="text"
+                        value={projSettings.holdingCosts}
+                        onChange={(e) => updateProjSetting('holdingCosts', e.target.value)}
+                        placeholder="0"
+                        className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`text-xs ${styles.textMuted} block mb-1`}>Thru Mo:</label>
+                      <input
+                        type="text"
+                        value={projSettings.holdingCostsEndMonth}
+                        onChange={(e) => updateProjSetting('holdingCostsEndMonth', e.target.value)}
+                        placeholder="12"
+                        className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div>
+                      <label className={`text-xs ${styles.textMuted} block mb-1`}>Add Back Basis:</label>
+                      <select
+                        value={projSettings.addBackBasis || 'Initial Only'}
+                        onChange={(e) => updateProjSetting('addBackBasis', e.target.value as 'Initial Only' | 'Initial + Holding')}
+                        className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                      >
+                        <option value="Initial Only">Initial Only</option>
+                        <option value="Initial + Holding">Initial + Holding</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`text-xs ${styles.textMuted} block mb-1`}>Recovery (%):</label>
+                      <input
+                        type="text"
+                        value={projSettings.addBackPercentage || ''}
+                        onChange={(e) => handleAddBackPercentageChange(e.target.value)}
+                        onBlur={(e) => handleAddBackPercentageBlur(e.target.value)}
+                        placeholder="0"
+                        className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Exit Scenario Settings - Compact */}
+              <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+                <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Exit Settings</h3>
+
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className={`text-xs ${styles.textMuted} block mb-1`}>Start Month:</label>
+                    <input
+                      type="text"
+                      name="startMonth"
+                      value={startMonthInput}
+                      onChange={(e) => handleStartMonthChange(e.target.value)}
+                      onBlur={handleStartMonthBlur}
+                      placeholder="1"
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`text-xs ${styles.textMuted} block mb-1`}>Exit Month:</label>
+                    <input
+                      type="text"
+                      name="endMonth"
+                      value={endMonthInput}
+                      onChange={(e) => handleEndMonthChange(e.target.value)}
+                      onBlur={handleEndMonthBlur}
+                      placeholder="24"
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className={`text-xs ${styles.textMuted} block mb-1`}>Exit Method:</label>
+                  <select
+                    value={exitSettings.method}
+                    onChange={(e) => updateExitSetting('method', e.target.value as typeof exitSettings.method)}
+                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  >
+                    {EXIT_METHODS.map(method => (
+                      <option key={method} value={method}>{method}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Conditional inputs based on exit method */}
+                {exitSettings.method === 'DPO' && (
+                  <div className="mt-2">
+                    <label className={`text-xs ${styles.textMuted} block mb-1`}>DPO %:</label>
+                    <input
+                      type="text"
+                      value={exitSettings.dpoPercentage}
+                      onChange={(e) => updateExitSetting('dpoPercentage', e.target.value)}
+                      placeholder="95"
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    />
+                  </div>
+                )}
+
+                {exitSettings.method === 'Value Cap' && (
+                  <div className="mt-2">
+                    <label className={`text-xs ${styles.textMuted} block mb-1`}>Value Cap %:</label>
+                    <input
+                      type="text"
+                      value={exitSettings.valueCapPercentage}
+                      onChange={(e) => updateExitSetting('valueCapPercentage', e.target.value)}
+                      placeholder="90"
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    />
+                  </div>
+                )}
+
+                {exitSettings.method === 'User Enter' && (
+                  <div className="mt-2">
+                    <label className={`text-xs ${styles.textMuted} block mb-1`}>Exit Value ($):</label>
+                    <input
+                      type="text"
+                      value={exitSettings.userEnterAmount}
+                      onChange={(e) => updateExitSetting('userEnterAmount', e.target.value)}
+                      placeholder="0.00"
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    />
+                  </div>
+                )}
+
+                {exitSettings.method === 'YTM Sell Solve' && (
+                  <div className="mt-2">
+                    <label className={`text-xs ${styles.textMuted} block mb-1`}>Desired YTM %:</label>
+                    <input
+                      type="text"
+                      value={exitSettings.ytmDesired}
+                      onChange={(e) => updateExitSetting('ytmDesired', e.target.value)}
+                      placeholder="12.00"
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    />
+                  </div>
+                )}
+
+                {exitSettings.method === 'Liquidation' && (
+                  <div className="mt-2 space-y-2">
+                    <div>
+                      <label className={`text-xs ${styles.textMuted} block mb-1`}>Liquidation Months:</label>
+                      <input
+                        type="text"
+                        value={exitSettings.liquidationMonths}
+                        onChange={(e) => updateExitSetting('liquidationMonths', e.target.value)}
+                        placeholder="12"
+                        className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                      />
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="addCurrentInterest"
+                        checked={exitSettings.liquidationAddInterest}
+                        onChange={(e) => updateExitSetting('liquidationAddInterest', e.target.checked)}
+                        className="mr-2"
+                      />
+                      <label htmlFor="addCurrentInterest" className={`text-xs ${styles.textPrimary}`}>
+                        Add interest (${selectedLoanData.interest.toLocaleString()})
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Exit Value Summary - Compact */}
+                <div className={`mt-3 pt-3 border-t ${styles.borderColor}`}>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                      <div className={`text-xs ${styles.textMuted}`}>Exit Value</div>
+                      <div className={`text-sm font-medium ${calculatedExitValue < 0 ? 'text-red-500' : styles.textYellow}`}>
+                        ${(isFinite(calculatedExitValue) ? calculatedExitValue : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                      </div>
+                    </div>
+                    <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                      <div className={`text-xs ${styles.textMuted}`}>Add Back</div>
+                      <div className={`text-sm font-medium ${styles.textYellow}`}>
+                        ${addBackValue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                      </div>
+                    </div>
+                    <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                      <div className={`text-xs ${styles.textMuted}`}>Total Exit</div>
+                      <div className={`text-sm font-medium ${styles.textGreen}`}>
+                        ${totalExitProceeds.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {projSettings.paymentMethod === 'User Enter' && (
-              <div>
-                <label className={`text-xs ${styles.textMuted} block mb-1`}>Payment Amount:</label>
-                <input
-                  type="text"
-                  value={projSettings.userPayment}
-                  onChange={(e) => updateProjSetting('userPayment', e.target.value)}
-                  placeholder="0.00"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-                />
+            {/* Right Column - Bid Statistics */}
+            <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`font-medium ${styles.textPrimary}`}>Bid Statistics</h3>
+                <div className="flex items-center gap-2">
+                  <label className={`text-xs ${styles.textMuted}`}>Discount Rate:</label>
+                  <input
+                    type="text"
+                    value={discountRate}
+                    onChange={(e) => setDiscountRate(e.target.value)}
+                    placeholder="15"
+                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-16 text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  />
+                  <span className={`text-xs ${styles.textMuted}`}>%</span>
+                </div>
               </div>
-            )}
 
-            {projSettings.paymentMethod === 'Term Pmt' && (
-              <div>
-                <label className={`text-xs ${styles.textMuted} block mb-1`}>Amortization (months):</label>
-                <input
-                  type="text"
-                  value={projSettings.amortMonths}
-                  onChange={(e) => updateProjSetting('amortMonths', e.target.value)}
-                  placeholder="360"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-                />
+              {/* Primary Metrics */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+                  <div className={`text-xs ${styles.textMuted} mb-1`}>Bid Price</div>
+                  <div className={`text-xl font-bold ${bidStatistics.bidPrice >= 0 ? styles.textGreen : 'text-red-500'}`}>
+                    ${bidStatistics.bidPrice.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                  </div>
+                </div>
+                <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+                  <div className={`text-xs ${styles.textMuted} mb-1`}>Bid %</div>
+                  <div className={`text-xl font-bold ${styles.textPrimary}`}>
+                    {bidStatistics.bidPercentage.toFixed(1)}%
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
 
-          {/* Rate Method Section */}
-          <div>
-            <h4 className={`text-sm font-medium ${styles.textPrimary} mb-3`}>Rate Method</h4>
-            <div className="mb-3">
-              <label className={`text-xs ${styles.textMuted} block mb-1`}>Rate Type:</label>
-              <select
-                value={projSettings.rateMethod}
-                onChange={(e) => updateProjSetting('rateMethod', e.target.value as typeof projSettings.rateMethod)}
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-              >
-                {RATE_METHODS.map(method => (
-                  <option key={method} value={method}>{method}</option>
-                ))}
-              </select>
-              <div className={`mt-2 px-2 py-1 ${styles.readOnlyBg} rounded ${styles.inputBorder} border`}>
-                <span className={`text-xs ${styles.textMuted}`}>Effective Rate: </span>
-                <span className={`text-sm font-medium ${styles.textYellow}`}>{getProjectedRate().toFixed(2)}%</span>
+              {/* Secondary Metrics */}
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                  <div className={`text-xs ${styles.textMuted}`}>MOIC</div>
+                  <div className={`text-lg font-medium ${bidStatistics.moic >= 1 ? styles.textGreen : styles.textYellow}`}>
+                    {bidStatistics.moic.toFixed(2)}x
+                  </div>
+                </div>
+                <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                  <div className={`text-xs ${styles.textMuted}`}>Cash Yield</div>
+                  <div className={`text-lg font-medium ${bidStatistics.cashYield >= 0 ? styles.textGreen : 'text-red-500'}`}>
+                    {bidStatistics.cashYield.toFixed(1)}%
+                  </div>
+                </div>
+                <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                  <div className={`text-xs ${styles.textMuted}`}>Bid/Collat</div>
+                  <div className={`text-lg font-medium ${
+                    bidStatistics.bidToCollateralPercentage <= 70 ? styles.textGreen :
+                    bidStatistics.bidToCollateralPercentage <= 90 ? styles.textYellow :
+                    'text-red-500'
+                  }`}>
+                    {bidStatistics.bidToCollateralPercentage.toFixed(1)}%
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {projSettings.rateMethod === 'User Enter' && (
-              <div>
-                <label className={`text-xs ${styles.textMuted} block mb-1`}>Interest Rate (%):</label>
-                <input
-                  type="text"
-                  value={projSettings.userRate}
-                  onChange={(e) => updateProjSetting('userRate', e.target.value)}
-                  placeholder="0.00"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-                />
+              {/* Cash Flow Comparison */}
+              <div className={`mt-3 pt-3 border-t ${styles.borderColor}`}>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                    <div className={`text-xs ${styles.textMuted}`}>F12 (Fwd)</div>
+                    <div className={`text-sm font-medium ${bidStatistics.f12CashFlow >= 0 ? styles.textGreen : 'text-red-500'}`}>
+                      ${bidStatistics.f12CashFlow.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                    </div>
+                  </div>
+                  <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                    <div className={`text-xs ${styles.textMuted}`}>P12 (Prior)</div>
+                    <div className={`text-sm font-medium ${styles.textPrimary}`}>
+                      ${bidStatistics.p12CashFlow.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                    </div>
+                  </div>
+                  <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                    <div className={`text-xs ${styles.textMuted}`}>F12 vs P12</div>
+                    <div className={`text-sm font-medium ${
+                      bidStatistics.f12vsP12Change > 0 ? styles.textGreen :
+                      bidStatistics.f12vsP12Change < 0 ? 'text-red-500' :
+                      styles.textPrimary
+                    }`}>
+                      {bidStatistics.p12CashFlow > 0 ? (
+                        <>{bidStatistics.f12vsP12Change >= 0 ? '+' : ''}{bidStatistics.f12vsP12Change.toFixed(1)}%</>
+                      ) : (
+                        <span className={styles.textMuted}>N/A</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Expense Assumptions */}
-        <div className={`mt-6 pt-4 border-t ${styles.borderColor}`}>
-          <h4 className={`text-sm font-medium ${styles.textPrimary} mb-3`}>Expense Assumptions</h4>
-          <div className="grid grid-cols-4 gap-4">
-            <div>
-              <label className={`text-xs ${styles.textMuted} block mb-1`}>Initial Legal ($):</label>
-              <input
-                type="text"
-                value={projSettings.initialLegal}
-                onChange={(e) => updateProjSetting('initialLegal', e.target.value)}
-                placeholder="0.00"
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-              />
-            </div>
-            <div>
-              <label className={`text-xs ${styles.textMuted} block mb-1`}>Start Month:</label>
-              <input
-                type="text"
-                value={projSettings.initialLegalStartMonth}
-                onChange={(e) => updateProjSetting('initialLegalStartMonth', e.target.value)}
-                placeholder="1"
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-              />
-            </div>
-            <div>
-              <label className={`text-xs ${styles.textMuted} block mb-1`}>Holding Costs ($/mo):</label>
-              <input
-                type="text"
-                value={projSettings.holdingCosts}
-                onChange={(e) => updateProjSetting('holdingCosts', e.target.value)}
-                placeholder="0.00"
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-              />
-            </div>
-            <div>
-              <label className={`text-xs ${styles.textMuted} block mb-1`}>Through Month:</label>
-              <input
-                type="text"
-                value={projSettings.holdingCostsEndMonth}
-                onChange={(e) => updateProjSetting('holdingCostsEndMonth', e.target.value)}
-                placeholder="12"
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-              />
-            </div>
-          </div>
-
-          {/* Expense Recovery (Add Back) */}
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div>
-              <label className={`text-xs ${styles.textMuted} block mb-1`}>Add Back Basis:</label>
-              <select
-                value={projSettings.addBackBasis || 'Initial Only'}
-                onChange={(e) => updateProjSetting('addBackBasis', e.target.value as 'Initial Only' | 'Initial + Holding')}
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-              >
-                <option value="Initial Only">Initial Only</option>
-                <option value="Initial + Holding">Initial + Holding</option>
-              </select>
-            </div>
-            <div>
-              <label className={`text-xs ${styles.textMuted} block mb-1`}>Add Back Recovery (%):</label>
-              <input
-                type="text"
-                value={projSettings.addBackPercentage || ''}
-                onChange={(e) => handleAddBackPercentageChange(e.target.value)}
-                onBlur={(e) => handleAddBackPercentageBlur(e.target.value)}
-                placeholder="0"
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Exit Scenario Settings */}
-      <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border mt-4`}>
-        <h3 className={`font-medium mb-4 ${styles.textPrimary}`}>Exit Scenario Settings</h3>
-
-        <div className="grid grid-cols-2 gap-6 mb-6">
-          <div>
-            <label className={`text-xs ${styles.textMuted} block mb-1`}>Cash Flow Start Month:</label>
-            <input
-              type="text"
-              name="startMonth"
-              value={startMonthInput}
-              onChange={(e) => handleStartMonthChange(e.target.value)}
-              onBlur={handleStartMonthBlur}
-              placeholder="1"
-              className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-            />
-          </div>
-          <div>
-            <label className={`text-xs ${styles.textMuted} block mb-1`}>Exit Month:</label>
-            <input
-              type="text"
-              name="endMonth"
-              value={endMonthInput}
-              onChange={(e) => handleEndMonthChange(e.target.value)}
-              onBlur={handleEndMonthBlur}
-              placeholder="24"
-              className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-            />
-            <p className={`text-xs ${styles.textMuted} mt-1`}>
-              {(() => {
-                const start = parseInt(sanitizedExitSettings.startMonth) || 1;
-                const end = parseInt(sanitizedExitSettings.endMonth) || 24;
-                const monthsCount = Math.max(0, end - start + 1);
-                return `${monthsCount} months of cash flow`;
-              })()}
-            </p>
-          </div>
-        </div>
-
-        <div className={`pt-4 border-t ${styles.borderColor}`}>
-          <h4 className={`text-sm font-medium ${styles.textPrimary} mb-3`}>Exit Method</h4>
-          <div className="mb-4">
-            <label className={`text-xs ${styles.textMuted} block mb-1`}>Exit Type:</label>
-            <select
-              value={exitSettings.method}
-              onChange={(e) => updateExitSetting('method', e.target.value as typeof exitSettings.method)}
-              className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-            >
-              {EXIT_METHODS.map(method => (
-                <option key={method} value={method}>{method}</option>
-              ))}
-            </select>
-            <div className={`mt-2 px-2 py-1 ${styles.readOnlyBg} rounded ${styles.inputBorder} border`}>
-              <span className={`text-xs ${styles.textMuted}`}>Exit Value: </span>
-              <span className={`text-sm font-medium ${calculatedExitValue < 0 ? 'text-red-500' : styles.textYellow}`}>
-                ${(isFinite(calculatedExitValue) ? calculatedExitValue : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-              </span>
-            </div>
-          </div>
-
-          {/* Conditional inputs based on exit method */}
-          {exitSettings.method === 'DPO' && (
-            <div>
-              <label className={`text-xs ${styles.textMuted} block mb-1`}>DPO Percentage (%):</label>
-              <input
-                type="text"
-                value={exitSettings.dpoPercentage}
-                onChange={(e) => updateExitSetting('dpoPercentage', e.target.value)}
-                placeholder="95"
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-              />
-            </div>
-          )}
-
-          {exitSettings.method === 'Value Cap' && (
-            <div>
-              <label className={`text-xs ${styles.textMuted} block mb-1`}>Value Cap Percentage (%):</label>
-              <input
-                type="text"
-                value={exitSettings.valueCapPercentage}
-                onChange={(e) => updateExitSetting('valueCapPercentage', e.target.value)}
-                placeholder="90"
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-              />
-            </div>
-          )}
-
-          {exitSettings.method === 'User Enter' && (
-            <div>
-              <label className={`text-xs ${styles.textMuted} block mb-1`}>Exit Value ($):</label>
-              <input
-                type="text"
-                value={exitSettings.userEnterAmount}
-                onChange={(e) => updateExitSetting('userEnterAmount', e.target.value)}
-                placeholder="0.00"
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-              />
-            </div>
-          )}
-
-          {exitSettings.method === 'YTM Sell Solve' && (
-            <div>
-              <label className={`text-xs ${styles.textMuted} block mb-1`}>Desired YTM (%):</label>
-              <input
-                type="text"
-                value={exitSettings.ytmDesired}
-                onChange={(e) => updateExitSetting('ytmDesired', e.target.value)}
-                placeholder="12.00"
-                className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-              />
-            </div>
-          )}
-
-          {exitSettings.method === 'Liquidation' && (
-            <div className="space-y-3">
-              <div>
-                <label className={`text-xs ${styles.textMuted} block mb-1`}>Liquidation Months:</label>
-                <input
-                  type="text"
-                  value={exitSettings.liquidationMonths}
-                  onChange={(e) => updateExitSetting('liquidationMonths', e.target.value)}
-                  placeholder="12"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-                />
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="addCurrentInterest"
-                  checked={exitSettings.liquidationAddInterest}
-                  onChange={(e) => updateExitSetting('liquidationAddInterest', e.target.checked)}
-                  className="mr-2"
-                />
-                <label htmlFor="addCurrentInterest" className={`text-xs ${styles.textPrimary}`}>
-                  Add current interest (${selectedLoanData.interest.toLocaleString()})
-                </label>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Exit Value Summary */}
-        <div className={`mt-6 pt-4 border-t ${styles.borderColor}`}>
-          <div className="grid grid-cols-3 gap-4">
-            <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-              <div className={`text-xs ${styles.textMuted} mb-1`}>Exit Value</div>
-              <div className={`text-lg font-medium ${calculatedExitValue < 0 ? 'text-red-500' : styles.textYellow}`}>
-                ${(isFinite(calculatedExitValue) ? calculatedExitValue : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-              </div>
-            </div>
-            <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-              <div className={`text-xs ${styles.textMuted} mb-1`}>Add Back Recovery</div>
-              <div className={`text-lg font-medium ${styles.textYellow}`}>
-                ${addBackValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-              </div>
-            </div>
-            <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-              <div className={`text-xs ${styles.textMuted} mb-1`}>Total Exit Proceeds</div>
-              <div className={`text-lg font-medium ${styles.textGreen}`}>
-                ${totalExitProceeds.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+              {/* YTM Metrics */}
+              <div className={`mt-3 pt-3 border-t ${styles.borderColor}`}>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+                    <div className={`text-xs ${styles.textMuted} mb-1`}>YTM (IRR)</div>
+                    <div className={`text-xl font-bold ${bidStatistics.ytm >= 0 ? styles.textGreen : 'text-red-500'}`}>
+                      {bidStatistics.ytm.toFixed(2)}%
+                    </div>
+                    <div className={`text-xs ${styles.textMuted} mt-1`}>Contractual + exit</div>
+                  </div>
+                  <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+                    <div className={`text-xs ${styles.textMuted} mb-1`}>YTM (XIRR)</div>
+                    <div className={`text-xl font-bold ${bidStatistics.ytmXirr >= 0 ? styles.textGreen : 'text-red-500'}`}>
+                      {bidStatistics.ytmXirr.toFixed(2)}%
+                    </div>
+                    <div className={`text-xs ${styles.textMuted} mt-1`}>Date-adjusted</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Bid Statistics */}
-      <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border mt-4`}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className={`font-medium ${styles.textPrimary}`}>Bid Statistics</h3>
-          <div className="flex items-center gap-2">
-            <label className={`text-xs ${styles.textMuted}`}>Discount Rate (%):</label>
-            <input
-              type="text"
-              value={discountRate}
-              onChange={(e) => setDiscountRate(e.target.value)}
-              placeholder="15"
-              className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-20 text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-4 gap-4">
-          {/* Bid Price */}
-          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-            <div className={`text-xs ${styles.textMuted} mb-1`}>Bid Price</div>
-            <div className={`text-lg font-medium ${bidStatistics.bidPrice >= 0 ? styles.textGreen : 'text-red-500'}`}>
-              ${bidStatistics.bidPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-            </div>
-          </div>
-
-          {/* Bid Percentage */}
-          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-            <div className={`text-xs ${styles.textMuted} mb-1`}>Bid %</div>
-            <div className={`text-lg font-medium ${styles.textPrimary}`}>
-              {bidStatistics.bidPercentage.toFixed(2)}%
-            </div>
-          </div>
-
-          {/* MOIC */}
-          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-            <div className={`text-xs ${styles.textMuted} mb-1`}>MOIC</div>
-            <div className={`text-lg font-medium ${bidStatistics.moic >= 1 ? styles.textGreen : styles.textYellow}`}>
-              {bidStatistics.moic.toFixed(2)}x
-            </div>
-          </div>
-
-          {/* Cash Yield */}
-          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-            <div className={`text-xs ${styles.textMuted} mb-1`}>Cash Yield (F12)</div>
-            <div className={`text-lg font-medium ${bidStatistics.cashYield >= 0 ? styles.textGreen : 'text-red-500'}`}>
-              {bidStatistics.cashYield.toFixed(2)}%
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-4 gap-4 mt-4">
-          {/* F12 Cash Flow */}
-          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-            <div className={`text-xs ${styles.textMuted} mb-1`}>F12 (Forward 12mo)</div>
-            <div className={`text-lg font-medium ${bidStatistics.f12CashFlow >= 0 ? styles.textGreen : 'text-red-500'}`}>
-              ${bidStatistics.f12CashFlow.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-            </div>
-          </div>
-
-          {/* P12 Cash Flow */}
-          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-            <div className={`text-xs ${styles.textMuted} mb-1`}>P12 (Prior 12mo)</div>
-            <div className={`text-lg font-medium ${bidStatistics.p12CashFlow >= 0 ? styles.textPrimary : 'text-red-500'}`}>
-              ${bidStatistics.p12CashFlow.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-            </div>
-          </div>
-
-          {/* F12 vs P12 Change */}
-          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-            <div className={`text-xs ${styles.textMuted} mb-1`}>F12 vs P12</div>
-            <div className={`text-lg font-medium ${
-              bidStatistics.f12vsP12Change > 0 ? styles.textGreen :
-              bidStatistics.f12vsP12Change < 0 ? 'text-red-500' :
-              styles.textPrimary
-            }`}>
-              {bidStatistics.p12CashFlow > 0 ? (
-                <>
-                  {bidStatistics.f12vsP12Change >= 0 ? '+' : ''}{bidStatistics.f12vsP12Change.toFixed(1)}%
-                </>
-              ) : (
-                <span className={styles.textMuted}>N/A</span>
-              )}
-            </div>
-          </div>
-
-          {/* Bid to Collateral */}
-          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-            <div className={`text-xs ${styles.textMuted} mb-1`}>Bid / Collateral</div>
-            <div className={`text-lg font-medium ${
-              bidStatistics.bidToCollateralPercentage <= 70 ? styles.textGreen :
-              bidStatistics.bidToCollateralPercentage <= 90 ? styles.textYellow :
-              'text-red-500'
-            }`}>
-              {bidStatistics.bidToCollateralPercentage.toFixed(1)}%
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 mt-4">
-          {/* YTM (IRR) */}
-          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-            <div className={`text-xs ${styles.textMuted} mb-1`}>YTM (IRR)</div>
-            <div className={`text-lg font-medium ${bidStatistics.ytm >= 0 ? styles.textGreen : 'text-red-500'}`}>
-              {bidStatistics.ytm.toFixed(2)}%
-            </div>
-            <div className={`text-xs ${styles.textMuted} mt-1`}>Based on contractual payments + exit proceeds</div>
-          </div>
-
-          {/* YTM (XIRR) */}
-          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-            <div className={`text-xs ${styles.textMuted} mb-1`}>YTM (XIRR)</div>
-            <div className={`text-lg font-medium ${bidStatistics.ytmXirr >= 0 ? styles.textGreen : 'text-red-500'}`}>
-              {bidStatistics.ytmXirr.toFixed(2)}%
-            </div>
-            <div className={`text-xs ${styles.textMuted} mt-1`}>Date-adjusted internal rate of return</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Projection Tables */}
-      <div className="mt-4 space-y-4">
-        {/* Income Table */}
-        <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+          {/* Projection Tables - Below the two columns */}
+          <div className="mt-4 space-y-4">
+            {/* Income Table */}
+            <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
           <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Projected Income</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -1412,8 +1386,8 @@ export const ProjectionsTab = React.memo(() => {
               </tbody>
             </table>
           </div>
-        </div>
-      </div>
+            </div>
+          </div>
         </>
       )}
 
