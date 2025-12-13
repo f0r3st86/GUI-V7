@@ -8,8 +8,12 @@ import {
   calculatePV,
   calculateTrailingPayments,
   calculateYearSum,
+  calculateBidStatistics,
+  calculateAmortizationMonths,
+  calculateMonthsToMaturity,
   debug
 } from '../../utils';
+import type { BidStatistics } from '../../utils/calculations';
 import {
   useLoans,
   usePayments,
@@ -723,6 +727,65 @@ export const ProjectionsTab = React.memo(() => {
     return { income: incomeSums, expenses: expenseSums, netCashFlow: netCashFlowSums };
   }, [sortedIncomeYears, sortedExpenseYears, sortedNetCashFlowYears, projectionGrid]);
 
+  // Discount rate state for bid pricing (user configurable)
+  const [discountRate, setDiscountRate] = React.useState<string>('15');
+
+  // Get trailing 12 months actual payments for P12 comparison
+  const trailingPaymentData = useMemo(() => {
+    return calculateTrailingPayments(
+      selectedLoan,
+      12,
+      selectedLoanData?.lastImportDate ?? '',
+      paymentRecords,
+      loans || []
+    );
+  }, [selectedLoan, selectedLoanData?.lastImportDate, paymentRecords, loans]);
+
+  // Calculate bid statistics
+  const bidStatistics: BidStatistics = useMemo(() => {
+    const startMonth = parseInt(sanitizedExitSettings.startMonth) || 1;
+    const endMonth = parseInt(sanitizedExitSettings.endMonth) || 24;
+    const upb = selectedLoanData?.principal ?? 0;
+    const collateralValue = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : 0;
+    const discRate = parseFloat(discountRate) || 15;
+    const contractualPayment = selectedLoanData?.pmt ?? 0;
+    const interestRate = selectedLoanData?.intRate ?? 0;
+    const monthsToAmort = calculateAmortizationMonths(
+      selectedLoanData?.principal ?? 0,
+      selectedLoanData?.pmt ?? 0,
+      selectedLoanData?.intRate ?? 0
+    );
+    const monthsToMat = calculateMonthsToMaturity(selectedLoanData?.matDt ?? '');
+    const trailingP12 = trailingPaymentData?.actual ?? 0;
+
+    return calculateBidStatistics({
+      netCashFlow: projectionGrid.netCashFlow,
+      startMonth,
+      endMonth,
+      upb,
+      collateralValue,
+      discountRate: discRate,
+      contractualPayment,
+      interestRate,
+      monthsToAmortization: monthsToAmort,
+      monthsToMaturity: monthsToMat,
+      exitProceeds: totalExitProceeds,
+      trailingP12
+    });
+  }, [
+    projectionGrid.netCashFlow,
+    sanitizedExitSettings.startMonth,
+    sanitizedExitSettings.endMonth,
+    selectedLoanData?.principal,
+    selectedLoanData?.pmt,
+    selectedLoanData?.intRate,
+    selectedLoanData?.matDt,
+    loanCollateral,
+    discountRate,
+    totalExitProceeds,
+    trailingPaymentData?.actual
+  ]);
+
   // PERFORMANCE OPTIMIZATION: Memoized currency formatter
   // Previously: toLocaleString() called 30+ times per render = 20-40ms
   // Now: Single formatter function reused = <1ms
@@ -1133,6 +1196,125 @@ export const ProjectionsTab = React.memo(() => {
                 ${totalExitProceeds.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bid Statistics */}
+      <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border mt-4`}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className={`font-medium ${styles.textPrimary}`}>Bid Statistics</h3>
+          <div className="flex items-center gap-2">
+            <label className={`text-xs ${styles.textMuted}`}>Discount Rate (%):</label>
+            <input
+              type="text"
+              value={discountRate}
+              onChange={(e) => setDiscountRate(e.target.value)}
+              placeholder="15"
+              className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-20 text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-4">
+          {/* Bid Price */}
+          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+            <div className={`text-xs ${styles.textMuted} mb-1`}>Bid Price</div>
+            <div className={`text-lg font-medium ${bidStatistics.bidPrice >= 0 ? styles.textGreen : 'text-red-500'}`}>
+              ${bidStatistics.bidPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+            </div>
+          </div>
+
+          {/* Bid Percentage */}
+          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+            <div className={`text-xs ${styles.textMuted} mb-1`}>Bid %</div>
+            <div className={`text-lg font-medium ${styles.textPrimary}`}>
+              {bidStatistics.bidPercentage.toFixed(2)}%
+            </div>
+          </div>
+
+          {/* MOIC */}
+          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+            <div className={`text-xs ${styles.textMuted} mb-1`}>MOIC</div>
+            <div className={`text-lg font-medium ${bidStatistics.moic >= 1 ? styles.textGreen : styles.textYellow}`}>
+              {bidStatistics.moic.toFixed(2)}x
+            </div>
+          </div>
+
+          {/* Cash Yield */}
+          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+            <div className={`text-xs ${styles.textMuted} mb-1`}>Cash Yield (F12)</div>
+            <div className={`text-lg font-medium ${bidStatistics.cashYield >= 0 ? styles.textGreen : 'text-red-500'}`}>
+              {bidStatistics.cashYield.toFixed(2)}%
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-4 mt-4">
+          {/* F12 Cash Flow */}
+          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+            <div className={`text-xs ${styles.textMuted} mb-1`}>F12 (Forward 12mo)</div>
+            <div className={`text-lg font-medium ${bidStatistics.f12CashFlow >= 0 ? styles.textGreen : 'text-red-500'}`}>
+              ${bidStatistics.f12CashFlow.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+            </div>
+          </div>
+
+          {/* P12 Cash Flow */}
+          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+            <div className={`text-xs ${styles.textMuted} mb-1`}>P12 (Prior 12mo)</div>
+            <div className={`text-lg font-medium ${bidStatistics.p12CashFlow >= 0 ? styles.textPrimary : 'text-red-500'}`}>
+              ${bidStatistics.p12CashFlow.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+            </div>
+          </div>
+
+          {/* F12 vs P12 Change */}
+          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+            <div className={`text-xs ${styles.textMuted} mb-1`}>F12 vs P12</div>
+            <div className={`text-lg font-medium ${
+              bidStatistics.f12vsP12Change > 0 ? styles.textGreen :
+              bidStatistics.f12vsP12Change < 0 ? 'text-red-500' :
+              styles.textPrimary
+            }`}>
+              {bidStatistics.p12CashFlow > 0 ? (
+                <>
+                  {bidStatistics.f12vsP12Change >= 0 ? '+' : ''}{bidStatistics.f12vsP12Change.toFixed(1)}%
+                </>
+              ) : (
+                <span className={styles.textMuted}>N/A</span>
+              )}
+            </div>
+          </div>
+
+          {/* Bid to Collateral */}
+          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+            <div className={`text-xs ${styles.textMuted} mb-1`}>Bid / Collateral</div>
+            <div className={`text-lg font-medium ${
+              bidStatistics.bidToCollateralPercentage <= 70 ? styles.textGreen :
+              bidStatistics.bidToCollateralPercentage <= 90 ? styles.textYellow :
+              'text-red-500'
+            }`}>
+              {bidStatistics.bidToCollateralPercentage.toFixed(1)}%
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          {/* YTM (IRR) */}
+          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+            <div className={`text-xs ${styles.textMuted} mb-1`}>YTM (IRR)</div>
+            <div className={`text-lg font-medium ${bidStatistics.ytm >= 0 ? styles.textGreen : 'text-red-500'}`}>
+              {bidStatistics.ytm.toFixed(2)}%
+            </div>
+            <div className={`text-xs ${styles.textMuted} mt-1`}>Based on contractual payments + exit proceeds</div>
+          </div>
+
+          {/* YTM (XIRR) */}
+          <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
+            <div className={`text-xs ${styles.textMuted} mb-1`}>YTM (XIRR)</div>
+            <div className={`text-lg font-medium ${bidStatistics.ytmXirr >= 0 ? styles.textGreen : 'text-red-500'}`}>
+              {bidStatistics.ytmXirr.toFixed(2)}%
+            </div>
+            <div className={`text-xs ${styles.textMuted} mt-1`}>Date-adjusted internal rate of return</div>
           </div>
         </div>
       </div>

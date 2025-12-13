@@ -318,3 +318,286 @@ export const calculatePerAcre = (value: string | number, acres: string | number)
 export const calculateYearSum = (yearData: Record<number, number> | undefined): number => {
   return Object.values(yearData || {}).reduce((sum, val) => sum + val, 0);
 };
+
+/**
+ * Calculate NPV (Net Present Value) of a series of cash flows
+ * NPV = Σ (CF_t / (1 + r)^t) for t = 1 to n
+ * @param discountRate - Annual discount rate as percentage (e.g., 15 for 15%)
+ * @param cashFlows - Array of monthly cash flows (index 0 = month 1)
+ * @returns NPV of cash flows
+ */
+export const calculateNPV = (
+  discountRate: number,
+  cashFlows: number[]
+): number => {
+  if (cashFlows.length === 0) return 0;
+
+  const monthlyRate = discountRate / 100 / 12;
+
+  let npv = 0;
+  for (let t = 0; t < cashFlows.length; t++) {
+    // t+1 because first cash flow is at end of month 1, not month 0
+    npv += cashFlows[t] / Math.pow(1 + monthlyRate, t + 1);
+  }
+
+  return npv;
+};
+
+/**
+ * Calculate IRR (Internal Rate of Return) using Newton-Raphson method
+ * Finds the rate r where: NPV(r, cashFlows) = 0
+ * @param cashFlows - Array of cash flows where index 0 is initial investment (negative) and subsequent are returns
+ * @param guess - Initial guess for IRR (default 0.1 = 10%)
+ * @param maxIterations - Maximum iterations (default 100)
+ * @param tolerance - Convergence tolerance (default 0.0001)
+ * @returns Annual IRR as decimal (e.g., 0.15 for 15%), or NaN if no solution
+ */
+export const calculateIRR = (
+  cashFlows: number[],
+  guess: number = 0.1,
+  maxIterations: number = 100,
+  tolerance: number = 0.0001
+): number => {
+  if (cashFlows.length < 2) return NaN;
+
+  // Convert annual guess to monthly
+  let rate = guess / 12;
+
+  for (let i = 0; i < maxIterations; i++) {
+    // Calculate NPV and its derivative at current rate
+    let npv = 0;
+    let derivative = 0;
+
+    for (let t = 0; t < cashFlows.length; t++) {
+      const cf = cashFlows[t];
+      const discountFactor = Math.pow(1 + rate, t);
+      npv += cf / discountFactor;
+      // Derivative of CF/(1+r)^t with respect to r is -t * CF / (1+r)^(t+1)
+      derivative -= t * cf / Math.pow(1 + rate, t + 1);
+    }
+
+    // Check for convergence
+    if (Math.abs(npv) < tolerance) {
+      // Convert monthly rate back to annual
+      return rate * 12;
+    }
+
+    // Newton-Raphson step
+    if (derivative === 0) break; // Avoid division by zero
+    const newRate = rate - npv / derivative;
+
+    // Clamp rate to reasonable bounds
+    if (newRate < -0.99 / 12) rate = -0.99 / 12;
+    else if (newRate > 10) rate = 10;
+    else rate = newRate;
+  }
+
+  // Return last computed rate even if not converged
+  return rate * 12;
+};
+
+/**
+ * Calculate XIRR (IRR with actual dates) using Newton-Raphson method
+ * Finds the rate r where: Σ (CF_i / (1 + r)^((date_i - date_0)/365)) = 0
+ * @param cashFlows - Array of cash flow values
+ * @param dates - Array of dates corresponding to each cash flow
+ * @param guess - Initial guess for XIRR (default 0.1 = 10%)
+ * @param maxIterations - Maximum iterations (default 100)
+ * @param tolerance - Convergence tolerance (default 0.0001)
+ * @returns Annual XIRR as decimal (e.g., 0.15 for 15%), or NaN if no solution
+ */
+export const calculateXIRR = (
+  cashFlows: number[],
+  dates: Date[],
+  guess: number = 0.1,
+  maxIterations: number = 100,
+  tolerance: number = 0.0001
+): number => {
+  if (cashFlows.length < 2 || cashFlows.length !== dates.length) return NaN;
+
+  const firstDate = dates[0].getTime();
+
+  // Calculate year fractions for each date
+  const yearFractions = dates.map(date =>
+    (date.getTime() - firstDate) / (365 * 24 * 60 * 60 * 1000)
+  );
+
+  let rate = guess;
+
+  for (let i = 0; i < maxIterations; i++) {
+    let npv = 0;
+    let derivative = 0;
+
+    for (let t = 0; t < cashFlows.length; t++) {
+      const cf = cashFlows[t];
+      const yearFrac = yearFractions[t];
+      const discountFactor = Math.pow(1 + rate, yearFrac);
+      npv += cf / discountFactor;
+      // Derivative with respect to rate
+      derivative -= yearFrac * cf / Math.pow(1 + rate, yearFrac + 1);
+    }
+
+    // Check for convergence
+    if (Math.abs(npv) < tolerance) {
+      return rate;
+    }
+
+    // Newton-Raphson step
+    if (derivative === 0) break;
+    const newRate = rate - npv / derivative;
+
+    // Clamp rate to reasonable bounds
+    if (newRate < -0.99) rate = -0.99;
+    else if (newRate > 10) rate = 10;
+    else rate = newRate;
+  }
+
+  return rate;
+};
+
+/**
+ * Build monthly cash flow array from projection grid
+ * @param netCashFlow - Projection grid with year -> month -> value structure
+ * @param startMonth - Starting month (1-60)
+ * @param endMonth - Ending month (1-60)
+ * @returns Array of monthly cash flows
+ */
+export const buildMonthlyCashFlowArray = (
+  netCashFlow: Record<string, Record<number, number>>,
+  startMonth: number,
+  endMonth: number
+): number[] => {
+  const cashFlows: number[] = [];
+  const currentYear = new Date().getFullYear();
+
+  for (let month = startMonth; month <= endMonth; month++) {
+    const actualMonth = ((month - 1) % 12) + 1;
+    const yearOffset = Math.floor((month - 1) / 12);
+    const year = (currentYear + yearOffset).toString();
+
+    const yearData = netCashFlow[year] || {};
+    cashFlows.push(yearData[actualMonth] || 0);
+  }
+
+  return cashFlows;
+};
+
+/**
+ * Bid Statistics Interface
+ */
+export interface BidStatistics {
+  bidPrice: number;
+  bidPercentage: number;
+  moic: number;
+  cashYield: number;
+  f12CashFlow: number;
+  p12CashFlow: number;
+  f12vsP12Change: number;
+  bidToCollateralPercentage: number;
+  ytm: number;
+  ytmXirr: number;
+}
+
+/**
+ * Calculate comprehensive bid statistics
+ * @param params - Parameters for bid calculation
+ * @returns BidStatistics object
+ */
+export const calculateBidStatistics = (params: {
+  netCashFlow: Record<string, Record<number, number>>;
+  startMonth: number;
+  endMonth: number;
+  upb: number;
+  collateralValue: number;
+  discountRate: number;
+  contractualPayment: number;
+  interestRate: number;
+  monthsToAmortization: number;
+  monthsToMaturity: number;
+  exitProceeds: number;
+  trailingP12?: number; // Prior 12 months actual payments
+}): BidStatistics => {
+  const {
+    netCashFlow,
+    startMonth,
+    endMonth,
+    upb,
+    collateralValue,
+    discountRate,
+    contractualPayment,
+    // interestRate - kept in interface for future use (e.g., interest-only period calculations)
+    monthsToAmortization,
+    monthsToMaturity,
+    exitProceeds,
+    trailingP12 = 0
+  } = params;
+
+  // Build cash flow array for months 1-60
+  const maxMonth = Math.min(endMonth, 60);
+  const cashFlows = buildMonthlyCashFlowArray(netCashFlow, 1, maxMonth);
+
+  // 1. Bid Price = NPV of net cash flows at discount rate
+  const bidPrice = calculateNPV(discountRate, cashFlows);
+
+  // 2. Bid Percentage = Bid Price / UPB
+  const bidPercentage = upb > 0 ? (bidPrice / upb) * 100 : 0;
+
+  // 3. MOIC = Sum of Net Cash Flow / UPB
+  const totalNetCashFlow = cashFlows.reduce((sum, cf) => sum + cf, 0);
+  const moic = upb > 0 ? totalNetCashFlow / upb : 0;
+
+  // 4. Cash Yield = First 12 months of Net Cash Flow / Bid Price
+  const first12MonthsCF = cashFlows.slice(0, 12).reduce((sum, cf) => sum + cf, 0);
+  const cashYield = bidPrice > 0 ? (first12MonthsCF / bidPrice) * 100 : 0;
+
+  // 5. F12 vs P12: Forward 12 months vs Prior 12 months
+  // F12 = months 1-12 (forward projection)
+  // P12 = trailing 12 months actual payment history
+  const f12CashFlow = cashFlows.slice(0, 12).reduce((sum, cf) => sum + cf, 0);
+  const p12CashFlow = trailingP12;
+  const f12vsP12Change = p12CashFlow > 0 ? ((f12CashFlow - p12CashFlow) / p12CashFlow) * 100 : 0;
+
+  // 6. Bid to Collateral Percentage = Bid Price / Collateral Value
+  const bidToCollateralPercentage = collateralValue > 0 ? (bidPrice / collateralValue) * 100 : 0;
+
+  // 7. YTM Calculation
+  // Build cash flow stream: contractual payment for min(amort, maturity) months + exit proceeds at end
+  const holdPeriod = Math.min(monthsToAmortization || 360, monthsToMaturity || 360, endMonth - startMonth + 1);
+  const ytmCashFlows: number[] = [-bidPrice]; // Initial investment (negative)
+
+  // Add monthly contractual payments
+  for (let m = 1; m <= holdPeriod; m++) {
+    if (m === holdPeriod) {
+      // Final month: add contractual payment + exit proceeds
+      ytmCashFlows.push(contractualPayment + exitProceeds);
+    } else {
+      ytmCashFlows.push(contractualPayment);
+    }
+  }
+
+  // Calculate IRR (monthly) and annualize
+  const ytm = calculateIRR(ytmCashFlows, discountRate / 100) * 100;
+
+  // Calculate XIRR with actual dates
+  const startDate = new Date();
+  const ytmDates: Date[] = [startDate];
+  for (let m = 1; m <= holdPeriod; m++) {
+    const date = new Date(startDate);
+    date.setMonth(date.getMonth() + m);
+    ytmDates.push(date);
+  }
+  const ytmXirr = calculateXIRR(ytmCashFlows, ytmDates, discountRate / 100) * 100;
+
+  return {
+    bidPrice,
+    bidPercentage,
+    moic,
+    cashYield,
+    f12CashFlow,
+    p12CashFlow,
+    f12vsP12Change,
+    bidToCollateralPercentage,
+    ytm: isFinite(ytm) ? ytm : 0,
+    ytmXirr: isFinite(ytmXirr) ? ytmXirr : 0
+  };
+};
