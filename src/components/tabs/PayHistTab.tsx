@@ -1,5 +1,5 @@
 // PayHistTab component - payment history with Excel-like grid
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useTheme, useLoan } from '../../context';
 import {
@@ -14,7 +14,8 @@ import {
   useLoans,
   usePayments,
   useUpdatePayment,
-  useDeletePayment
+  useDeletePayment,
+  useAddPayment
 } from '../../hooks';
 
 export const PayHistTab = React.memo(() => {
@@ -28,6 +29,11 @@ export const PayHistTab = React.memo(() => {
   const { data: payments, isLoading: loadingPayments } = usePayments();
   const { mutate: updatePayment } = useUpdatePayment();
   const { mutate: deletePayment } = useDeletePayment();
+  const { mutate: addPayment } = useAddPayment();
+
+  // Track next payment ID and last processed state for empty row creation
+  const nextIdRef = useRef<number>(1000);
+  const lastProcessedRef = useRef<{ loan: string | null; count: number }>({ loan: null, count: 0 });
 
   // Computed values
   const selectedLoanData = useMemo(
@@ -44,6 +50,44 @@ export const PayHistTab = React.memo(() => {
     if (!payments) return [];
     return payments.filter(p => p.loanNo === selectedLoan);
   }, [payments, selectedLoan]);
+
+  // Ensure there's always an empty row for new entries
+  useEffect(() => {
+    if (loadingPayments || !selectedLoan) return;
+
+    const filteredRecords = payments?.filter(p => p.loanNo === selectedLoan) || [];
+    const lastRecord = filteredRecords[filteredRecords.length - 1];
+    const currentCount = filteredRecords.length;
+
+    // Check if we need to add an empty row
+    const needsEmptyRow = !lastRecord || (lastRecord.year && lastRecord.month && lastRecord.amount);
+
+    // Only process if loan changed or count changed
+    const stateChanged =
+      lastProcessedRef.current.loan !== selectedLoan ||
+      lastProcessedRef.current.count !== currentCount;
+
+    if (needsEmptyRow && stateChanged) {
+      // Update the max ID from existing payments
+      if (payments && payments.length > 0) {
+        const maxId = Math.max(...payments.map(p => p.id));
+        if (maxId >= nextIdRef.current) {
+          nextIdRef.current = maxId + 1;
+        }
+      }
+
+      addPayment({
+        id: nextIdRef.current++,
+        loanNo: selectedLoan,
+        year: '',
+        month: '',
+        amount: ''
+      });
+
+      // Update refs to prevent re-triggering
+      lastProcessedRef.current = { loan: selectedLoan, count: currentCount + 1 };
+    }
+  }, [selectedLoan, payments, loadingPayments, addPayment]);
 
   // Convert payment records to grid data (year -> month -> amount)
   const paymentGridData = useMemo(() => {
