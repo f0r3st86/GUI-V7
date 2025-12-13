@@ -41,11 +41,6 @@ export const PayHistTab = React.memo(() => {
     [loans, selectedLoan]
   );
 
-  const paymentRecords = useMemo(
-    () => payments || [],
-    [payments]
-  );
-
   const getFilteredPaymentRecords = useMemo(() => {
     if (!payments) return [];
     return payments.filter(p => p.loanNo === selectedLoan);
@@ -241,9 +236,20 @@ export const PayHistTab = React.memo(() => {
   };
 
   const filteredRecords = getFilteredPaymentRecords;
-  const trailing12 = calculateTrailingPayments(selectedLoan, 12, selectedLoanData.lastImportDate, paymentRecords, loans || []);
-  const trailing6 = calculateTrailingPayments(selectedLoan, 6, selectedLoanData.lastImportDate, paymentRecords, loans || []);
-  const trailing3 = calculateTrailingPayments(selectedLoan, 3, selectedLoanData.lastImportDate, paymentRecords, loans || []);
+
+  // Memoize trailing payment calculations to update when payments change
+  const trailing12 = useMemo(
+    () => calculateTrailingPayments(selectedLoan, 12, selectedLoanData?.lastImportDate, payments || [], loans || []),
+    [selectedLoan, selectedLoanData?.lastImportDate, payments, loans]
+  );
+  const trailing6 = useMemo(
+    () => calculateTrailingPayments(selectedLoan, 6, selectedLoanData?.lastImportDate, payments || [], loans || []),
+    [selectedLoan, selectedLoanData?.lastImportDate, payments, loans]
+  );
+  const trailing3 = useMemo(
+    () => calculateTrailingPayments(selectedLoan, 3, selectedLoanData?.lastImportDate, payments || [], loans || []),
+    [selectedLoan, selectedLoanData?.lastImportDate, payments, loans]
+  );
 
   return (
     <div className="p-4">
