@@ -17,7 +17,8 @@ import {
   CommentTab,
   PayHistTab,
   ProjectionsTab,
-  OverviewTab
+  OverviewTab,
+  StrategiesTab
 } from './components/tabs';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { enableHighRefreshRate, FPSMonitor, getFrameBudget } from './utils';
@@ -89,6 +90,12 @@ const TabContent: React.FC = () => {
       return (
         <ErrorBoundary>
           <OverviewTab />
+        </ErrorBoundary>
+      );
+    case 'Strategies':
+      return (
+        <ErrorBoundary>
+          <StrategiesTab />
         </ErrorBoundary>
       );
     default:

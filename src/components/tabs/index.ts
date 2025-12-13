@@ -6,3 +6,4 @@ export * from './CommentTab';
 export * from './PayHistTab';
 export * from './ProjectionsTab';
 export * from './OverviewTab';
+export * from './StrategiesTab';
