@@ -103,39 +103,36 @@ export const OverviewTab = React.memo(() => {
         </div>
       </div>
 
-      {/* Two Column Layout for Overviews */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Relationship Overview */}
-        <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
-          <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Relationship Overview</h3>
-          <textarea
-            ref={relationshipRef}
-            value={currentOverview.relationshipOverview}
-            onChange={(e) => {
-              handleFieldChange('relationshipOverview', e.target.value);
-              autoResize(e.target);
-            }}
-            placeholder="Enter relationship overview details..."
-            className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder} resize-none overflow-hidden`}
-            style={{ minHeight: '150px' }}
-          />
-        </div>
+      {/* Relationship Overview */}
+      <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+        <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Relationship Overview</h3>
+        <textarea
+          ref={relationshipRef}
+          value={currentOverview.relationshipOverview}
+          onChange={(e) => {
+            handleFieldChange('relationshipOverview', e.target.value);
+            autoResize(e.target);
+          }}
+          placeholder="Enter relationship overview details..."
+          className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder} resize-none overflow-hidden`}
+          style={{ minHeight: '150px' }}
+        />
+      </div>
 
-        {/* Collateral Overview */}
-        <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
-          <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Collateral Overview</h3>
-          <textarea
-            ref={collateralRef}
-            value={currentOverview.collateralOverview}
-            onChange={(e) => {
-              handleFieldChange('collateralOverview', e.target.value);
-              autoResize(e.target);
-            }}
-            placeholder="Enter collateral overview details..."
-            className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder} resize-none overflow-hidden`}
-            style={{ minHeight: '150px' }}
-          />
-        </div>
+      {/* Collateral Overview */}
+      <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+        <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Collateral Overview</h3>
+        <textarea
+          ref={collateralRef}
+          value={currentOverview.collateralOverview}
+          onChange={(e) => {
+            handleFieldChange('collateralOverview', e.target.value);
+            autoResize(e.target);
+          }}
+          placeholder="Enter collateral overview details..."
+          className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder} resize-none overflow-hidden`}
+          style={{ minHeight: '150px' }}
+        />
       </div>
 
       {/* Bid Conditions - Single Line */}
