@@ -376,27 +376,27 @@ export const PayHistTab = React.memo(() => {
           {/* Trailing Payment Analytics - Modern Card Design */}
           {selectedLoanData?.lastImportDate && trailing12 && trailing6 && trailing3 ? (
             <div className="mt-4">
-              <h4 className={`text-xs font-medium ${styles.textMuted} mb-2`}>Payment Analytics</h4>
-              <div className="grid grid-cols-3 gap-3" style={{ maxWidth: '420px' }}>
+              <h4 className={`text-base font-medium ${styles.textMuted} mb-2`}>Payment Analytics</h4>
+              <div className="grid grid-cols-3 gap-4" style={{ maxWidth: '540px' }}>
                 {/* T12 Card */}
-                <div className={`${styles.inputBorder} border rounded-lg p-3`}>
-                  <div className={`text-xs font-semibold ${styles.textPrimary} mb-2 text-center`}>Trailing 12</div>
-                  <div className="space-y-1.5">
+                <div className={`${styles.inputBorder} border rounded-lg p-4`}>
+                  <div className={`text-base font-semibold ${styles.textPrimary} mb-3 text-center`}>Trailing 12</div>
+                  <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs ${styles.textMuted}`}>$/Mo</span>
-                      <span className={`text-xs font-medium ${styles.textPrimary}`}>
+                      <span className={`text-base ${styles.textMuted}`}>$/Mo</span>
+                      <span className={`text-base font-medium ${styles.textPrimary}`}>
                         ${trailing12.monthly.toLocaleString(undefined, {maximumFractionDigits: 0})}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs ${styles.textMuted}`}>Actual</span>
-                      <span className={`text-xs font-medium ${styles.textGreen}`}>
+                      <span className={`text-base ${styles.textMuted}`}>Actual</span>
+                      <span className={`text-base font-medium ${styles.textGreen}`}>
                         ${trailing12.actual.toLocaleString(undefined, {maximumFractionDigits: 0})}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs ${styles.textMuted}`}>% Cont.</span>
-                      <span className={`text-xs font-medium ${
+                      <span className={`text-base ${styles.textMuted}`}>% Cont.</span>
+                      <span className={`text-base font-medium ${
                         trailing12.percentOfContractual >= 100 ? styles.textGreen :
                         trailing12.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
                       }`}>
@@ -404,8 +404,8 @@ export const PayHistTab = React.memo(() => {
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs ${styles.textMuted}`}>Mo Pd</span>
-                      <span className={`text-xs font-medium ${styles.textPrimary}`}>
+                      <span className={`text-base ${styles.textMuted}`}>Mo Pd</span>
+                      <span className={`text-base font-medium ${styles.textPrimary}`}>
                         {trailing12.monthsPaidContractual.toFixed(1)}
                       </span>
                     </div>
@@ -413,24 +413,24 @@ export const PayHistTab = React.memo(() => {
                 </div>
 
                 {/* T6 Card */}
-                <div className={`${styles.inputBorder} border rounded-lg p-3`}>
-                  <div className={`text-xs font-semibold ${styles.textPrimary} mb-2 text-center`}>Trailing 6</div>
-                  <div className="space-y-1.5">
+                <div className={`${styles.inputBorder} border rounded-lg p-4`}>
+                  <div className={`text-base font-semibold ${styles.textPrimary} mb-3 text-center`}>Trailing 6</div>
+                  <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs ${styles.textMuted}`}>$/Mo</span>
-                      <span className={`text-xs font-medium ${styles.textPrimary}`}>
+                      <span className={`text-base ${styles.textMuted}`}>$/Mo</span>
+                      <span className={`text-base font-medium ${styles.textPrimary}`}>
                         ${trailing6.monthly.toLocaleString(undefined, {maximumFractionDigits: 0})}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs ${styles.textMuted}`}>Actual</span>
-                      <span className={`text-xs font-medium ${styles.textGreen}`}>
+                      <span className={`text-base ${styles.textMuted}`}>Actual</span>
+                      <span className={`text-base font-medium ${styles.textGreen}`}>
                         ${trailing6.actual.toLocaleString(undefined, {maximumFractionDigits: 0})}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs ${styles.textMuted}`}>% Cont.</span>
-                      <span className={`text-xs font-medium ${
+                      <span className={`text-base ${styles.textMuted}`}>% Cont.</span>
+                      <span className={`text-base font-medium ${
                         trailing6.percentOfContractual >= 100 ? styles.textGreen :
                         trailing6.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
                       }`}>
@@ -438,8 +438,8 @@ export const PayHistTab = React.memo(() => {
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs ${styles.textMuted}`}>Mo Pd</span>
-                      <span className={`text-xs font-medium ${styles.textPrimary}`}>
+                      <span className={`text-base ${styles.textMuted}`}>Mo Pd</span>
+                      <span className={`text-base font-medium ${styles.textPrimary}`}>
                         {trailing6.monthsPaidContractual.toFixed(1)}
                       </span>
                     </div>
@@ -447,24 +447,24 @@ export const PayHistTab = React.memo(() => {
                 </div>
 
                 {/* T3 Card */}
-                <div className={`${styles.inputBorder} border rounded-lg p-3`}>
-                  <div className={`text-xs font-semibold ${styles.textPrimary} mb-2 text-center`}>Trailing 3</div>
-                  <div className="space-y-1.5">
+                <div className={`${styles.inputBorder} border rounded-lg p-4`}>
+                  <div className={`text-base font-semibold ${styles.textPrimary} mb-3 text-center`}>Trailing 3</div>
+                  <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs ${styles.textMuted}`}>$/Mo</span>
-                      <span className={`text-xs font-medium ${styles.textPrimary}`}>
+                      <span className={`text-base ${styles.textMuted}`}>$/Mo</span>
+                      <span className={`text-base font-medium ${styles.textPrimary}`}>
                         ${trailing3.monthly.toLocaleString(undefined, {maximumFractionDigits: 0})}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs ${styles.textMuted}`}>Actual</span>
-                      <span className={`text-xs font-medium ${styles.textGreen}`}>
+                      <span className={`text-base ${styles.textMuted}`}>Actual</span>
+                      <span className={`text-base font-medium ${styles.textGreen}`}>
                         ${trailing3.actual.toLocaleString(undefined, {maximumFractionDigits: 0})}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs ${styles.textMuted}`}>% Cont.</span>
-                      <span className={`text-xs font-medium ${
+                      <span className={`text-base ${styles.textMuted}`}>% Cont.</span>
+                      <span className={`text-base font-medium ${
                         trailing3.percentOfContractual >= 100 ? styles.textGreen :
                         trailing3.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
                       }`}>
@@ -472,8 +472,8 @@ export const PayHistTab = React.memo(() => {
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs ${styles.textMuted}`}>Mo Pd</span>
-                      <span className={`text-xs font-medium ${styles.textPrimary}`}>
+                      <span className={`text-base ${styles.textMuted}`}>Mo Pd</span>
+                      <span className={`text-base font-medium ${styles.textPrimary}`}>
                         {trailing3.monthsPaidContractual.toFixed(1)}
                       </span>
                     </div>
