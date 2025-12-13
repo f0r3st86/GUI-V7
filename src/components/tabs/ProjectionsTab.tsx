@@ -478,21 +478,31 @@ export const ProjectionsTab = React.memo(() => {
           debug.log('[YTM Sell Solve] Result:', result);
           break;
         case 'Liquidation':
+          // Liquidation: No interim payments, accrue interest using FV, then recover collateral
           const liquidationMonths = parseInt(exitSettings?.liquidationMonths || '') || 12;
-          let balance = selectedLoanData?.principal ?? 0;
+
+          // Start with UPB (principal)
+          let startingBalance = selectedLoanData?.principal ?? 0;
+
+          // Optionally add already accrued interest
           if (exitSettings?.liquidationAddInterest) {
-            balance += selectedLoanData?.interest ?? 0;
+            startingBalance += selectedLoanData?.interest ?? 0;
           }
-          const rate = getProjectedRate();
-          const monthlyRate = rate / 100 / 12;
-          debug.log('[Liquidation] Starting balance:', balance, 'Rate:', rate, 'Months:', liquidationMonths, 'Rate method:', projSettings?.rateMethod);
-          // Calculate interest accrual during liquidation
-          for (let i = 0; i < liquidationMonths; i++) {
-            balance += balance * monthlyRate;
-          }
-          // Assume recovery at collateral value - use memoized lookup
-          result = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : balance;
-          debug.log('[Liquidation] Balance after accrual:', balance, 'Collateral value:', result);
+
+          const liqRate = getProjectedRate();
+          debug.log('[Liquidation] Starting balance:', startingBalance, 'Rate:', liqRate, 'Months:', liquidationMonths);
+
+          // Calculate FV of accrued debt: FV = PV * (1 + r)^n
+          // This is the total debt owed after liquidation period (for reference)
+          const accruedDebt = calculateFV(liqRate, liquidationMonths, 0, startingBalance);
+          debug.log('[Liquidation] Accrued debt after', liquidationMonths, 'months:', accruedDebt);
+
+          // Recovery is the collateral value (what you get back from selling the property)
+          const collateralRecovery = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : 0;
+
+          // Exit proceeds = collateral value (the recovery at liquidation)
+          result = collateralRecovery;
+          debug.log('[Liquidation] Collateral recovery:', collateralRecovery, 'vs Accrued debt:', accruedDebt);
           break;
         default:
           result = 0;
@@ -590,6 +600,9 @@ export const ProjectionsTab = React.memo(() => {
     const holdingCosts = parseFloat(projSettings?.holdingCosts || '') || 0;
     const holdingCostsEnd = parseInt(projSettings?.holdingCostsEndMonth || '') || 12;
 
+    // Check if Liquidation mode - no interim payments, only recovery at exit
+    const isLiquidation = exitSettings?.method === 'Liquidation';
+
     // Get current date for starting year
     const currentYear = new Date().getFullYear();
 
@@ -604,10 +617,16 @@ export const ProjectionsTab = React.memo(() => {
       if (!expenses[year]) expenses[year] = {};
       if (!netCashFlow[year]) netCashFlow[year] = {};
 
-      // Add income (monthly payment)
-      income[year][actualMonth] = (income[year][actualMonth] || 0) + monthlyPayment;
+      // Add income - Liquidation has NO interim payments
+      if (isLiquidation) {
+        // Liquidation: $0 income during hold period (borrower in default)
+        income[year][actualMonth] = 0;
+      } else {
+        // Normal mode: monthly payment as income
+        income[year][actualMonth] = (income[year][actualMonth] || 0) + monthlyPayment;
+      }
 
-      // Add expenses
+      // Add expenses (apply in both normal and liquidation modes)
       let monthExpense = 0;
       if (month === initialLegalStart) {
         monthExpense += initialLegal;
@@ -623,7 +642,7 @@ export const ProjectionsTab = React.memo(() => {
     }
 
     return { income, expenses, netCashFlow };
-  }, [projSettings, sanitizedExitSettings, projectedPaymentValue]);
+  }, [projSettings, sanitizedExitSettings, projectedPaymentValue, exitSettings?.method]);
 
   // Build classic mode projection grid from entries - OPTIMIZED O(n) algorithm
   const buildClassicProjectionGrid = useMemo(() => {
