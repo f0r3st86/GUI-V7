@@ -25,6 +25,9 @@ import {
 // Simulate network delay (50-200ms like real API)
 const mockDelay = () => new Promise(resolve => setTimeout(resolve, Math.random() * 150 + 50));
 
+// Fast/no delay for frequently-updated data (payments during typing)
+const noDelay = () => Promise.resolve();
+
 // In-memory storage (simulates database)
 // When you have a real backend, this will be in PostgreSQL
 let mockLoans: Loan[] = [...initialLoans];
@@ -271,30 +274,31 @@ export const mockCommentApi = {
 };
 
 // ==================== PAYMENT API ====================
+// Uses noDelay for instant UI updates during data entry
 
 export const mockPaymentApi = {
   // Get all payments
   getAll: async (): Promise<PaymentRecord[]> => {
-    await mockDelay();
+    await noDelay();
     return [...mockPayments];
   },
 
   // Get payments for a loan
   getByLoan: async (mwLoanNo: string): Promise<PaymentRecord[]> => {
-    await mockDelay();
+    await noDelay();
     return mockPayments.filter(payment => payment.loanNo === mwLoanNo);
   },
 
   // Add payment
   create: async (payment: PaymentRecord): Promise<PaymentRecord> => {
-    await mockDelay();
+    await noDelay();
     mockPayments = [...mockPayments, payment];
     return payment;
   },
 
   // Update payment
   update: async (id: number, updates: Partial<PaymentRecord>): Promise<PaymentRecord> => {
-    await mockDelay();
+    await noDelay();
     mockPayments = mockPayments.map(payment =>
       payment.id === id ? { ...payment, ...updates } : payment
     );
@@ -305,7 +309,7 @@ export const mockPaymentApi = {
 
   // Delete payment
   delete: async (id: number): Promise<void> => {
-    await mockDelay();
+    await noDelay();
     mockPayments = mockPayments.filter(payment => payment.id !== id);
   }
 };

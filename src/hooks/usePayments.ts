@@ -99,15 +99,45 @@ export function useAddPayment() {
 
 /**
  * Update an existing payment record
+ * Uses optimistic updates for instant UI feedback
  */
 export function useUpdatePayment() {
   const queryClient = useQueryClient();
 
-  return useMutation<PaymentRecord, Error, UpdatePaymentVariables>({
+  return useMutation<PaymentRecord, Error, UpdatePaymentVariables, { previousPayments: PaymentRecord[] | undefined }>({
     mutationFn: ({ id, updates }: UpdatePaymentVariables) =>
       paymentApi.update(id, updates),
 
-    onSuccess: () => {
+    // Optimistic update - update UI immediately before API call completes
+    onMutate: async ({ id, updates }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: paymentKeys.all });
+
+      // Snapshot the previous value
+      const previousPayments = queryClient.getQueryData<PaymentRecord[]>(paymentKeys.all);
+
+      // Optimistically update to the new value
+      if (previousPayments) {
+        queryClient.setQueryData<PaymentRecord[]>(
+          paymentKeys.all,
+          previousPayments.map(payment =>
+            payment.id === id ? { ...payment, ...updates } : payment
+          )
+        );
+      }
+
+      return { previousPayments };
+    },
+
+    // If the mutation fails, roll back to the previous value
+    onError: (_err, _variables, context) => {
+      if (context?.previousPayments) {
+        queryClient.setQueryData(paymentKeys.all, context.previousPayments);
+      }
+    },
+
+    // Always refetch after error or success to ensure consistency
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: paymentKeys.all });
     }
   });
