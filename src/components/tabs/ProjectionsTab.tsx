@@ -611,10 +611,16 @@ export const ProjectionsTab = React.memo(() => {
       if (!expenses[year]) expenses[year] = {};
       if (!netCashFlow[year]) netCashFlow[year] = {};
 
-      // Add income - Liquidation has NO interim payments
+      // Add income
       if (isLiquidation) {
-        // Liquidation: $0 income during hold period (borrower in default)
-        income[year][actualMonth] = 0;
+        // Liquidation: $0 income during hold period, exit proceeds at final month
+        if (month === endMonth) {
+          // Exit month: add the liquidation recovery (calculatedExitValue = accrued debt)
+          income[year][actualMonth] = calculatedExitValue;
+        } else {
+          // Interim months: no income (borrower in default)
+          income[year][actualMonth] = 0;
+        }
       } else {
         // Normal mode: monthly payment as income
         income[year][actualMonth] = (income[year][actualMonth] || 0) + monthlyPayment;
@@ -636,7 +642,7 @@ export const ProjectionsTab = React.memo(() => {
     }
 
     return { income, expenses, netCashFlow };
-  }, [projSettings, sanitizedExitSettings, projectedPaymentValue, exitSettings?.method]);
+  }, [projSettings, sanitizedExitSettings, projectedPaymentValue, exitSettings?.method, calculatedExitValue]);
 
   // Build classic mode projection grid from entries - OPTIMIZED O(n) algorithm
   const buildClassicProjectionGrid = useMemo(() => {
@@ -771,6 +777,10 @@ export const ProjectionsTab = React.memo(() => {
     const monthsToMat = calculateMonthsToMaturity(selectedLoanData?.matDt ?? '');
     const trailingP12 = trailingPaymentData?.actual ?? 0;
 
+    // For Liquidation: exit is already in income grid, so don't pass separately to avoid double-counting
+    const isLiquidation = exitSettings?.method === 'Liquidation';
+    const exitProceedsForStats = isLiquidation ? 0 : totalExitProceeds;
+
     return calculateBidStatistics({
       netCashFlow: projectionGrid.netCashFlow,
       startMonth,
@@ -782,7 +792,7 @@ export const ProjectionsTab = React.memo(() => {
       interestRate,
       monthsToAmortization: monthsToAmort,
       monthsToMaturity: monthsToMat,
-      exitProceeds: totalExitProceeds,
+      exitProceeds: exitProceedsForStats,
       trailingP12
     });
   }, [
