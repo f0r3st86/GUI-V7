@@ -2,10 +2,312 @@
 
 ## PhD-Level Analysis: Computer Science, Finance, Data Analytics, and Cybersecurity
 
-**Document Version:** 1.0
+**Document Version:** 1.1
 **Date:** December 2025
-**System:** Loan Portfolio Management System (GUI-V7)
+**System:** Loan Portfolio Acquisition & Bidding Platform (GUI-V7)
 **Codebase Size:** 7,146 lines of TypeScript
+
+---
+
+# Part I: Business Context & Domain Analysis
+
+## Executive Summary
+
+GUI-V7 is a **loan portfolio acquisition and bidding platform** designed for institutional investors who purchase distressed or performing loan portfolios from banks, servicers, and government entities (FDIC, Fannie Mae, Freddie Mac, etc.).
+
+## Business Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     LOAN PORTFOLIO ACQUISITION WORKFLOW                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌───────────┐ │
+│  │  Receive     │    │   Import     │    │   Analyze    │    │  Develop  │ │
+│  │  Data Tape   │───►│   Loan Data  │───►│   Documents  │───►│   Bids    │ │
+│  │  (Excel/CSV) │    │   to System  │    │   & Values   │    │           │ │
+│  └──────────────┘    └──────────────┘    └──────────────┘    └─────┬─────┘ │
+│                                                                      │      │
+│                                                                      ▼      │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌───────────┐ │
+│  │   Close &    │    │    Win       │    │   Submit     │    │  Review   │ │
+│  │   Board      │◄───│    Bid       │◄───│   Bids       │◄───│   Bids    │ │
+│  │   Loans      │    │              │    │              │    │           │ │
+│  └──────────────┘    └──────────────┘    └──────────────┘    └───────────┘ │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+## Key Business Concepts
+
+### 1. Data Tape
+A standardized Excel/CSV file provided by the seller containing loan-level data:
+- Loan identification (loan numbers, borrower names)
+- Balance information (principal, interest, escrow, fees)
+- Payment terms (rate, payment amount, frequency)
+- Collateral details (property address, values)
+- Payment history (trailing 12-month payments)
+- Status (performing, non-performing, foreclosure, REO)
+
+### 2. Relationship Grouping
+Loans are grouped by **relationship** (e.g., "Haskell") because:
+- Multiple loans may be cross-collateralized
+- Same borrower/guarantor across loans
+- Bidding strategy may be relationship-level, not loan-level
+- Workout strategies affect related loans together
+
+### 3. Bid Development Process
+
+| Stage | Description | System Support |
+|-------|-------------|----------------|
+| **Data Import** | Load seller's data tape | Data tape import |
+| **Document Review** | Analyze loan files, title, appraisals | Collateral/Borrower tabs |
+| **Valuation** | Determine property values, exit strategies | Projections tab |
+| **Cash Flow Modeling** | Project payments, expenses, exit proceeds | Projections tab |
+| **Bid Pricing** | Calculate bid based on target yield | Exit scenarios |
+| **Bid Submission** | Export bids for submission | Export feature |
+
+### 4. Exit Strategies (Already Implemented)
+
+| Exit Type | Description | Use Case |
+|-----------|-------------|----------|
+| **Pay in Full** | Borrower pays off loan | Performing loans |
+| **DPO (Discounted Payoff)** | Negotiated settlement < full balance | Sub-performing |
+| **Value Cap** | Recovery limited to property value | Underwater loans |
+| **YTM Sell Solve** | Price for target yield on resale | Whole loan sales |
+| **Liquidation** | Foreclosure and REO sale | Non-performing |
+
+### 5. Projection Persistence Requirement
+
+The user's workflow requires:
+> "We import new loan data near bid dates and want projection settings to persist."
+
+**Meaning:**
+- Initial data tape imported → Run projections → Save settings
+- Updated data tape near bid date → Re-import balances → Settings preserved
+- Projection assumptions (exit strategy, expenses) should NOT reset on data refresh
+
+**Current Implementation:** ✅ Phase 3 added per-loan projection/exit settings persistence via React Query
+
+---
+
+## Data Tape Field Mapping
+
+### Standard Data Tape Fields → System Fields
+
+| Data Tape Column | System Field | Tab |
+|------------------|--------------|-----|
+| Loan Number | `mwLoanNo` | Loan |
+| Borrower Name | `borrowerName` | Loan, Borrower |
+| Original Balance | `origBal` | Loan |
+| Current Principal | `principal` | Loan |
+| Accrued Interest | `interest` | Loan |
+| Escrow Balance | `escrow` | Loan |
+| Interest Rate | `intRate` | Loan |
+| Payment Amount | `pmt` | Loan |
+| Payment Frequency | `pmtFreq` | Loan |
+| Origination Date | `origDt` | Loan |
+| Maturity Date | `matDt` | Loan |
+| Last Payment Date | `lastPmt` | Loan |
+| Property Address | `address1`, `city`, `state`, `zip` | Loan, Collateral |
+| Appraised Value | `appraisedValue` | Collateral |
+| BPO Value | `bpoValue` | Collateral |
+| Loan Status | `status` | Loan |
+| T12 Payments | Payment records by month | PayHist |
+
+---
+
+## Bid Calculation Framework
+
+### Target Yield Approach (Industry Standard)
+
+```
+Bid Price = PV(target_yield, cash_flows) + PV(target_yield, exit_proceeds)
+
+Where:
+- target_yield = Investor's required IRR (e.g., 15-25% for NPLs)
+- cash_flows = Projected monthly payments during hold period
+- exit_proceeds = Value at exit (PIF, DPO, Liquidation, etc.)
+```
+
+### Current System Capabilities
+
+| Calculation | Status | Location |
+|-------------|--------|----------|
+| Monthly Payment Projections | ✅ Implemented | `ProjectionsTab.tsx` |
+| Interest-Only Payments | ✅ Implemented | Payment method option |
+| Trailing Payment % | ✅ Implemented | Payment method option |
+| Expense Projections | ✅ Implemented | Initial legal, holding costs |
+| Exit Value Calculations | ✅ Implemented | 6 exit methods |
+| Add-Back Recovery | ✅ Implemented | Expense recovery |
+| **IRR/Yield Calculation** | ❌ Not Implemented | Needed for bid pricing |
+| **Bid Price Solve** | ❌ Not Implemented | Needed for bid pricing |
+
+### Missing: Bid Price Solver
+
+```typescript
+// NEEDED: Solve for bid price given target yield
+function solveBidPrice(
+  targetYield: number,        // e.g., 0.18 for 18% IRR
+  monthlyPayments: number[],  // Projected cash flows
+  exitProceeds: number,       // Exit value at end
+  exitMonth: number           // When exit occurs
+): number {
+  // Binary search or Newton-Raphson to find price where IRR = targetYield
+  return bidPrice;
+}
+```
+
+---
+
+## Relationship-Level vs Loan-Level Bidding
+
+### Current Architecture
+
+```
+Project (Pool)
+  └── Relationship ("Haskell")
+        ├── Loan 7758 ─────► Individual projections & exit
+        ├── Loan 2461 ─────► Individual projections & exit
+        ├── Loan 5091 ─────► Individual projections & exit
+        └── Related Borrowers/Collateral (shared)
+```
+
+### Bidding Strategies
+
+| Strategy | Description | System Need |
+|----------|-------------|-------------|
+| **Loan-Level** | Bid on each loan individually | ✅ Current design |
+| **Relationship-Level** | Single bid for all related loans | ❌ Aggregation needed |
+| **Pool-Level** | Bid on entire portfolio | ❌ Aggregation needed |
+| **Cherry-Pick** | Bid on selected subset | Partially supported |
+
+---
+
+## Updated Feature Priorities
+
+Based on the loan acquisition workflow, here are the prioritized features:
+
+### Critical for Bidding Workflow
+
+| Priority | Feature | Business Need |
+|----------|---------|---------------|
+| P0 | **Data Tape Import** | Load seller data efficiently |
+| P0 | **Projection Refresh** | Update balances, preserve settings |
+| P0 | **IRR/Yield Calculator** | Determine bid pricing |
+| P0 | **Bid Price Solver** | Calculate bid for target yield |
+| P1 | **Relationship Aggregation** | Roll up to relationship-level bids |
+| P1 | **Bid Export** | Generate bid submission format |
+| P1 | **Scenario Comparison** | Compare multiple exit scenarios |
+
+### Supporting Features
+
+| Priority | Feature | Business Need |
+|----------|---------|---------------|
+| P2 | Document Management | Link loan files to records |
+| P2 | Due Diligence Checklist | Track review completion |
+| P2 | Bid History | Track bids across projects |
+| P3 | Comparable Analysis | Reference similar deals |
+| P3 | Portfolio Dashboard | Overview of all projects |
+
+---
+
+# Part II: Technical Analysis Summary
+
+## Architecture Strengths for Acquisition Platform
+
+| Feature | Implementation | Benefit |
+|---------|----------------|---------|
+| Per-loan settings | React Query + API | Projections persist on data refresh |
+| Relationship grouping | `relatedLoans` field | Supports relationship-level analysis |
+| Multiple exit methods | 6 methods implemented | Covers standard exit strategies |
+| Payment history grid | Year/month matrix | Easy T12/T6/T3 analysis |
+| Trailing analytics | Calculated metrics | Payment performance assessment |
+
+## Architecture Gaps for Acquisition Platform
+
+| Gap | Current State | Needed |
+|-----|---------------|--------|
+| Data tape import | Manual entry only | Excel/CSV import |
+| IRR calculation | Not implemented | Core pricing function |
+| Bid price solver | Not implemented | Inverse yield calculation |
+| Relationship rollup | View only | Aggregated projections |
+| Bid export | Not implemented | Submission format |
+| Project management | Single pool | Multi-project support |
+
+---
+
+# Part III: Updated Development Roadmap
+
+## Revised Phase Structure
+
+### Phase 5: Fix Async Tests (Ready to Implement)
+**Effort:** 1-2 days | **Status:** Plan created
+
+### Phase 6: Security Hardening
+**Effort:** 2-3 weeks | **Priority:** Before production
+
+### Phase 7: Data Tape Import ⭐ NEW
+**Effort:** 2-3 weeks | **Priority:** Critical for workflow
+
+| Task | Description |
+|------|-------------|
+| 7.1 | Excel/CSV file parser |
+| 7.2 | Field mapping configuration |
+| 7.3 | Data validation on import |
+| 7.4 | Merge vs. replace options |
+| 7.5 | Import history/audit log |
+| 7.6 | **Refresh mode** - Update balances, preserve projection settings |
+
+### Phase 8: Bid Pricing Engine ⭐ NEW
+**Effort:** 2-3 weeks | **Priority:** Critical for workflow
+
+| Task | Description |
+|------|-------------|
+| 8.1 | IRR calculation function |
+| 8.2 | NPV calculation function |
+| 8.3 | Bid price solver (target yield → price) |
+| 8.4 | Sensitivity analysis (yield tables) |
+| 8.5 | Relationship-level aggregation |
+| 8.6 | Bid summary export |
+
+### Phase 9: Backend API Integration
+**Effort:** 4-6 weeks | **Priority:** After core features
+
+### Phase 10: Advanced Analytics
+**Effort:** 3-4 weeks | **Priority:** Enhancement
+
+| Task | Description |
+|------|-------------|
+| 10.1 | Portfolio-level metrics |
+| 10.2 | Scenario comparison tool |
+| 10.3 | Bid history tracking |
+| 10.4 | Performance attribution |
+
+### Phase 11: Microsoft SSO
+**Effort:** 1-2 weeks | **Priority:** Before production
+
+### Phase 12: Electron Hardening
+**Effort:** 1-2 weeks | **Priority:** Before distribution
+
+---
+
+## Revised Implementation Timeline
+
+```
+                        Month 1          Month 2          Month 3          Month 4
+                    ┌────────────────┬────────────────┬────────────────┬────────────────┐
+Phase 5 (Tests)     │████            │                │                │                │
+Phase 6 (Security)  │    ████████████│                │                │                │
+Phase 7 (Import)    │                │████████████    │                │                │
+Phase 8 (Pricing)   │                │        ████████│████            │                │
+Phase 9 (Backend)   │                │                │    ████████████│████████        │
+Phase 11 (SSO)      │                │                │                │    ████        │
+                    └────────────────┴────────────────┴────────────────┴────────────────┘
+                                                                              │
+                                                                              ▼
+                                                                    Production Ready
+```
 
 ---
 
