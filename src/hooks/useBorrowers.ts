@@ -9,6 +9,30 @@ export const borrowerKeys = {
   detail: (id: number) => ['borrowers', id] as const
 };
 
+// Context types for mutations
+interface AddBorrowerContext {
+  previousBorrowers: Borrower[] | undefined;
+}
+
+interface UpdateBorrowerVariables {
+  id: number;
+  updates: Partial<Borrower>;
+}
+
+interface UpdateBorrowerContext {
+  previousBorrowers: Borrower[] | undefined;
+  previousBorrower: Borrower | undefined;
+}
+
+interface DeleteBorrowerContext {
+  previousBorrowers: Borrower[] | undefined;
+}
+
+interface UpdateRelationshipsVariables {
+  id: number;
+  relationships: Record<string, LoanRelationship>;
+}
+
 // ==================== QUERIES ====================
 
 /**
@@ -40,10 +64,10 @@ export function useBorrower(id: number) {
 export function useAddBorrower() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<Borrower, Error, Borrower, AddBorrowerContext>({
     mutationFn: (borrower: Borrower) => borrowerApi.create(borrower),
 
-    onMutate: async (newBorrower) => {
+    onMutate: async (newBorrower: Borrower): Promise<AddBorrowerContext> => {
       await queryClient.cancelQueries({ queryKey: borrowerKeys.all });
       const previousBorrowers = queryClient.getQueryData<Borrower[]>(borrowerKeys.all);
 
@@ -54,7 +78,7 @@ export function useAddBorrower() {
       return { previousBorrowers };
     },
 
-    onError: (_err, _newBorrower, context) => {
+    onError: (_err: Error, _newBorrower: Borrower, context: AddBorrowerContext | undefined) => {
       if (context?.previousBorrowers) {
         queryClient.setQueryData(borrowerKeys.all, context.previousBorrowers);
       }
@@ -72,11 +96,11 @@ export function useAddBorrower() {
 export function useUpdateBorrower() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ id, updates }: { id: number; updates: Partial<Borrower> }) =>
+  return useMutation<Borrower, Error, UpdateBorrowerVariables, UpdateBorrowerContext>({
+    mutationFn: ({ id, updates }: UpdateBorrowerVariables) =>
       borrowerApi.update(id, updates),
 
-    onMutate: async ({ id, updates }) => {
+    onMutate: async ({ id, updates }: UpdateBorrowerVariables): Promise<UpdateBorrowerContext> => {
       await queryClient.cancelQueries({ queryKey: borrowerKeys.all });
       await queryClient.cancelQueries({ queryKey: borrowerKeys.detail(id) });
 
@@ -102,7 +126,7 @@ export function useUpdateBorrower() {
       return { previousBorrowers, previousBorrower };
     },
 
-    onError: (_err, { id }, context) => {
+    onError: (_err: Error, { id }: UpdateBorrowerVariables, context: UpdateBorrowerContext | undefined) => {
       if (context?.previousBorrowers) {
         queryClient.setQueryData(borrowerKeys.all, context.previousBorrowers);
       }
@@ -111,7 +135,7 @@ export function useUpdateBorrower() {
       }
     },
 
-    onSettled: (_data, _error, { id }) => {
+    onSettled: (_data: Borrower | undefined, _error: Error | null, { id }: UpdateBorrowerVariables) => {
       queryClient.invalidateQueries({ queryKey: borrowerKeys.all });
       queryClient.invalidateQueries({ queryKey: borrowerKeys.detail(id) });
     }
@@ -124,10 +148,10 @@ export function useUpdateBorrower() {
 export function useDeleteBorrower() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<void, Error, number, DeleteBorrowerContext>({
     mutationFn: (id: number) => borrowerApi.delete(id),
 
-    onMutate: async (id) => {
+    onMutate: async (id: number): Promise<DeleteBorrowerContext> => {
       await queryClient.cancelQueries({ queryKey: borrowerKeys.all });
       const previousBorrowers = queryClient.getQueryData<Borrower[]>(borrowerKeys.all);
 
@@ -141,7 +165,7 @@ export function useDeleteBorrower() {
       return { previousBorrowers };
     },
 
-    onError: (_err, _id, context) => {
+    onError: (_err: Error, _id: number, context: DeleteBorrowerContext | undefined) => {
       if (context?.previousBorrowers) {
         queryClient.setQueryData(borrowerKeys.all, context.previousBorrowers);
       }
@@ -159,11 +183,11 @@ export function useDeleteBorrower() {
 export function useUpdateBorrowerRelationships() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ id, relationships }: { id: number; relationships: Record<string, LoanRelationship> }) =>
+  return useMutation<void, Error, UpdateRelationshipsVariables>({
+    mutationFn: ({ id, relationships }: UpdateRelationshipsVariables) =>
       borrowerApi.updateRelationships(id, relationships),
 
-    onSuccess: (_data, { id }) => {
+    onSuccess: (_data: void, { id }: UpdateRelationshipsVariables) => {
       // Refetch the specific borrower to get updated relationships
       queryClient.invalidateQueries({ queryKey: borrowerKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: borrowerKeys.all });

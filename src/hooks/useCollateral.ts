@@ -10,6 +10,25 @@ export const collateralKeys = {
   relationships: ['collateral-relationships'] as const
 };
 
+// Context types for mutations
+interface AddCollateralContext {
+  previousCollateral: Collateral[] | undefined;
+}
+
+interface UpdateCollateralVariables {
+  id: number;
+  updates: Partial<Collateral>;
+}
+
+interface UpdateCollateralContext {
+  previousCollateral: Collateral[] | undefined;
+  previousItem: Collateral | undefined;
+}
+
+interface DeleteCollateralContext {
+  previousCollateral: Collateral[] | undefined;
+}
+
 // ==================== QUERIES ====================
 
 /**
@@ -51,10 +70,10 @@ export function useCollateralRelationships() {
 export function useAddCollateral() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<Collateral, Error, Collateral, AddCollateralContext>({
     mutationFn: (collateral: Collateral) => collateralApi.create(collateral),
 
-    onMutate: async (newCollateral) => {
+    onMutate: async (newCollateral: Collateral): Promise<AddCollateralContext> => {
       await queryClient.cancelQueries({ queryKey: collateralKeys.all });
       const previousCollateral = queryClient.getQueryData<Collateral[]>(collateralKeys.all);
 
@@ -65,7 +84,7 @@ export function useAddCollateral() {
       return { previousCollateral };
     },
 
-    onError: (_err, _newCollateral, context) => {
+    onError: (_err: Error, _newCollateral: Collateral, context: AddCollateralContext | undefined) => {
       if (context?.previousCollateral) {
         queryClient.setQueryData(collateralKeys.all, context.previousCollateral);
       }
@@ -83,11 +102,11 @@ export function useAddCollateral() {
 export function useUpdateCollateral() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ id, updates }: { id: number; updates: Partial<Collateral> }) =>
+  return useMutation<Collateral, Error, UpdateCollateralVariables, UpdateCollateralContext>({
+    mutationFn: ({ id, updates }: UpdateCollateralVariables) =>
       collateralApi.update(id, updates),
 
-    onMutate: async ({ id, updates }) => {
+    onMutate: async ({ id, updates }: UpdateCollateralVariables): Promise<UpdateCollateralContext> => {
       await queryClient.cancelQueries({ queryKey: collateralKeys.all });
       await queryClient.cancelQueries({ queryKey: collateralKeys.detail(id) });
 
@@ -113,7 +132,7 @@ export function useUpdateCollateral() {
       return { previousCollateral, previousItem };
     },
 
-    onError: (_err, { id }, context) => {
+    onError: (_err: Error, { id }: UpdateCollateralVariables, context: UpdateCollateralContext | undefined) => {
       if (context?.previousCollateral) {
         queryClient.setQueryData(collateralKeys.all, context.previousCollateral);
       }
@@ -122,7 +141,7 @@ export function useUpdateCollateral() {
       }
     },
 
-    onSettled: (_data, _error, { id }) => {
+    onSettled: (_data: Collateral | undefined, _error: Error | null, { id }: UpdateCollateralVariables) => {
       queryClient.invalidateQueries({ queryKey: collateralKeys.all });
       queryClient.invalidateQueries({ queryKey: collateralKeys.detail(id) });
     }
@@ -135,10 +154,10 @@ export function useUpdateCollateral() {
 export function useDeleteCollateral() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<void, Error, number, DeleteCollateralContext>({
     mutationFn: (id: number) => collateralApi.delete(id),
 
-    onMutate: async (id) => {
+    onMutate: async (id: number): Promise<DeleteCollateralContext> => {
       await queryClient.cancelQueries({ queryKey: collateralKeys.all });
       const previousCollateral = queryClient.getQueryData<Collateral[]>(collateralKeys.all);
 
@@ -152,7 +171,7 @@ export function useDeleteCollateral() {
       return { previousCollateral };
     },
 
-    onError: (_err, _id, context) => {
+    onError: (_err: Error, _id: number, context: DeleteCollateralContext | undefined) => {
       if (context?.previousCollateral) {
         queryClient.setQueryData(collateralKeys.all, context.previousCollateral);
       }
@@ -171,7 +190,7 @@ export function useDeleteCollateral() {
 export function useUpdateCollateralRelationships() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<void, Error, CollateralLoanRelationships>({
     mutationFn: (relationships: CollateralLoanRelationships) =>
       collateralApi.updateRelationships(relationships),
 

@@ -9,6 +9,21 @@ export const paymentKeys = {
   byLoan: (mwLoanNo: string) => ['payments', 'loan', mwLoanNo] as const
 };
 
+// Context types for mutations
+interface AddPaymentContext {
+  previousPayments: PaymentRecord[] | undefined;
+  previousLoanPayments: PaymentRecord[] | undefined;
+}
+
+interface UpdatePaymentVariables {
+  id: number;
+  updates: Partial<PaymentRecord>;
+}
+
+interface DeletePaymentContext {
+  previousPayments: PaymentRecord[] | undefined;
+}
+
 // ==================== QUERIES ====================
 
 /**
@@ -40,10 +55,10 @@ export function usePaymentsByLoan(mwLoanNo: string) {
 export function useAddPayment() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<PaymentRecord, Error, PaymentRecord, AddPaymentContext>({
     mutationFn: (payment: PaymentRecord) => paymentApi.create(payment),
 
-    onMutate: async (newPayment) => {
+    onMutate: async (newPayment: PaymentRecord): Promise<AddPaymentContext> => {
       await queryClient.cancelQueries({ queryKey: paymentKeys.all });
       await queryClient.cancelQueries({ queryKey: paymentKeys.byLoan(newPayment.loanNo) });
 
@@ -66,7 +81,7 @@ export function useAddPayment() {
       return { previousPayments, previousLoanPayments };
     },
 
-    onError: (_err, newPayment, context) => {
+    onError: (_err: Error, newPayment: PaymentRecord, context: AddPaymentContext | undefined) => {
       if (context?.previousPayments) {
         queryClient.setQueryData(paymentKeys.all, context.previousPayments);
       }
@@ -75,7 +90,7 @@ export function useAddPayment() {
       }
     },
 
-    onSettled: (_data, _error, newPayment) => {
+    onSettled: (_data: PaymentRecord | undefined, _error: Error | null, newPayment: PaymentRecord) => {
       queryClient.invalidateQueries({ queryKey: paymentKeys.all });
       queryClient.invalidateQueries({ queryKey: paymentKeys.byLoan(newPayment.loanNo) });
     }
@@ -88,8 +103,8 @@ export function useAddPayment() {
 export function useUpdatePayment() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ id, updates }: { id: number; updates: Partial<PaymentRecord> }) =>
+  return useMutation<PaymentRecord, Error, UpdatePaymentVariables>({
+    mutationFn: ({ id, updates }: UpdatePaymentVariables) =>
       paymentApi.update(id, updates),
 
     onSuccess: () => {
@@ -104,10 +119,10 @@ export function useUpdatePayment() {
 export function useDeletePayment() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<void, Error, number, DeletePaymentContext>({
     mutationFn: (id: number) => paymentApi.delete(id),
 
-    onMutate: async (id) => {
+    onMutate: async (id: number): Promise<DeletePaymentContext> => {
       await queryClient.cancelQueries({ queryKey: paymentKeys.all });
       const previousPayments = queryClient.getQueryData<PaymentRecord[]>(paymentKeys.all);
 
@@ -121,7 +136,7 @@ export function useDeletePayment() {
       return { previousPayments };
     },
 
-    onError: (_err, _id, context) => {
+    onError: (_err: Error, _id: number, context: DeletePaymentContext | undefined) => {
       if (context?.previousPayments) {
         queryClient.setQueryData(paymentKeys.all, context.previousPayments);
       }

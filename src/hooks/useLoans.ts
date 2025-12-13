@@ -15,6 +15,20 @@ export const loanKeys = {
   detail: (mwLoanNo: string) => ['loans', mwLoanNo] as const
 };
 
+// Context types for mutations
+interface AddLoanContext {
+  previousLoans: Loan[] | undefined;
+}
+
+interface UpdateLoanContext {
+  previousLoans: Loan[] | undefined;
+  previousLoan: Loan | undefined;
+}
+
+interface DeleteLoanContext {
+  previousLoans: Loan[] | undefined;
+}
+
 // ==================== QUERIES ====================
 
 /**
@@ -65,11 +79,11 @@ export function useLoan(mwLoanNo: string) {
 export function useAddLoan() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<Loan, Error, Loan, AddLoanContext>({
     mutationFn: (loan: Loan) => loanApi.create(loan),
 
     // Optimistic update - update UI immediately
-    onMutate: async (newLoan) => {
+    onMutate: async (newLoan: Loan): Promise<AddLoanContext> => {
       // Cancel outgoing queries
       await queryClient.cancelQueries({ queryKey: loanKeys.all });
 
@@ -85,7 +99,7 @@ export function useAddLoan() {
     },
 
     // Rollback on error
-    onError: (_err, _newLoan, context) => {
+    onError: (_err: Error, _newLoan: Loan, context: AddLoanContext | undefined) => {
       if (context?.previousLoans) {
         queryClient.setQueryData(loanKeys.all, context.previousLoans);
       }
@@ -110,15 +124,20 @@ export function useAddLoan() {
  * - Automatic rollback on error
  * - Updates both list and detail views
  */
+interface UpdateLoanVariables {
+  mwLoanNo: string;
+  updates: Partial<Loan>;
+}
+
 export function useUpdateLoan() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ mwLoanNo, updates }: { mwLoanNo: string; updates: Partial<Loan> }) =>
+  return useMutation<Loan, Error, UpdateLoanVariables, UpdateLoanContext>({
+    mutationFn: ({ mwLoanNo, updates }: UpdateLoanVariables) =>
       loanApi.update(mwLoanNo, updates),
 
     // Optimistic update
-    onMutate: async ({ mwLoanNo, updates }) => {
+    onMutate: async ({ mwLoanNo, updates }: UpdateLoanVariables): Promise<UpdateLoanContext> => {
       // Cancel outgoing queries
       await queryClient.cancelQueries({ queryKey: loanKeys.all });
       await queryClient.cancelQueries({ queryKey: loanKeys.detail(mwLoanNo) });
@@ -149,7 +168,7 @@ export function useUpdateLoan() {
     },
 
     // Rollback on error
-    onError: (_err, { mwLoanNo }, context) => {
+    onError: (_err: Error, { mwLoanNo }: UpdateLoanVariables, context: UpdateLoanContext | undefined) => {
       if (context?.previousLoans) {
         queryClient.setQueryData(loanKeys.all, context.previousLoans);
       }
@@ -159,9 +178,9 @@ export function useUpdateLoan() {
     },
 
     // Refetch to ensure sync
-    onSettled: (_data, _error, { mwLoanNo }) => {
+    onSettled: (_data: Loan | undefined, _error: Error | null, variables: UpdateLoanVariables) => {
       queryClient.invalidateQueries({ queryKey: loanKeys.all });
-      queryClient.invalidateQueries({ queryKey: loanKeys.detail(mwLoanNo) });
+      queryClient.invalidateQueries({ queryKey: loanKeys.detail(variables.mwLoanNo) });
     }
   });
 }
@@ -181,11 +200,11 @@ export function useUpdateLoan() {
 export function useDeleteLoan() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<void, Error, string, DeleteLoanContext>({
     mutationFn: (mwLoanNo: string) => loanApi.delete(mwLoanNo),
 
     // Optimistic update
-    onMutate: async (mwLoanNo) => {
+    onMutate: async (mwLoanNo: string): Promise<DeleteLoanContext> => {
       // Cancel outgoing queries
       await queryClient.cancelQueries({ queryKey: loanKeys.all });
 
@@ -204,7 +223,7 @@ export function useDeleteLoan() {
     },
 
     // Rollback on error
-    onError: (_err, _mwLoanNo, context) => {
+    onError: (_err: Error, _mwLoanNo: string, context: DeleteLoanContext | undefined) => {
       if (context?.previousLoans) {
         queryClient.setQueryData(loanKeys.all, context.previousLoans);
       }

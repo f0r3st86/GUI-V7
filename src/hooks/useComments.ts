@@ -9,6 +9,21 @@ export const commentKeys = {
   byLoan: (mwLoanNo: string) => ['comments', 'loan', mwLoanNo] as const
 };
 
+// Context types for mutations
+interface AddCommentContext {
+  previousComments: Comment[] | undefined;
+  previousLoanComments: Comment[] | undefined;
+}
+
+interface UpdateCommentVariables {
+  id: number;
+  updates: Partial<Comment>;
+}
+
+interface DeleteCommentContext {
+  previousComments: Comment[] | undefined;
+}
+
 // ==================== QUERIES ====================
 
 /**
@@ -40,10 +55,10 @@ export function useCommentsByLoan(mwLoanNo: string) {
 export function useAddComment() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<Comment, Error, Comment, AddCommentContext>({
     mutationFn: (comment: Comment) => commentApi.create(comment),
 
-    onMutate: async (newComment) => {
+    onMutate: async (newComment: Comment): Promise<AddCommentContext> => {
       await queryClient.cancelQueries({ queryKey: commentKeys.all });
       await queryClient.cancelQueries({ queryKey: commentKeys.byLoan(newComment.loanNo) });
 
@@ -66,7 +81,7 @@ export function useAddComment() {
       return { previousComments, previousLoanComments };
     },
 
-    onError: (_err, newComment, context) => {
+    onError: (_err: Error, newComment: Comment, context: AddCommentContext | undefined) => {
       if (context?.previousComments) {
         queryClient.setQueryData(commentKeys.all, context.previousComments);
       }
@@ -75,7 +90,7 @@ export function useAddComment() {
       }
     },
 
-    onSettled: (_data, _error, newComment) => {
+    onSettled: (_data: Comment | undefined, _error: Error | null, newComment: Comment) => {
       queryClient.invalidateQueries({ queryKey: commentKeys.all });
       queryClient.invalidateQueries({ queryKey: commentKeys.byLoan(newComment.loanNo) });
     }
@@ -88,8 +103,8 @@ export function useAddComment() {
 export function useUpdateComment() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ id, updates }: { id: number; updates: Partial<Comment> }) =>
+  return useMutation<Comment, Error, UpdateCommentVariables>({
+    mutationFn: ({ id, updates }: UpdateCommentVariables) =>
       commentApi.update(id, updates),
 
     onSuccess: () => {
@@ -104,10 +119,10 @@ export function useUpdateComment() {
 export function useDeleteComment() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<void, Error, number, DeleteCommentContext>({
     mutationFn: (id: number) => commentApi.delete(id),
 
-    onMutate: async (id) => {
+    onMutate: async (id: number): Promise<DeleteCommentContext> => {
       await queryClient.cancelQueries({ queryKey: commentKeys.all });
       const previousComments = queryClient.getQueryData<Comment[]>(commentKeys.all);
 
@@ -121,7 +136,7 @@ export function useDeleteComment() {
       return { previousComments };
     },
 
-    onError: (_err, _id, context) => {
+    onError: (_err: Error, _id: number, context: DeleteCommentContext | undefined) => {
       if (context?.previousComments) {
         queryClient.setQueryData(commentKeys.all, context.previousComments);
       }
