@@ -478,7 +478,7 @@ export const ProjectionsTab = React.memo(() => {
           debug.log('[YTM Sell Solve] Result:', result);
           break;
         case 'Liquidation':
-          // Liquidation: No interim payments, accrue interest using FV, recover up to what's owed
+          // Liquidation: No interim payments, accrue interest using FV, recover accrued debt
           const liquidationMonths = parseInt(exitSettings?.liquidationMonths || '') || 12;
 
           // Start with UPB (principal)
@@ -493,17 +493,10 @@ export const ProjectionsTab = React.memo(() => {
           debug.log('[Liquidation] Starting balance:', startingBalance, 'Rate:', liqRate, 'Months:', liquidationMonths);
 
           // Calculate FV of accrued debt: FV = PV * (1 + r)^n
-          // This is the total debt owed after liquidation period
+          // Exit proceeds = the accrued debt (what we're owed)
           const accruedDebt = calculateFV(liqRate, liquidationMonths, 0, startingBalance);
-          debug.log('[Liquidation] Accrued debt after', liquidationMonths, 'months:', accruedDebt);
-
-          // Collateral value (property sale price)
-          const collateralRecovery = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : 0;
-
-          // Exit proceeds = MIN(accrued debt, collateral value)
-          // We can only recover what we're owed - surplus goes to borrower
-          result = Math.min(accruedDebt, collateralRecovery);
-          debug.log('[Liquidation] Recovery:', result, '(min of debt:', accruedDebt, 'and collateral:', collateralRecovery, ')');
+          result = accruedDebt;
+          debug.log('[Liquidation] Accrued debt (exit):', accruedDebt);
           break;
         default:
           result = 0;
