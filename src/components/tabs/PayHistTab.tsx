@@ -175,23 +175,24 @@ export const PayHistTab = React.memo(() => {
     // Only update if valid OR if clearing the field
     if (isValid || value === '') {
       updatePayment({ id, updates: { [field]: value } });
+
+      // If typing in the last row and entering a value, add a new empty row
+      const filteredRecords = getFilteredPaymentRecords;
+      const lastRecord = filteredRecords[filteredRecords.length - 1];
+      if (lastRecord && lastRecord.id === id && value) {
+        // Check if this row was previously empty (no values in any field)
+        const wasEmpty = !lastRecord.year && !lastRecord.month && !lastRecord.amount;
+        if (wasEmpty) {
+          addEmptyRow();
+        }
+      }
     }
   };
 
-  // Handle amount blur - evaluate expression and add new row if needed
+  // Handle amount blur - evaluate expression
   const handleAmountBlur = (id: number, value: string) => {
     const result = calculateExpression(value);
     updatePayment({ id, updates: { amount: result } });
-
-    // Check if this completes the last row - if so, add a new empty row
-    const filteredRecords = getFilteredPaymentRecords;
-    const lastRecord = filteredRecords[filteredRecords.length - 1];
-    if (lastRecord && lastRecord.id === id) {
-      // This is the last row - check if all fields will be filled after this update
-      if (lastRecord.year && lastRecord.month && result) {
-        addEmptyRow();
-      }
-    }
   };
 
   // Handle keyboard navigation
