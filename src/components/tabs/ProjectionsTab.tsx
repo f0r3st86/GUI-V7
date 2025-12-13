@@ -1442,222 +1442,127 @@ export const ProjectionsTab = React.memo(() => {
       {/* Classic Mode Content */}
       {mode === 'classic' && (
         <>
-          {/* Classic Mode Entry Form */}
-          <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border mb-4`}>
-            <h3 className={`font-medium mb-4 ${styles.textPrimary}`}>Add Cash Flow Entry</h3>
+          {/* Two Column Layout: Left (Entry Form + Tables) | Right (Bid Statistics) */}
+          <div className="grid grid-cols-3 gap-4">
+            {/* Left Column - Entry Form and Tables (2/3 width) */}
+            <div className="col-span-2 space-y-4">
+              {/* Classic Mode Entry Form */}
+              <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+                <h3 className={`font-medium mb-4 ${styles.textPrimary}`}>Add Cash Flow Entry</h3>
 
-            <div className="grid grid-cols-6 gap-3 items-end">
-              <div>
-                <label className={`text-xs ${styles.textMuted} block mb-1`}>Start Month:</label>
-                <select
-                  id="classic-start-month"
-                  ref={classicStartMonthRef}
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-                >
-                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className={`text-xs ${styles.textMuted} block mb-1`}>Start Year:</label>
-                <input
-                  type="text"
-                  id="classic-start-year"
-                  ref={classicStartYearRef}
-                  placeholder="2025"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-                />
-              </div>
-
-              <div>
-                <label className={`text-xs ${styles.textMuted} block mb-1`}>End Month:</label>
-                <select
-                  id="classic-end-month"
-                  ref={classicEndMonthRef}
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-                >
-                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className={`text-xs ${styles.textMuted} block mb-1`}>End Year:</label>
-                <input
-                  type="text"
-                  id="classic-end-year"
-                  ref={classicEndYearRef}
-                  placeholder="2027"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-                />
-              </div>
-
-              <div>
-                <label className={`text-xs ${styles.textMuted} block mb-1`}>Amount ($):</label>
-                <input
-                  type="text"
-                  id="classic-amount"
-                  ref={classicAmountRef}
-                  placeholder="500"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-                />
-              </div>
-
-              <div>
-                <label className={`text-xs ${styles.textMuted} block mb-1`}>Type:</label>
-                <select
-                  id="classic-type"
-                  ref={classicTypeRef}
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-                >
-                  <option value="income">Income</option>
-                  <option value="expense">Expense</option>
-                </select>
-              </div>
-
-              <div>
-                <button
-                  onClick={() => {
-                    // Use React refs instead of direct DOM access - BETTER PATTERN
-                    const startMonth = classicStartMonthRef.current?.value;
-                    const startYear = classicStartYearRef.current?.value;
-                    const endMonth = classicEndMonthRef.current?.value;
-                    const endYear = classicEndYearRef.current?.value;
-                    const amount = classicAmountRef.current?.value;
-                    const type = classicTypeRef.current?.value as 'income' | 'expense';
-
-                    if (startMonth && startYear && endMonth && endYear && amount) {
-                      const newEntry: ClassicEntry = {
-                        id: Date.now().toString(),
-                        startMonth,
-                        startYear,
-                        endMonth,
-                        endYear,
-                        amount,
-                        type
-                      };
-                      setClassicEntries(prev => [...prev, newEntry]);
-                    }
-                  }}
-                  className={`${styles.activeBg} ${styles.textPrimary} px-4 py-2 rounded text-sm font-medium border ${styles.inputBorder} ${styles.buttonHover} transition-colors`}
-                >
-                  Add Entry
-                </button>
-              </div>
-            </div>
-
-            {/* Clear All Button */}
-            {classicEntries.length > 0 && (
-              <div className="mt-4">
-                <button
-                  onClick={() => setClassicEntries([])}
-                  className={`${styles.cardBg} ${styles.textMuted} hover:${styles.textPrimary} px-4 py-2 rounded text-sm border ${styles.borderColor} transition-colors`}
-                >
-                  Clear All Entries
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Bid Statistics for Classic Mode */}
-          <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border mb-4`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={`font-medium ${styles.textPrimary}`}>Bid Statistics</h3>
-              <div className="flex items-center gap-2">
-                <label className={`text-xs ${styles.textMuted}`}>Discount Rate:</label>
-                <input
-                  type="text"
-                  value={discountRate}
-                  onChange={(e) => setDiscountRate(e.target.value)}
-                  placeholder="15"
-                  className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-16 text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
-                />
-                <span className={`text-xs ${styles.textMuted}`}>%</span>
-              </div>
-            </div>
-
-            {/* Primary Metrics */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-                <div className={`text-xs ${styles.textMuted} mb-1`}>Bid Price</div>
-                <div className={`text-xl font-bold ${bidStatistics.bidPrice >= 0 ? styles.textGreen : 'text-red-500'}`}>
-                  ${bidStatistics.bidPrice.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                </div>
-              </div>
-              <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-                <div className={`text-xs ${styles.textMuted} mb-1`}>Bid %</div>
-                <div className={`text-xl font-bold ${styles.textPrimary}`}>
-                  {bidStatistics.bidPercentage.toFixed(1)}%
-                </div>
-              </div>
-            </div>
-
-            {/* Secondary Metrics */}
-            <div className="grid grid-cols-4 gap-2 mt-3">
-              <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
-                <div className={`text-xs ${styles.textMuted}`}>MOIC</div>
-                <div className={`text-lg font-medium ${bidStatistics.moic >= 1 ? styles.textGreen : styles.textYellow}`}>
-                  {bidStatistics.moic.toFixed(2)}x
-                </div>
-              </div>
-              <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
-                <div className={`text-xs ${styles.textMuted}`}>Cash Yield</div>
-                <div className={`text-lg font-medium ${bidStatistics.cashYield >= 0 ? styles.textGreen : 'text-red-500'}`}>
-                  {bidStatistics.cashYield.toFixed(1)}%
-                </div>
-              </div>
-              <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
-                <div className={`text-xs ${styles.textMuted}`}>Bid/Collat</div>
-                <div className={`text-lg font-medium ${
-                  bidStatistics.bidToCollateralPercentage <= 70 ? styles.textGreen :
-                  bidStatistics.bidToCollateralPercentage <= 90 ? styles.textYellow :
-                  'text-red-500'
-                }`}>
-                  {bidStatistics.bidToCollateralPercentage.toFixed(1)}%
-                </div>
-              </div>
-              <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
-                <div className={`text-xs ${styles.textMuted}`}>F12/P12</div>
-                <div className={`text-lg font-medium ${
-                  bidStatistics.f12vsP12Change > 0 ? styles.textGreen :
-                  bidStatistics.f12vsP12Change < 0 ? 'text-red-500' :
-                  styles.textPrimary
-                }`}>
-                  {bidStatistics.p12CashFlow > 0 ? (
-                    <>{bidStatistics.f12vsP12Change >= 0 ? '+' : ''}{bidStatistics.f12vsP12Change.toFixed(1)}%</>
-                  ) : (
-                    <span className={styles.textMuted}>N/A</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* YTM Metrics */}
-            <div className={`mt-3 pt-3 border-t ${styles.borderColor}`}>
-              <div className="grid grid-cols-2 gap-3">
-                <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-                  <div className={`text-xs ${styles.textMuted} mb-1`}>YTM (IRR)</div>
-                  <div className={`text-xl font-bold ${bidStatistics.ytm >= 0 ? styles.textGreen : 'text-red-500'}`}>
-                    {bidStatistics.ytm.toFixed(2)}%
+                <div className="grid grid-cols-7 gap-3 items-end">
+                  <div>
+                    <label className={`text-xs ${styles.textMuted} block mb-1`}>Start Month:</label>
+                    <select
+                      id="classic-start-month"
+                      ref={classicStartMonthRef}
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    >
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
                   </div>
-                  <div className={`text-xs ${styles.textMuted} mt-1`}>Contractual + exit</div>
-                </div>
-                <div className={`${styles.readOnlyBg} rounded p-3 ${styles.inputBorder} border`}>
-                  <div className={`text-xs ${styles.textMuted} mb-1`}>YTM (XIRR)</div>
-                  <div className={`text-xl font-bold ${bidStatistics.ytmXirr >= 0 ? styles.textGreen : 'text-red-500'}`}>
-                    {bidStatistics.ytmXirr.toFixed(2)}%
+
+                  <div>
+                    <label className={`text-xs ${styles.textMuted} block mb-1`}>Start Year:</label>
+                    <input
+                      type="text"
+                      id="classic-start-year"
+                      ref={classicStartYearRef}
+                      placeholder="2025"
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    />
                   </div>
-                  <div className={`text-xs ${styles.textMuted} mt-1`}>Date-adjusted</div>
+
+                  <div>
+                    <label className={`text-xs ${styles.textMuted} block mb-1`}>End Month:</label>
+                    <select
+                      id="classic-end-month"
+                      ref={classicEndMonthRef}
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    >
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={`text-xs ${styles.textMuted} block mb-1`}>End Year:</label>
+                    <input
+                      type="text"
+                      id="classic-end-year"
+                      ref={classicEndYearRef}
+                      placeholder="2027"
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`text-xs ${styles.textMuted} block mb-1`}>Amount ($):</label>
+                    <input
+                      type="text"
+                      id="classic-amount"
+                      ref={classicAmountRef}
+                      placeholder="500"
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`text-xs ${styles.textMuted} block mb-1`}>Type:</label>
+                    <select
+                      id="classic-type"
+                      ref={classicTypeRef}
+                      className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                    >
+                      <option value="income">Income</option>
+                      <option value="expense">Expense</option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const startMonth = classicStartMonthRef.current?.value;
+                        const startYear = classicStartYearRef.current?.value;
+                        const endMonth = classicEndMonthRef.current?.value;
+                        const endYear = classicEndYearRef.current?.value;
+                        const amount = classicAmountRef.current?.value;
+                        const type = classicTypeRef.current?.value as 'income' | 'expense';
+
+                        if (startMonth && startYear && endMonth && endYear && amount) {
+                          const newEntry: ClassicEntry = {
+                            id: Date.now().toString(),
+                            startMonth,
+                            startYear,
+                            endMonth,
+                            endYear,
+                            amount,
+                            type
+                          };
+                          setClassicEntries(prev => [...prev, newEntry]);
+                        }
+                      }}
+                      className={`${styles.activeBg} ${styles.textPrimary} px-3 py-1.5 rounded text-sm font-medium border ${styles.inputBorder} ${styles.buttonHover} transition-colors`}
+                    >
+                      Add
+                    </button>
+                    {classicEntries.length > 0 && (
+                      <button
+                        onClick={() => setClassicEntries([])}
+                        className={`${styles.cardBg} ${styles.textMuted} hover:${styles.textPrimary} px-3 py-1.5 rounded text-sm border ${styles.borderColor} transition-colors`}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Classic Mode Tables - Income, Expenses, Net Cash Flow */}
-          <div className="space-y-4">
+              {/* Classic Mode Tables - Income, Expenses, Net Cash Flow */}
+              <div className="space-y-4">
             {/* Income Table */}
             <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
               <h3 className={`font-medium mb-3 ${styles.textPrimary}`}>Income</h3>
@@ -1797,6 +1702,100 @@ export const ProjectionsTab = React.memo(() => {
                     })}
                   </tbody>
                 </table>
+              </div>
+            </div>
+              </div>
+            </div>
+
+            {/* Right Column - Bid Statistics */}
+            <div className={`${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border h-fit sticky top-4`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`font-medium ${styles.textPrimary}`}>Bid Statistics</h3>
+                <div className="flex items-center gap-2">
+                  <label className={`text-xs ${styles.textMuted}`}>Disc:</label>
+                  <input
+                    type="text"
+                    value={discountRate}
+                    onChange={(e) => setDiscountRate(e.target.value)}
+                    placeholder="15"
+                    className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-12 text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+                  />
+                  <span className={`text-xs ${styles.textMuted}`}>%</span>
+                </div>
+              </div>
+
+              {/* Primary Metrics */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border`}>
+                  <div className={`text-xs ${styles.textMuted} mb-1`}>Bid Price</div>
+                  <div className={`text-lg font-bold ${bidStatistics.bidPrice >= 0 ? styles.textGreen : 'text-red-500'}`}>
+                    ${bidStatistics.bidPrice.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                  </div>
+                </div>
+                <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border`}>
+                  <div className={`text-xs ${styles.textMuted} mb-1`}>Bid %</div>
+                  <div className={`text-lg font-bold ${styles.textPrimary}`}>
+                    {bidStatistics.bidPercentage.toFixed(1)}%
+                  </div>
+                </div>
+              </div>
+
+              {/* Secondary Metrics */}
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                  <div className={`text-xs ${styles.textMuted}`}>MOIC</div>
+                  <div className={`text-base font-medium ${bidStatistics.moic >= 1 ? styles.textGreen : styles.textYellow}`}>
+                    {bidStatistics.moic.toFixed(2)}x
+                  </div>
+                </div>
+                <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                  <div className={`text-xs ${styles.textMuted}`}>Cash Yield</div>
+                  <div className={`text-base font-medium ${bidStatistics.cashYield >= 0 ? styles.textGreen : 'text-red-500'}`}>
+                    {bidStatistics.cashYield.toFixed(1)}%
+                  </div>
+                </div>
+                <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                  <div className={`text-xs ${styles.textMuted}`}>Bid/Collat</div>
+                  <div className={`text-base font-medium ${
+                    bidStatistics.bidToCollateralPercentage <= 70 ? styles.textGreen :
+                    bidStatistics.bidToCollateralPercentage <= 90 ? styles.textYellow :
+                    'text-red-500'
+                  }`}>
+                    {bidStatistics.bidToCollateralPercentage.toFixed(1)}%
+                  </div>
+                </div>
+                <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                  <div className={`text-xs ${styles.textMuted}`}>F12/P12</div>
+                  <div className={`text-base font-medium ${
+                    bidStatistics.f12vsP12Change > 0 ? styles.textGreen :
+                    bidStatistics.f12vsP12Change < 0 ? 'text-red-500' :
+                    styles.textPrimary
+                  }`}>
+                    {bidStatistics.p12CashFlow > 0 ? (
+                      <>{bidStatistics.f12vsP12Change >= 0 ? '+' : ''}{bidStatistics.f12vsP12Change.toFixed(1)}%</>
+                    ) : (
+                      <span className={styles.textMuted}>N/A</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* YTM Metrics */}
+              <div className={`mt-3 pt-3 border-t ${styles.borderColor}`}>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border`}>
+                    <div className={`text-xs ${styles.textMuted} mb-1`}>YTM (IRR)</div>
+                    <div className={`text-lg font-bold ${bidStatistics.ytm >= 0 ? styles.textGreen : 'text-red-500'}`}>
+                      {bidStatistics.ytm.toFixed(2)}%
+                    </div>
+                  </div>
+                  <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border`}>
+                    <div className={`text-xs ${styles.textMuted} mb-1`}>YTM (XIRR)</div>
+                    <div className={`text-lg font-bold ${bidStatistics.ytmXirr >= 0 ? styles.textGreen : 'text-red-500'}`}>
+                      {bidStatistics.ytmXirr.toFixed(2)}%
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
