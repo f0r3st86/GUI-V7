@@ -607,3 +607,199 @@ export const calculateBidStatistics = (params: {
     ytmXirr: isFinite(ytmXirr) ? ytmXirr : 0
   };
 };
+
+/**
+ * Optimal Exit Analysis Types
+ */
+export interface OptimalExitMetrics {
+  month: number;
+  bidPrice: number;
+  moic: number;
+  cashYield: number;
+  ytm: number;
+  ytmXirr: number;
+  bidToCollateralPercentage: number;
+}
+
+export interface OptimalExitAnalysis {
+  metrics: OptimalExitMetrics[];
+  rateOfChange: {
+    month: number;
+    bidPrice: number;
+    moic: number;
+    cashYield: number;
+    ytm: number;
+    ytmXirr: number;
+    bidToCollateralPercentage: number;
+  }[];
+  normalized: {
+    month: number;
+    bidPrice: number;
+    moic: number;
+    cashYield: number;
+    ytm: number;
+    ytmXirr: number;
+    bidToCollateralPercentage: number;
+  }[];
+  optimalMonths: {
+    bidPrice: number;
+    moic: number;
+    cashYield: number;
+    ytm: number;
+    ytmXirr: number;
+    bidToCollateralPercentage: number;
+  };
+}
+
+/**
+ * Calculate optimal exit analysis for months 1-60
+ * Analyzes rate of change for each metric and normalizes to find optimal exit month
+ * @param buildCashFlowForMonth - Function that builds cash flow grid for a given exit month
+ * @param params - Base parameters for bid statistics calculation
+ * @returns OptimalExitAnalysis with metrics, rate of change, normalized values, and optimal months
+ */
+export const calculateOptimalExitAnalysis = (
+  buildCashFlowForMonth: (exitMonth: number) => Record<string, Record<number, number>>,
+  calculateExitValueForMonth: (exitMonth: number) => number,
+  params: {
+    upb: number;
+    collateralValue: number;
+    discountRate: number;
+    contractualPayment: number;
+    interestRate: number;
+    monthsToAmortization: number;
+    monthsToMaturity: number;
+    trailingP12: number;
+    addBackValue: number;
+  }
+): OptimalExitAnalysis => {
+  const metrics: OptimalExitMetrics[] = [];
+
+  // Calculate metrics for each exit month (1-60)
+  for (let month = 1; month <= 60; month++) {
+    const netCashFlow = buildCashFlowForMonth(month);
+    const exitValue = calculateExitValueForMonth(month);
+    const totalExitProceeds = exitValue + params.addBackValue;
+
+    const stats = calculateBidStatistics({
+      netCashFlow,
+      startMonth: 1,
+      endMonth: month,
+      upb: params.upb,
+      collateralValue: params.collateralValue,
+      discountRate: params.discountRate,
+      contractualPayment: params.contractualPayment,
+      interestRate: params.interestRate,
+      monthsToAmortization: params.monthsToAmortization,
+      monthsToMaturity: params.monthsToMaturity,
+      exitProceeds: totalExitProceeds,
+      trailingP12: params.trailingP12
+    });
+
+    metrics.push({
+      month,
+      bidPrice: stats.bidPrice,
+      moic: stats.moic,
+      cashYield: stats.cashYield,
+      ytm: stats.ytm,
+      ytmXirr: stats.ytmXirr,
+      bidToCollateralPercentage: stats.bidToCollateralPercentage
+    });
+  }
+
+  // Calculate rate of change between consecutive months
+  const rateOfChange: OptimalExitAnalysis['rateOfChange'] = [];
+  for (let i = 1; i < metrics.length; i++) {
+    const prev = metrics[i - 1];
+    const curr = metrics[i];
+
+    const calcRoC = (current: number, previous: number): number => {
+      if (previous === 0) return current > 0 ? 1 : 0;
+      return (current - previous) / Math.abs(previous);
+    };
+
+    rateOfChange.push({
+      month: curr.month,
+      bidPrice: calcRoC(curr.bidPrice, prev.bidPrice),
+      moic: calcRoC(curr.moic, prev.moic),
+      cashYield: calcRoC(curr.cashYield, prev.cashYield),
+      ytm: calcRoC(curr.ytm, prev.ytm),
+      ytmXirr: calcRoC(curr.ytmXirr, prev.ytmXirr),
+      bidToCollateralPercentage: calcRoC(curr.bidToCollateralPercentage, prev.bidToCollateralPercentage)
+    });
+  }
+
+  // Find min/max for each rate of change metric for normalization
+  const getMinMax = (key: keyof Omit<OptimalExitAnalysis['rateOfChange'][0], 'month'>) => {
+    const values = rateOfChange.map(r => r[key]).filter(v => isFinite(v));
+    return {
+      min: Math.min(...values),
+      max: Math.max(...values)
+    };
+  };
+
+  const ranges = {
+    bidPrice: getMinMax('bidPrice'),
+    moic: getMinMax('moic'),
+    cashYield: getMinMax('cashYield'),
+    ytm: getMinMax('ytm'),
+    ytmXirr: getMinMax('ytmXirr'),
+    bidToCollateralPercentage: getMinMax('bidToCollateralPercentage')
+  };
+
+  // Normalize rate of change values (0 = optimal, 1 = worst)
+  // For "higher is better" metrics: highest RoC = 0 (optimal), lowest = 1
+  // For "lower is better" metrics (bidToCollateral): lowest RoC = 0 (optimal), highest = 1
+  const normalized: OptimalExitAnalysis['normalized'] = rateOfChange.map(roc => {
+    const normalizeHigherBetter = (value: number, range: { min: number; max: number }): number => {
+      if (range.max === range.min) return 0.5;
+      // Invert so highest becomes 0, lowest becomes 1
+      return 1 - (value - range.min) / (range.max - range.min);
+    };
+
+    const normalizeLowerBetter = (value: number, range: { min: number; max: number }): number => {
+      if (range.max === range.min) return 0.5;
+      // Don't invert - lowest becomes 0, highest becomes 1
+      return (value - range.min) / (range.max - range.min);
+    };
+
+    return {
+      month: roc.month,
+      bidPrice: normalizeHigherBetter(roc.bidPrice, ranges.bidPrice),
+      moic: normalizeHigherBetter(roc.moic, ranges.moic),
+      cashYield: normalizeHigherBetter(roc.cashYield, ranges.cashYield),
+      ytm: normalizeHigherBetter(roc.ytm, ranges.ytm),
+      ytmXirr: normalizeHigherBetter(roc.ytmXirr, ranges.ytmXirr),
+      bidToCollateralPercentage: normalizeLowerBetter(roc.bidToCollateralPercentage, ranges.bidToCollateralPercentage)
+    };
+  });
+
+  // Find optimal month for each metric (month with normalized value closest to 0)
+  const findOptimalMonth = (key: keyof Omit<OptimalExitAnalysis['normalized'][0], 'month'>): number => {
+    let minValue = Infinity;
+    let optimalMonth = 1;
+    for (const n of normalized) {
+      if (n[key] < minValue) {
+        minValue = n[key];
+        optimalMonth = n.month;
+      }
+    }
+    return optimalMonth;
+  };
+
+  const optimalMonths = {
+    bidPrice: findOptimalMonth('bidPrice'),
+    moic: findOptimalMonth('moic'),
+    cashYield: findOptimalMonth('cashYield'),
+    ytm: findOptimalMonth('ytm'),
+    ytmXirr: findOptimalMonth('ytmXirr'),
+    bidToCollateralPercentage: findOptimalMonth('bidToCollateralPercentage')
+  };
+
+  return {
+    metrics,
+    rateOfChange,
+    normalized,
+    optimalMonths
+  };
+};

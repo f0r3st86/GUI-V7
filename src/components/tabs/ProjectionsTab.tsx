@@ -1,5 +1,5 @@
 // ProjectionsTab component - cash flow projections and exit scenarios
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { useTheme, useLoan } from '../../context';
 import { PAYMENT_METHODS, RATE_METHODS, EXIT_METHODS, MONTH_NAMES_SHORT } from '../../data';
 import {
@@ -11,9 +11,10 @@ import {
   calculateBidStatistics,
   calculateAmortizationMonths,
   calculateMonthsToMaturity,
+  calculateOptimalExitAnalysis,
   debug
 } from '../../utils';
-import type { BidStatistics } from '../../utils/calculations';
+import type { BidStatistics, OptimalExitAnalysis } from '../../utils/calculations';
 import {
   useLoans,
   usePayments,
@@ -95,6 +96,10 @@ export const ProjectionsTab = React.memo(() => {
     type: 'income' | 'expense';
   };
   const [classicEntries, setClassicEntries] = React.useState<ClassicEntry[]>([]);
+
+  // Optimal exit analysis state
+  const [optimalExitAnalysis, setOptimalExitAnalysis] = useState<OptimalExitAnalysis | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Local state for input fields to allow empty display while keeping valid context state
   const [startMonthInput, setStartMonthInput] = React.useState(exitSettings?.startMonth || '1');
@@ -849,6 +854,135 @@ export const ProjectionsTab = React.memo(() => {
     return value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }, []);
 
+  // Reset optimal exit analysis when exit method changes
+  React.useEffect(() => {
+    setOptimalExitAnalysis(null);
+  }, [exitSettings?.method]);
+
+  // Run optimal exit analysis (excludes Liquidation)
+  const runOptimalExitAnalysis = useCallback(() => {
+    if (exitSettings?.method === 'Liquidation' || !selectedLoanData) return;
+
+    setIsAnalyzing(true);
+
+    // Build cash flow grid for a specific exit month
+    const buildCashFlowForMonth = (exitMonth: number): Record<string, Record<number, number>> => {
+      const netCashFlow: Record<string, Record<number, number>> = {};
+      const monthlyPayment = projectedPaymentValue;
+      const initialLegal = parseFloat(projSettings?.initialLegal || '') || 0;
+      const initialLegalStart = parseInt(projSettings?.initialLegalStartMonth || '') || 1;
+      const holdingCosts = parseFloat(projSettings?.holdingCosts || '') || 0;
+      // Scale holding costs end month proportionally with exit month
+      const holdingCostsEnd = exitMonth;
+      const currentYear = new Date().getFullYear();
+
+      for (let month = 1; month <= exitMonth; month++) {
+        const actualMonth = ((month - 1) % 12) + 1;
+        const yearOffset = Math.floor((month - 1) / 12);
+        const year = (currentYear + yearOffset).toString();
+
+        if (!netCashFlow[year]) netCashFlow[year] = {};
+
+        // Income: monthly payment
+        const income = monthlyPayment;
+
+        // Expenses
+        let expense = 0;
+        if (month === initialLegalStart) {
+          expense += initialLegal;
+        }
+        if (month > initialLegalStart && month <= holdingCostsEnd) {
+          expense += holdingCosts;
+        }
+
+        netCashFlow[year][actualMonth] = income - expense;
+      }
+
+      return netCashFlow;
+    };
+
+    // Calculate exit value for a specific exit month (based on current exit method)
+    const calculateExitValueForMonth = (exitMonth: number): number => {
+      const exitMethod = exitSettings?.method || 'Pay in Full';
+
+      // Calculate Pay in Full value for this exit month
+      const rate = getProjectedRate();
+      const principal = selectedLoanData?.principal ?? 0;
+      const monthlyPayment = projectedPaymentValue;
+
+      // Future balance after exitMonth payments
+      const futureBalance = calculateFV(rate, exitMonth, -monthlyPayment, principal);
+      const payInFullValue = Math.max(0, futureBalance);
+
+      switch (exitMethod) {
+        case 'Pay in Full':
+          return payInFullValue;
+        case 'DPO':
+          const dpoPercent = parseFloat(exitSettings?.dpoPercentage || '') || 95;
+          return payInFullValue * dpoPercent / 100;
+        case 'Value Cap':
+          const collateralValue = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : 0;
+          const capPercent = parseFloat(exitSettings?.valueCapPercentage || '') || 90;
+          return collateralValue * capPercent / 100;
+        case 'User Enter':
+          return parseFloat(exitSettings?.userEnterAmount || '') || 0;
+        case 'YTM Sell Solve':
+          const desiredYield = parseFloat(exitSettings?.ytmDesired || '') || 12;
+          return calculatePV(desiredYield, exitMonth, monthlyPayment, payInFullValue);
+        default:
+          return payInFullValue;
+      }
+    };
+
+    // Calculate analysis parameters
+    const upb = selectedLoanData?.principal ?? 0;
+    const collateralValue = loanCollateral ? parseFloat(String(loanCollateral.ourValue).replace(/[$,]/g, '')) : 0;
+    const discRate = parseFloat(discountRate) || 15;
+    const contractualPayment = selectedLoanData?.pmt ?? 0;
+    const interestRate = selectedLoanData?.intRate ?? 0;
+    const monthsToAmort = calculateAmortizationMonths(
+      selectedLoanData?.principal ?? 0,
+      selectedLoanData?.pmt ?? 0,
+      selectedLoanData?.intRate ?? 0
+    );
+    const monthsToMat = calculateMonthsToMaturity(selectedLoanData?.matDt ?? '');
+    const trailingP12 = trailingPaymentData?.actual ?? 0;
+
+    // Run the analysis
+    const analysis = calculateOptimalExitAnalysis(
+      buildCashFlowForMonth,
+      calculateExitValueForMonth,
+      {
+        upb,
+        collateralValue,
+        discountRate: discRate,
+        contractualPayment,
+        interestRate,
+        monthsToAmortization: monthsToAmort,
+        monthsToMaturity: monthsToMat,
+        trailingP12,
+        addBackValue
+      }
+    );
+
+    setOptimalExitAnalysis(analysis);
+    setIsAnalyzing(false);
+  }, [
+    exitSettings?.method,
+    exitSettings?.dpoPercentage,
+    exitSettings?.valueCapPercentage,
+    exitSettings?.userEnterAmount,
+    exitSettings?.ytmDesired,
+    selectedLoanData,
+    projSettings,
+    projectedPaymentValue,
+    getProjectedRate,
+    loanCollateral,
+    discountRate,
+    trailingPaymentData?.actual,
+    addBackValue
+  ]);
+
   // Loading state (must be after all hooks)
   if (loadingLoans || loadingPayments || loadingCollateral || loadingProjSettings || loadingExitSettings) {
     return (
@@ -1330,6 +1464,127 @@ export const ProjectionsTab = React.memo(() => {
               </div>
             </div>
           </div>
+
+          {/* Optimal Exit Analysis - Heatmap */}
+          {exitSettings.method !== 'Liquidation' && (
+            <div className={`mt-4 ${styles.cardBg} rounded-lg p-4 ${styles.inputBorder} border`}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className={`font-medium ${styles.textPrimary}`}>Optimal Exit Analysis</h3>
+                <button
+                  onClick={runOptimalExitAnalysis}
+                  disabled={isAnalyzing}
+                  className={`px-4 py-1.5 ${styles.cardBg} ${styles.inputBorder} border ${styles.textPrimary} rounded transition-colors text-xs ${styles.buttonHover} ${isAnalyzing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {isAnalyzing ? 'Analyzing...' : 'Run Analysis'}
+                </button>
+              </div>
+
+              {optimalExitAnalysis ? (
+                <div>
+                  {/* Optimal Months Summary */}
+                  <div className="grid grid-cols-6 gap-2 mb-4">
+                    <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                      <div className={`text-xs ${styles.textMuted}`}>Price</div>
+                      <div className={`text-lg font-bold ${styles.textGreen}`}>Mo {optimalExitAnalysis.optimalMonths.bidPrice}</div>
+                    </div>
+                    <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                      <div className={`text-xs ${styles.textMuted}`}>MOIC</div>
+                      <div className={`text-lg font-bold ${styles.textGreen}`}>Mo {optimalExitAnalysis.optimalMonths.moic}</div>
+                    </div>
+                    <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                      <div className={`text-xs ${styles.textMuted}`}>Yield</div>
+                      <div className={`text-lg font-bold ${styles.textGreen}`}>Mo {optimalExitAnalysis.optimalMonths.cashYield}</div>
+                    </div>
+                    <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                      <div className={`text-xs ${styles.textMuted}`}>YTM</div>
+                      <div className={`text-lg font-bold ${styles.textGreen}`}>Mo {optimalExitAnalysis.optimalMonths.ytm}</div>
+                    </div>
+                    <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                      <div className={`text-xs ${styles.textMuted}`}>XIRR</div>
+                      <div className={`text-lg font-bold ${styles.textGreen}`}>Mo {optimalExitAnalysis.optimalMonths.ytmXirr}</div>
+                    </div>
+                    <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
+                      <div className={`text-xs ${styles.textMuted}`}>Bid/Coll</div>
+                      <div className={`text-lg font-bold ${styles.textGreen}`}>Mo {optimalExitAnalysis.optimalMonths.bidToCollateralPercentage}</div>
+                    </div>
+                  </div>
+
+                  {/* Heatmap Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr>
+                          <th className={`text-left px-2 py-1 ${styles.textMuted} font-medium sticky left-0 ${styles.cardBg}`}>Mo</th>
+                          <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium`}>Price</th>
+                          <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium`}>MOIC</th>
+                          <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium`}>Yield</th>
+                          <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium`}>YTM</th>
+                          <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium`}>XIRR</th>
+                          <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium`}>Bid/Coll</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {optimalExitAnalysis.normalized.map((row, idx) => {
+                          // Color function: 0 = green, 0.5 = yellow, 1 = red
+                          const getHeatColor = (value: number): string => {
+                            if (value <= 0.33) return 'bg-green-500/30';
+                            if (value <= 0.66) return 'bg-yellow-500/30';
+                            return 'bg-red-500/30';
+                          };
+
+                          const metrics = optimalExitAnalysis.metrics[idx + 1]; // +1 because rate of change starts from month 2
+                          const isCurrentMonth = row.month === parseInt(sanitizedExitSettings.endMonth);
+
+                          return (
+                            <tr key={row.month} className={`${isCurrentMonth ? 'ring-2 ring-blue-500' : ''} ${styles.borderColor} border-t`}>
+                              <td className={`px-2 py-1 font-medium ${styles.textPrimary} sticky left-0 ${styles.cardBg}`}>
+                                {row.month}
+                                {isCurrentMonth && <span className="ml-1 text-blue-500">*</span>}
+                              </td>
+                              <td className={`text-center px-2 py-1 ${getHeatColor(row.bidPrice)}`}>
+                                <div className={styles.textPrimary}>${metrics?.bidPrice.toLocaleString(undefined, {maximumFractionDigits: 0}) || '-'}</div>
+                                <div className={`text-xs ${styles.textMuted}`}>{row.bidPrice.toFixed(2)}</div>
+                              </td>
+                              <td className={`text-center px-2 py-1 ${getHeatColor(row.moic)}`}>
+                                <div className={styles.textPrimary}>{metrics?.moic.toFixed(2) || '-'}x</div>
+                                <div className={`text-xs ${styles.textMuted}`}>{row.moic.toFixed(2)}</div>
+                              </td>
+                              <td className={`text-center px-2 py-1 ${getHeatColor(row.cashYield)}`}>
+                                <div className={styles.textPrimary}>{metrics?.cashYield.toFixed(1) || '-'}%</div>
+                                <div className={`text-xs ${styles.textMuted}`}>{row.cashYield.toFixed(2)}</div>
+                              </td>
+                              <td className={`text-center px-2 py-1 ${getHeatColor(row.ytm)}`}>
+                                <div className={styles.textPrimary}>{metrics?.ytm.toFixed(1) || '-'}%</div>
+                                <div className={`text-xs ${styles.textMuted}`}>{row.ytm.toFixed(2)}</div>
+                              </td>
+                              <td className={`text-center px-2 py-1 ${getHeatColor(row.ytmXirr)}`}>
+                                <div className={styles.textPrimary}>{metrics?.ytmXirr.toFixed(1) || '-'}%</div>
+                                <div className={`text-xs ${styles.textMuted}`}>{row.ytmXirr.toFixed(2)}</div>
+                              </td>
+                              <td className={`text-center px-2 py-1 ${getHeatColor(row.bidToCollateralPercentage)}`}>
+                                <div className={styles.textPrimary}>{metrics?.bidToCollateralPercentage.toFixed(1) || '-'}%</div>
+                                <div className={`text-xs ${styles.textMuted}`}>{row.bidToCollateralPercentage.toFixed(2)}</div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className={`mt-2 text-xs ${styles.textMuted}`}>
+                    <span className="inline-block w-3 h-3 bg-green-500/30 rounded mr-1"></span> Optimal (0)
+                    <span className="inline-block w-3 h-3 bg-yellow-500/30 rounded mx-1 ml-3"></span> Moderate
+                    <span className="inline-block w-3 h-3 bg-red-500/30 rounded mx-1 ml-3"></span> Least optimal (1)
+                    <span className="ml-3">* = Current end month</span>
+                  </div>
+                </div>
+              ) : (
+                <div className={`text-center py-8 ${styles.textMuted}`}>
+                  Click "Run Analysis" to calculate optimal exit months for {exitSettings.method}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Projection Tables - Below the two columns */}
           <div className="mt-4 space-y-4">
