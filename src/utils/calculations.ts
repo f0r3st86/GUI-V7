@@ -610,6 +610,11 @@ export const calculateBidStatistics = (params: {
 
 /**
  * Optimal Exit Analysis Types
+ * Uses Marginal Utility Equilibrium approach:
+ * - Normalizes both absolute values and their derivatives
+ * - Finds the "knee" where normalized value ≈ normalized derivative
+ * - Gap = |Normalized Value - Normalized Derivative|
+ * - Optimal month = where Gap is minimized
  */
 export interface OptimalExitMetrics {
   month: number;
@@ -621,26 +626,30 @@ export interface OptimalExitMetrics {
   bidToCollateralPercentage: number;
 }
 
+export interface OptimalExitRow {
+  month: number;
+  bidPrice: number;
+  moic: number;
+  cashYield: number;
+  ytm: number;
+  ytmXirr: number;
+  bidToCollateralPercentage: number;
+}
+
 export interface OptimalExitAnalysis {
+  // Raw metric values for each month
   metrics: OptimalExitMetrics[];
-  rateOfChange: {
-    month: number;
-    bidPrice: number;
-    moic: number;
-    cashYield: number;
-    ytm: number;
-    ytmXirr: number;
-    bidToCollateralPercentage: number;
-  }[];
-  normalized: {
-    month: number;
-    bidPrice: number;
-    moic: number;
-    cashYield: number;
-    ytm: number;
-    ytmXirr: number;
-    bidToCollateralPercentage: number;
-  }[];
+  // Normalized metric values (0-1, where 1 = best absolute value)
+  normalizedValues: OptimalExitRow[];
+  // Rate of change (derivative) per month
+  derivatives: OptimalExitRow[];
+  // Normalized derivatives (0-1, where 1 = fastest improvement)
+  normalizedDerivatives: OptimalExitRow[];
+  // Gap = |Normalized Value - Normalized Derivative|
+  gaps: OptimalExitRow[];
+  // Overall combined score for each month
+  overallScore: { month: number; score: number }[];
+  // Optimal month for each metric (where gap is minimized)
   optimalMonths: {
     bidPrice: number;
     moic: number;
@@ -648,15 +657,25 @@ export interface OptimalExitAnalysis {
     ytm: number;
     ytmXirr: number;
     bidToCollateralPercentage: number;
+    overall: number;
   };
+  // Legacy: Keep normalized for backward compatibility with heatmap
+  normalized: OptimalExitRow[];
 }
 
 /**
  * Calculate optimal exit analysis for months 1-60
- * Analyzes rate of change for each metric and normalizes to find optimal exit month
+ * Uses Marginal Utility Equilibrium approach:
+ * 1. Normalize metric values (0-1, where 1 = best absolute value)
+ * 2. Calculate derivatives (rate of change per month)
+ * 3. Normalize derivatives (0-1, where 1 = fastest improvement)
+ * 4. Calculate Gap = |Normalized Value - Normalized Derivative|
+ * 5. Optimal month = where Gap is minimized (equilibrium point)
+ *
  * @param buildCashFlowForMonth - Function that builds cash flow grid for a given exit month
+ * @param calculateExitValueForMonth - Function that calculates exit value for a given month
  * @param params - Base parameters for bid statistics calculation
- * @returns OptimalExitAnalysis with metrics, rate of change, normalized values, and optimal months
+ * @returns OptimalExitAnalysis with all intermediate calculations and optimal months
  */
 export const calculateOptimalExitAnalysis = (
   buildCashFlowForMonth: (exitMonth: number) => Record<string, Record<number, number>>,
@@ -674,8 +693,10 @@ export const calculateOptimalExitAnalysis = (
   }
 ): OptimalExitAnalysis => {
   const metrics: OptimalExitMetrics[] = [];
+  const metricKeys = ['bidPrice', 'moic', 'cashYield', 'ytm', 'ytmXirr', 'bidToCollateralPercentage'] as const;
+  type MetricKey = typeof metricKeys[number];
 
-  // Calculate metrics for each exit month (1-60)
+  // Step 1: Calculate raw metrics for each exit month (1-60)
   for (let month = 1; month <= 60; month++) {
     const netCashFlow = buildCashFlowForMonth(month);
     const exitValue = calculateExitValueForMonth(month);
@@ -707,81 +728,142 @@ export const calculateOptimalExitAnalysis = (
     });
   }
 
-  // Calculate rate of change between consecutive months
-  const rateOfChange: OptimalExitAnalysis['rateOfChange'] = [];
-  for (let i = 1; i < metrics.length; i++) {
-    const prev = metrics[i - 1];
-    const curr = metrics[i];
-
-    const calcRoC = (current: number, previous: number): number => {
-      if (previous === 0) return current > 0 ? 1 : 0;
-      return (current - previous) / Math.abs(previous);
-    };
-
-    rateOfChange.push({
-      month: curr.month,
-      bidPrice: calcRoC(curr.bidPrice, prev.bidPrice),
-      moic: calcRoC(curr.moic, prev.moic),
-      cashYield: calcRoC(curr.cashYield, prev.cashYield),
-      ytm: calcRoC(curr.ytm, prev.ytm),
-      ytmXirr: calcRoC(curr.ytmXirr, prev.ytmXirr),
-      bidToCollateralPercentage: calcRoC(curr.bidToCollateralPercentage, prev.bidToCollateralPercentage)
-    });
-  }
-
-  // Find min/max for each rate of change metric for normalization
-  const getMinMax = (key: keyof Omit<OptimalExitAnalysis['rateOfChange'][0], 'month'>) => {
-    const values = rateOfChange.map(r => r[key]).filter(v => isFinite(v));
+  // Helper: Get min/max for a metric across all months
+  const getMetricRange = (key: MetricKey) => {
+    const values = metrics.map(m => m[key]).filter(v => isFinite(v));
     return {
       min: Math.min(...values),
       max: Math.max(...values)
     };
   };
 
-  const ranges = {
-    bidPrice: getMinMax('bidPrice'),
-    moic: getMinMax('moic'),
-    cashYield: getMinMax('cashYield'),
-    ytm: getMinMax('ytm'),
-    ytmXirr: getMinMax('ytmXirr'),
-    bidToCollateralPercentage: getMinMax('bidToCollateralPercentage')
+  // Step 2: Normalize metric values (0-1 scale)
+  // For "higher is better" metrics: (value - min) / (max - min) → 1 = best
+  // For "lower is better" metrics (bidToCollateral): invert so 1 = best (lowest value)
+  const metricRanges = {
+    bidPrice: getMetricRange('bidPrice'),
+    moic: getMetricRange('moic'),
+    cashYield: getMetricRange('cashYield'),
+    ytm: getMetricRange('ytm'),
+    ytmXirr: getMetricRange('ytmXirr'),
+    bidToCollateralPercentage: getMetricRange('bidToCollateralPercentage')
   };
 
-  // Normalize rate of change values (0 = optimal, 1 = worst)
-  // For "higher is better" metrics: highest RoC = 0 (optimal), lowest = 1
-  // For "lower is better" metrics (bidToCollateral): lowest RoC = 0 (optimal), highest = 1
-  const normalized: OptimalExitAnalysis['normalized'] = rateOfChange.map(roc => {
-    const normalizeHigherBetter = (value: number, range: { min: number; max: number }): number => {
-      if (range.max === range.min) return 0.5;
-      // Invert so highest becomes 0, lowest becomes 1
-      return 1 - (value - range.min) / (range.max - range.min);
-    };
+  const normalizeValue = (value: number, range: { min: number; max: number }, lowerIsBetter: boolean): number => {
+    if (range.max === range.min) return 0.5;
+    const normalized = (value - range.min) / (range.max - range.min);
+    return lowerIsBetter ? (1 - normalized) : normalized;
+  };
 
-    const normalizeLowerBetter = (value: number, range: { min: number; max: number }): number => {
-      if (range.max === range.min) return 0.5;
-      // Don't invert - lowest becomes 0, highest becomes 1
-      return (value - range.min) / (range.max - range.min);
-    };
+  const normalizedValues: OptimalExitRow[] = metrics.map(m => ({
+    month: m.month,
+    bidPrice: normalizeValue(m.bidPrice, metricRanges.bidPrice, false),
+    moic: normalizeValue(m.moic, metricRanges.moic, false),
+    cashYield: normalizeValue(m.cashYield, metricRanges.cashYield, false),
+    ytm: normalizeValue(m.ytm, metricRanges.ytm, false),
+    ytmXirr: normalizeValue(m.ytmXirr, metricRanges.ytmXirr, false),
+    bidToCollateralPercentage: normalizeValue(m.bidToCollateralPercentage, metricRanges.bidToCollateralPercentage, true)
+  }));
 
+  // Step 3: Calculate derivatives (rate of change per month)
+  // d(metric)/dt = metric[month] - metric[month-1]
+  const derivatives: OptimalExitRow[] = [];
+  for (let i = 1; i < metrics.length; i++) {
+    const prev = metrics[i - 1];
+    const curr = metrics[i];
+    derivatives.push({
+      month: curr.month,
+      bidPrice: curr.bidPrice - prev.bidPrice,
+      moic: curr.moic - prev.moic,
+      cashYield: curr.cashYield - prev.cashYield,
+      ytm: curr.ytm - prev.ytm,
+      ytmXirr: curr.ytmXirr - prev.ytmXirr,
+      bidToCollateralPercentage: curr.bidToCollateralPercentage - prev.bidToCollateralPercentage
+    });
+  }
+
+  // Step 4: Normalize derivatives (0-1 scale where 1 = fastest improvement)
+  // For "higher is better" metrics: highest positive derivative = 1 (fastest improvement)
+  // For "lower is better" metrics: most negative derivative = 1 (fastest improvement = biggest decrease)
+  const getDerivativeRange = (key: MetricKey) => {
+    const values = derivatives.map(d => d[key]).filter(v => isFinite(v));
     return {
-      month: roc.month,
-      bidPrice: normalizeHigherBetter(roc.bidPrice, ranges.bidPrice),
-      moic: normalizeHigherBetter(roc.moic, ranges.moic),
-      cashYield: normalizeHigherBetter(roc.cashYield, ranges.cashYield),
-      ytm: normalizeHigherBetter(roc.ytm, ranges.ytm),
-      ytmXirr: normalizeHigherBetter(roc.ytmXirr, ranges.ytmXirr),
-      bidToCollateralPercentage: normalizeLowerBetter(roc.bidToCollateralPercentage, ranges.bidToCollateralPercentage)
+      min: Math.min(...values),
+      max: Math.max(...values)
+    };
+  };
+
+  const derivativeRanges = {
+    bidPrice: getDerivativeRange('bidPrice'),
+    moic: getDerivativeRange('moic'),
+    cashYield: getDerivativeRange('cashYield'),
+    ytm: getDerivativeRange('ytm'),
+    ytmXirr: getDerivativeRange('ytmXirr'),
+    bidToCollateralPercentage: getDerivativeRange('bidToCollateralPercentage')
+  };
+
+  const normalizeDerivative = (value: number, range: { min: number; max: number }, lowerIsBetter: boolean): number => {
+    if (range.max === range.min) return 0.5;
+    const normalized = (value - range.min) / (range.max - range.min);
+    // For higher-is-better: highest derivative (most positive) = 1
+    // For lower-is-better: lowest derivative (most negative) = 1 (fastest decrease)
+    return lowerIsBetter ? (1 - normalized) : normalized;
+  };
+
+  const normalizedDerivatives: OptimalExitRow[] = derivatives.map(d => ({
+    month: d.month,
+    bidPrice: normalizeDerivative(d.bidPrice, derivativeRanges.bidPrice, false),
+    moic: normalizeDerivative(d.moic, derivativeRanges.moic, false),
+    cashYield: normalizeDerivative(d.cashYield, derivativeRanges.cashYield, false),
+    ytm: normalizeDerivative(d.ytm, derivativeRanges.ytm, false),
+    ytmXirr: normalizeDerivative(d.ytmXirr, derivativeRanges.ytmXirr, false),
+    bidToCollateralPercentage: normalizeDerivative(d.bidToCollateralPercentage, derivativeRanges.bidToCollateralPercentage, true)
+  }));
+
+  // Step 5: Calculate Gap = |Normalized Value - Normalized Derivative|
+  // The optimal month is where Gap is minimized (equilibrium point)
+  const gaps: OptimalExitRow[] = normalizedDerivatives.map((nd, i) => {
+    // normalizedValues starts at month 1, normalizedDerivatives starts at month 2
+    // So we need to align them: derivative for month N uses value for month N
+    const nv = normalizedValues[i + 1]; // +1 because derivatives start at month 2
+    return {
+      month: nd.month,
+      bidPrice: Math.abs(nv.bidPrice - nd.bidPrice),
+      moic: Math.abs(nv.moic - nd.moic),
+      cashYield: Math.abs(nv.cashYield - nd.cashYield),
+      ytm: Math.abs(nv.ytm - nd.ytm),
+      ytmXirr: Math.abs(nv.ytmXirr - nd.ytmXirr),
+      bidToCollateralPercentage: Math.abs(nv.bidToCollateralPercentage - nd.bidToCollateralPercentage)
     };
   });
 
-  // Find optimal month for each metric (month with normalized value closest to 0)
-  const findOptimalMonth = (key: keyof Omit<OptimalExitAnalysis['normalized'][0], 'month'>): number => {
-    let minValue = Infinity;
-    let optimalMonth = 1;
-    for (const n of normalized) {
-      if (n[key] < minValue) {
-        minValue = n[key];
-        optimalMonth = n.month;
+  // Step 6: Calculate overall combined score for each month
+  // Sum of all individual gaps
+  const overallScore: { month: number; score: number }[] = gaps.map(g => ({
+    month: g.month,
+    score: g.bidPrice + g.moic + g.cashYield + g.ytm + g.ytmXirr + g.bidToCollateralPercentage
+  }));
+
+  // Step 7: Find optimal month for each metric (minimum gap)
+  const findOptimalMonth = (key: MetricKey): number => {
+    let minGap = Infinity;
+    let optimalMonth = 2; // Derivatives start at month 2
+    for (const g of gaps) {
+      if (g[key] < minGap) {
+        minGap = g[key];
+        optimalMonth = g.month;
+      }
+    }
+    return optimalMonth;
+  };
+
+  const findOverallOptimal = (): number => {
+    let minScore = Infinity;
+    let optimalMonth = 2;
+    for (const s of overallScore) {
+      if (s.score < minScore) {
+        minScore = s.score;
+        optimalMonth = s.month;
       }
     }
     return optimalMonth;
@@ -793,13 +875,20 @@ export const calculateOptimalExitAnalysis = (
     cashYield: findOptimalMonth('cashYield'),
     ytm: findOptimalMonth('ytm'),
     ytmXirr: findOptimalMonth('ytmXirr'),
-    bidToCollateralPercentage: findOptimalMonth('bidToCollateralPercentage')
+    bidToCollateralPercentage: findOptimalMonth('bidToCollateralPercentage'),
+    overall: findOverallOptimal()
   };
 
+  // For backward compatibility with heatmap, use gaps as "normalized"
+  // (lower gap = more optimal, which matches the 0=optimal convention)
   return {
     metrics,
-    rateOfChange,
-    normalized,
-    optimalMonths
+    normalizedValues,
+    derivatives,
+    normalizedDerivatives,
+    gaps,
+    overallScore,
+    optimalMonths,
+    normalized: gaps // Legacy compatibility - gaps work same way (lower = better)
   };
 };

@@ -1481,7 +1481,20 @@ export const ProjectionsTab = React.memo(() => {
 
               {optimalExitAnalysis ? (
                 <div>
-                  {/* Optimal Months Summary */}
+                  {/* Overall Optimal */}
+                  <div className={`mb-3 p-3 ${styles.cardBg} rounded ${styles.inputBorder} border-2 border-green-500/50`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className={`text-xs ${styles.textMuted}`}>Overall Optimal Exit</div>
+                        <div className={`text-2xl font-bold ${styles.textGreen}`}>Month {optimalExitAnalysis.optimalMonths.overall}</div>
+                      </div>
+                      <div className={`text-xs ${styles.textMuted} text-right`}>
+                        Combined Gap Score: {optimalExitAnalysis.overallScore.find(s => s.month === optimalExitAnalysis.optimalMonths.overall)?.score.toFixed(3) || '-'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Individual Optimal Months Summary */}
                   <div className="grid grid-cols-6 gap-2 mb-4">
                     <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
                       <div className={`text-xs ${styles.textMuted}`}>Price</div>
@@ -1509,9 +1522,9 @@ export const ProjectionsTab = React.memo(() => {
                     </div>
                   </div>
 
-                  {/* Chart - Normalized Values Over Time */}
+                  {/* Chart - Gap Analysis (V-Curves) */}
                   <div className={`mb-4 p-3 ${styles.readOnlyBg} rounded ${styles.inputBorder} border`}>
-                    <div className={`text-xs font-medium ${styles.textMuted} mb-2`}>Rate of Change (Normalized) - Lower is Better</div>
+                    <div className={`text-xs font-medium ${styles.textMuted} mb-2`}>Gap Analysis (|Normalized Value - Normalized Δ|) - Lower = Optimal</div>
                     <svg viewBox="0 0 800 200" className="w-full h-48">
                       {/* Grid lines */}
                       {[0, 0.25, 0.5, 0.75, 1].map((y, i) => (
@@ -1528,11 +1541,11 @@ export const ProjectionsTab = React.memo(() => {
                           {month}
                         </text>
                       ))}
-                      {/* Lines for each metric */}
+                      {/* Lines for each metric gap */}
                       {(() => {
-                        const filteredData = optimalExitAnalysis.normalized.filter(r => r.month >= 12);
+                        const filteredData = optimalExitAnalysis.gaps.filter(r => r.month >= 12);
                         const getX = (month: number) => 50 + ((month - 12) / 48) * 730;
-                        const getY = (value: number) => 20 + (1 - value) * 160;
+                        const getY = (value: number) => 20 + value * 160; // 0 at top, 1 at bottom
 
                         const lines = [
                           { key: 'bidPrice' as const, color: '#22c55e', label: 'Price' },
@@ -1556,6 +1569,37 @@ export const ProjectionsTab = React.memo(() => {
                           );
                         });
                       })()}
+                      {/* Overall score line (thicker, white/gray) */}
+                      {(() => {
+                        const filteredOverall = optimalExitAnalysis.overallScore.filter(s => s.month >= 12);
+                        const maxScore = Math.max(...filteredOverall.map(s => s.score));
+                        const getX = (month: number) => 50 + ((month - 12) / 48) * 730;
+                        const getY = (score: number) => 20 + (score / maxScore) * 160;
+                        const points = filteredOverall.map(s => `${getX(s.month)},${getY(s.score)}`).join(' ');
+                        return (
+                          <polyline
+                            points={points}
+                            fill="none"
+                            stroke="#ffffff"
+                            strokeWidth="3"
+                            strokeOpacity="0.5"
+                          />
+                        );
+                      })()}
+                      {/* Optimal month indicator */}
+                      {(() => {
+                        const optMonth = optimalExitAnalysis.optimalMonths.overall;
+                        if (optMonth >= 12 && optMonth <= 60) {
+                          const x = 50 + ((optMonth - 12) / 48) * 730;
+                          return (
+                            <g>
+                              <line x1={x} y1="20" x2={x} y2="180" stroke="#22c55e" strokeWidth="2" strokeDasharray="4" />
+                              <text x={x} y="15" textAnchor="middle" fill="#22c55e" fontSize="10" fontWeight="bold">OPT</text>
+                            </g>
+                          );
+                        }
+                        return null;
+                      })()}
                       {/* Current month indicator */}
                       {(() => {
                         const currentMonth = parseInt(sanitizedExitSettings.endMonth);
@@ -1572,6 +1616,7 @@ export const ProjectionsTab = React.memo(() => {
                       <span><span className="inline-block w-3 h-0.5 bg-amber-500 mr-1"></span>Yield</span>
                       <span><span className="inline-block w-3 h-0.5 bg-violet-500 mr-1"></span>YTM</span>
                       <span><span className="inline-block w-3 h-0.5 bg-red-500 mr-1"></span>Bid/Coll</span>
+                      <span><span className="inline-block w-3 h-0.5 bg-white/50 mr-1" style={{height: '3px'}}></span>Overall</span>
                       <span><span className="inline-block w-3 h-0.5 bg-blue-500 mr-1" style={{borderTop: '2px dashed'}}></span>Current Month</span>
                     </div>
                   </div>
@@ -1588,49 +1633,60 @@ export const ProjectionsTab = React.memo(() => {
                           <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium`}>YTM</th>
                           <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium`}>XIRR</th>
                           <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium`}>Bid/Coll</th>
+                          <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium bg-white/5`}>Overall</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {optimalExitAnalysis.normalized.filter(row => row.month >= 12).map((row) => {
-                          // Color function: 0 = green, 0.5 = yellow, 1 = red
+                        {optimalExitAnalysis.gaps.filter(row => row.month >= 12).map((row) => {
+                          // Color function: 0 = green (optimal), higher = worse
                           const getHeatColor = (value: number): string => {
-                            if (value <= 0.33) return 'bg-green-500/30';
-                            if (value <= 0.66) return 'bg-yellow-500/30';
+                            if (value <= 0.15) return 'bg-green-500/30';
+                            if (value <= 0.35) return 'bg-yellow-500/30';
                             return 'bg-red-500/30';
                           };
 
                           const metrics = optimalExitAnalysis.metrics.find(m => m.month === row.month);
+                          const overallData = optimalExitAnalysis.overallScore.find(s => s.month === row.month);
+                          const maxOverall = Math.max(...optimalExitAnalysis.overallScore.map(s => s.score));
+                          const normalizedOverall = overallData ? overallData.score / maxOverall : 0;
                           const isCurrentMonth = row.month === parseInt(sanitizedExitSettings.endMonth);
+                          const isOptimalMonth = row.month === optimalExitAnalysis.optimalMonths.overall;
 
                           return (
-                            <tr key={row.month} className={`${isCurrentMonth ? 'ring-2 ring-blue-500' : ''} ${styles.borderColor} border-t`}>
+                            <tr key={row.month} className={`${isOptimalMonth ? 'ring-2 ring-green-500' : isCurrentMonth ? 'ring-2 ring-blue-500' : ''} ${styles.borderColor} border-t`}>
                               <td className={`px-2 py-1 font-medium ${styles.textPrimary} sticky left-0 ${styles.cardBg}`}>
                                 {row.month}
-                                {isCurrentMonth && <span className="ml-1 text-blue-500">*</span>}
+                                {isOptimalMonth && <span className="ml-1 text-green-500">★</span>}
+                                {isCurrentMonth && !isOptimalMonth && <span className="ml-1 text-blue-500">*</span>}
                               </td>
                               <td className={`text-center px-2 py-1 ${getHeatColor(row.bidPrice)}`}>
                                 <div className={styles.textPrimary}>${metrics?.bidPrice.toLocaleString(undefined, {maximumFractionDigits: 0}) || '-'}</div>
-                                <div className={`text-xs ${styles.textMuted}`}>{row.bidPrice.toFixed(2)}</div>
+                                <div className={`text-xs ${styles.textMuted}`}>{row.bidPrice.toFixed(3)}</div>
                               </td>
                               <td className={`text-center px-2 py-1 ${getHeatColor(row.moic)}`}>
                                 <div className={styles.textPrimary}>{metrics?.moic.toFixed(2) || '-'}x</div>
-                                <div className={`text-xs ${styles.textMuted}`}>{row.moic.toFixed(2)}</div>
+                                <div className={`text-xs ${styles.textMuted}`}>{row.moic.toFixed(3)}</div>
                               </td>
                               <td className={`text-center px-2 py-1 ${getHeatColor(row.cashYield)}`}>
                                 <div className={styles.textPrimary}>{metrics?.cashYield.toFixed(1) || '-'}%</div>
-                                <div className={`text-xs ${styles.textMuted}`}>{row.cashYield.toFixed(2)}</div>
+                                <div className={`text-xs ${styles.textMuted}`}>{row.cashYield.toFixed(3)}</div>
                               </td>
                               <td className={`text-center px-2 py-1 ${getHeatColor(row.ytm)}`}>
                                 <div className={styles.textPrimary}>{metrics?.ytm.toFixed(1) || '-'}%</div>
-                                <div className={`text-xs ${styles.textMuted}`}>{row.ytm.toFixed(2)}</div>
+                                <div className={`text-xs ${styles.textMuted}`}>{row.ytm.toFixed(3)}</div>
                               </td>
                               <td className={`text-center px-2 py-1 ${getHeatColor(row.ytmXirr)}`}>
                                 <div className={styles.textPrimary}>{metrics?.ytmXirr.toFixed(1) || '-'}%</div>
-                                <div className={`text-xs ${styles.textMuted}`}>{row.ytmXirr.toFixed(2)}</div>
+                                <div className={`text-xs ${styles.textMuted}`}>{row.ytmXirr.toFixed(3)}</div>
                               </td>
                               <td className={`text-center px-2 py-1 ${getHeatColor(row.bidToCollateralPercentage)}`}>
                                 <div className={styles.textPrimary}>{metrics?.bidToCollateralPercentage.toFixed(1) || '-'}%</div>
-                                <div className={`text-xs ${styles.textMuted}`}>{row.bidToCollateralPercentage.toFixed(2)}</div>
+                                <div className={`text-xs ${styles.textMuted}`}>{row.bidToCollateralPercentage.toFixed(3)}</div>
+                              </td>
+                              <td className={`text-center px-2 py-1 ${getHeatColor(normalizedOverall)} bg-white/5`}>
+                                <div className={`font-medium ${isOptimalMonth ? 'text-green-400' : styles.textPrimary}`}>
+                                  {overallData?.score.toFixed(3) || '-'}
+                                </div>
                               </td>
                             </tr>
                           );
@@ -1639,9 +1695,10 @@ export const ProjectionsTab = React.memo(() => {
                     </table>
                   </div>
                   <div className={`mt-2 text-xs ${styles.textMuted}`}>
-                    <span className="inline-block w-3 h-3 bg-green-500/30 rounded mr-1"></span> Optimal (0)
+                    <span className="inline-block w-3 h-3 bg-green-500/30 rounded mr-1"></span> Optimal (Gap ≈ 0)
                     <span className="inline-block w-3 h-3 bg-yellow-500/30 rounded mx-1 ml-3"></span> Moderate
-                    <span className="inline-block w-3 h-3 bg-red-500/30 rounded mx-1 ml-3"></span> Least optimal (1)
+                    <span className="inline-block w-3 h-3 bg-red-500/30 rounded mx-1 ml-3"></span> High Gap
+                    <span className="ml-3">★ = Optimal month</span>
                     <span className="ml-3">* = Current end month</span>
                   </div>
                 </div>
