@@ -1509,11 +1509,78 @@ export const ProjectionsTab = React.memo(() => {
                     </div>
                   </div>
 
-                  {/* Heatmap Table */}
-                  <div className="overflow-x-auto">
+                  {/* Chart - Normalized Values Over Time */}
+                  <div className={`mb-4 p-3 ${styles.readOnlyBg} rounded ${styles.inputBorder} border`}>
+                    <div className={`text-xs font-medium ${styles.textMuted} mb-2`}>Rate of Change (Normalized) - Lower is Better</div>
+                    <svg viewBox="0 0 800 200" className="w-full h-48">
+                      {/* Grid lines */}
+                      {[0, 0.25, 0.5, 0.75, 1].map((y, i) => (
+                        <g key={i}>
+                          <line x1="50" y1={20 + y * 160} x2="780" y2={20 + y * 160} stroke="currentColor" strokeOpacity="0.1" />
+                          <text x="45" y={24 + y * 160} textAnchor="end" className="fill-current opacity-50" fontSize="10">
+                            {(1 - y).toFixed(1)}
+                          </text>
+                        </g>
+                      ))}
+                      {/* X-axis labels (every 6 months starting from 12) */}
+                      {[12, 18, 24, 30, 36, 42, 48, 54, 60].map((month) => (
+                        <text key={month} x={50 + ((month - 12) / 48) * 730} y="195" textAnchor="middle" className="fill-current opacity-50" fontSize="10">
+                          {month}
+                        </text>
+                      ))}
+                      {/* Lines for each metric */}
+                      {(() => {
+                        const filteredData = optimalExitAnalysis.normalized.filter(r => r.month >= 12);
+                        const getX = (month: number) => 50 + ((month - 12) / 48) * 730;
+                        const getY = (value: number) => 20 + (1 - value) * 160;
+
+                        const lines = [
+                          { key: 'bidPrice' as const, color: '#22c55e', label: 'Price' },
+                          { key: 'moic' as const, color: '#3b82f6', label: 'MOIC' },
+                          { key: 'cashYield' as const, color: '#f59e0b', label: 'Yield' },
+                          { key: 'ytm' as const, color: '#8b5cf6', label: 'YTM' },
+                          { key: 'bidToCollateralPercentage' as const, color: '#ef4444', label: 'Bid/Coll' }
+                        ];
+
+                        return lines.map(({ key, color }) => {
+                          const points = filteredData.map(d => `${getX(d.month)},${getY(d[key])}`).join(' ');
+                          return (
+                            <polyline
+                              key={key}
+                              points={points}
+                              fill="none"
+                              stroke={color}
+                              strokeWidth="2"
+                              strokeOpacity="0.8"
+                            />
+                          );
+                        });
+                      })()}
+                      {/* Current month indicator */}
+                      {(() => {
+                        const currentMonth = parseInt(sanitizedExitSettings.endMonth);
+                        if (currentMonth >= 12 && currentMonth <= 60) {
+                          const x = 50 + ((currentMonth - 12) / 48) * 730;
+                          return <line x1={x} y1="20" x2={x} y2="180" stroke="#3b82f6" strokeWidth="2" strokeDasharray="4" />;
+                        }
+                        return null;
+                      })()}
+                    </svg>
+                    <div className="flex flex-wrap gap-3 mt-2 text-xs">
+                      <span><span className="inline-block w-3 h-0.5 bg-green-500 mr-1"></span>Price</span>
+                      <span><span className="inline-block w-3 h-0.5 bg-blue-500 mr-1"></span>MOIC</span>
+                      <span><span className="inline-block w-3 h-0.5 bg-amber-500 mr-1"></span>Yield</span>
+                      <span><span className="inline-block w-3 h-0.5 bg-violet-500 mr-1"></span>YTM</span>
+                      <span><span className="inline-block w-3 h-0.5 bg-red-500 mr-1"></span>Bid/Coll</span>
+                      <span><span className="inline-block w-3 h-0.5 bg-blue-500 mr-1" style={{borderTop: '2px dashed'}}></span>Current Month</span>
+                    </div>
+                  </div>
+
+                  {/* Heatmap Table - Starting from Month 12 */}
+                  <div className="overflow-x-auto" style={{maxHeight: '400px'}}>
                     <table className="w-full text-xs">
-                      <thead>
-                        <tr>
+                      <thead className="sticky top-0">
+                        <tr className={styles.cardBg}>
                           <th className={`text-left px-2 py-1 ${styles.textMuted} font-medium sticky left-0 ${styles.cardBg}`}>Mo</th>
                           <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium`}>Price</th>
                           <th className={`text-center px-2 py-1 ${styles.textMuted} font-medium`}>MOIC</th>
@@ -1524,7 +1591,7 @@ export const ProjectionsTab = React.memo(() => {
                         </tr>
                       </thead>
                       <tbody>
-                        {optimalExitAnalysis.normalized.map((row, idx) => {
+                        {optimalExitAnalysis.normalized.filter(row => row.month >= 12).map((row) => {
                           // Color function: 0 = green, 0.5 = yellow, 1 = red
                           const getHeatColor = (value: number): string => {
                             if (value <= 0.33) return 'bg-green-500/30';
@@ -1532,7 +1599,7 @@ export const ProjectionsTab = React.memo(() => {
                             return 'bg-red-500/30';
                           };
 
-                          const metrics = optimalExitAnalysis.metrics[idx + 1]; // +1 because rate of change starts from month 2
+                          const metrics = optimalExitAnalysis.metrics.find(m => m.month === row.month);
                           const isCurrentMonth = row.month === parseInt(sanitizedExitSettings.endMonth);
 
                           return (
