@@ -298,13 +298,13 @@ export const PayHistTab: React.FC = () => {
                   <tr>
                     <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 ${styles.textMuted} font-medium`}>$/Yr</td>
                     <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
-                      ${trailing12.actual.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                      ${trailing12.yearly.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </td>
                     <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
-                      ${(trailing6.actual * 2).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                      ${trailing6.yearly.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </td>
                     <td className={`${styles.readOnlyBg} ${styles.inputBorder} border p-1.5 text-center font-medium ${styles.textYellow}`}>
-                      ${(trailing3.actual * 4).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                      ${trailing3.yearly.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </td>
                   </tr>
 
