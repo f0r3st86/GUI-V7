@@ -184,14 +184,20 @@ Workflow stages:
 #### 5.4 Tax Research Page (Dedicated Workflow)
 - [ ] Tax researcher dashboard
 - [ ] Properties queue (assigned for tax research)
-- [ ] Quick links to county tax sites
-- [ ] Tax status fields per property:
-  - [ ] Current tax amount due
-  - [ ] Delinquent amount
-  - [ ] Tax sale date (if applicable)
-  - [ ] Redemption period
-  - [ ] Last research date
-- [ ] Mark as "Researched" / "Needs Follow-up"
+- [ ] Quick links to county tax sites (from Counties table)
+- [ ] Tax research fields per property:
+  - [ ] **Parcel ID** (primary and alternate formats)
+  - [ ] **Property Tax Amount** (annual)
+  - [ ] **Delinquent Tax Amount**
+  - [ ] **Tax Sale Date** (if applicable)
+  - [ ] **Redemption Deadline**
+  - [ ] **Assessed Tax Value**
+  - [ ] **Assessed Market Value**
+  - [ ] **Owner Name** (from tax records)
+  - [ ] **Owner Address** (from tax records)
+  - [ ] **Owner Mailing Address**
+- [ ] Research status: Pending → Researched → Needs Follow-up → Complete
+- [ ] Last researched date tracking
 - [ ] Notes per property
 - [ ] Export tax summary report
 
@@ -498,11 +504,24 @@ CREATE TABLE tax_research (
     collateral_id INTEGER REFERENCES collateral(id),
     loan_id INTEGER REFERENCES loans(id),
 
-    -- Tax Status
-    current_tax_due DECIMAL(12,2),
-    delinquent_amount DECIMAL(12,2),
+    -- Parcel Information
+    parcel_id VARCHAR(100),
+    parcel_id_alt VARCHAR(100),        -- Some counties have multiple formats
+
+    -- Tax Amounts
+    property_tax_amount DECIMAL(12,2), -- Annual property tax
+    delinquent_tax_amount DECIMAL(12,2),
     tax_sale_date DATE,
     redemption_deadline DATE,
+
+    -- Assessed Values
+    assessed_tax_value DECIMAL(15,2),  -- Value for tax purposes
+    assessed_market_value DECIMAL(15,2), -- Market value assessment
+
+    -- Owner Information (from tax records)
+    tax_owner_name VARCHAR(255),
+    tax_owner_address VARCHAR(500),
+    tax_owner_mailing_address VARCHAR(500),
 
     -- Research Status
     research_status VARCHAR(50) DEFAULT 'Pending',
