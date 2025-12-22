@@ -67,24 +67,46 @@
 
 ---
 
-## Phase 2: Project Dashboard (Jan 1-15, 2026)
-### Goal: Main Menu with Gantt Chart
+## Phase 2: Project Dashboard & Management (Jan 1-15, 2026)
+### Goal: Main Menu with Gantt Chart + Project Maintenance
 
-#### 2.1 Project Management
-- [ ] Create new project UI
-- [ ] Project list view
-- [ ] Project status tracking (Pipeline, Due Diligence, Bidding, Closed, Lost)
+#### 2.1 Main Menu Dashboard
+- [ ] Gantt chart showing all current projects (timeline view)
+- [ ] Project cards with key metrics (loan count, UPB, bid date)
+- [ ] Click to select/open project
+- [ ] Filter by status, date range, underwriter
 
-#### 2.2 Gantt Chart Dashboard
-- [ ] Timeline visualization library (react-gantt-chart or similar)
-- [ ] Project timeline display
-- [ ] Milestone markers (bid date, close date)
-- [ ] Filter by status
-- [ ] Click to open project
+#### 2.2 Project Status Tracking
+Workflow stages:
+- [ ] **Importing** - Data tape being loaded
+- [ ] **Tracking** - Upcoming deal, monitoring
+- [ ] **Underwriting** - Active analysis
+- [ ] **Review** - QC/manager review
+- [ ] **Awaiting Updates** - Waiting on seller/external info
+- [ ] **Cutoff Applied** - Final balances applied
+- [ ] **Bid Submitted** - Bid sent
+- [ ] **Closed/Lost** - Deal outcome
 
-#### 2.3 Project-Loan Association
+#### 2.3 Underwriter Workload View
+- [ ] Assets assigned per underwriter per deal
+- [ ] Workload summary (total loans, UPB by underwriter)
+- [ ] Reassign loans between underwriters
+- [ ] Progress tracking (% complete per underwriter)
+
+#### 2.4 Project Maintenance (Deal Settings)
+- [ ] **Cash Flow Start Date** - When projections begin
+- [ ] **Cash Flow End Date** - When projections end
+- [ ] **Cutoff Date** - Balance snapshot date
+- [ ] **Bid Date** - When bid is due
+- [ ] **Roll Up Date** - Aggregation/reporting date
+- [ ] **Performing Yield** - Target yield for performing loans
+- [ ] **Non-Performing Yield** - Target yield for NPLs
+- [ ] **Deal Comments** - Project-level notes
+
+#### 2.5 Project-Loan Association
 - [ ] Associate loans with projects
 - [ ] Bulk operations (move loans between projects)
+- [ ] Loan assignment to underwriters
 
 ---
 
@@ -137,8 +159,8 @@
 
 ---
 
-## Phase 5: County Reference System (Feb 16-28, 2026)
-### Goal: County/Town Tax Information Database
+## Phase 5: Tax Research & County System (Feb 16-28, 2026)
+### Goal: Tax Research Workflow + County Database
 
 #### 5.1 County Database
 - [ ] County CRUD operations
@@ -158,6 +180,65 @@
 - [ ] Auto-detect county from address
 - [ ] Quick access to county links from collateral view
 - [ ] "Open in new tab" functionality
+
+#### 5.4 Tax Research Page (Dedicated Workflow)
+- [ ] Tax researcher dashboard
+- [ ] Properties queue (assigned for tax research)
+- [ ] Quick links to county tax sites
+- [ ] Tax status fields per property:
+  - [ ] Current tax amount due
+  - [ ] Delinquent amount
+  - [ ] Tax sale date (if applicable)
+  - [ ] Redemption period
+  - [ ] Last research date
+- [ ] Mark as "Researched" / "Needs Follow-up"
+- [ ] Notes per property
+- [ ] Export tax summary report
+
+---
+
+## Phase 5B: Title & Inspection Orders (Mar 1-7, 2026)
+### Goal: Order Management for Title/BPO/Site Inspections
+
+#### 5B.1 Order Selection Interface
+- [ ] Property list with checkboxes
+- [ ] Filter by project, status, property type
+- [ ] Bulk select/deselect
+- [ ] Order type selection:
+  - [ ] Title Search
+  - [ ] BPO (Broker Price Opinion)
+  - [ ] Site Inspection
+  - [ ] Full Appraisal
+
+#### 5B.2 Excel Export for Vendor Orders
+- [ ] Generate formatted Excel sheet with:
+  - [ ] Property address
+  - [ ] Loan number
+  - [ ] Borrower name
+  - [ ] Order type requested
+  - [ ] Special instructions
+- [ ] Template customization per vendor
+- [ ] Download as .xlsx
+
+#### 5B.3 Order Tracking
+- [ ] Track order status:
+  - [ ] Not Ordered
+  - [ ] Ordered (date sent)
+  - [ ] In Progress
+  - [ ] Received
+  - [ ] Reviewed
+- [ ] Vendor assignment
+- [ ] Due date tracking
+- [ ] Cost tracking
+
+#### 5B.4 Email Notifications
+- [ ] Email alert when order is received
+- [ ] Configurable notification recipients
+- [ ] Daily digest option (summary of received orders)
+- [ ] Integration options:
+  - [ ] SMTP (basic email)
+  - [ ] SendGrid/Mailgun API
+  - [ ] Webhook for external systems
 
 ---
 
@@ -200,12 +281,30 @@ CREATE TABLE projects (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     seller VARCHAR(255),
-    status VARCHAR(50) DEFAULT 'Pipeline',
+
+    -- Status Workflow
+    status VARCHAR(50) DEFAULT 'Tracking',
+    -- Status options: Importing, Tracking, Underwriting, Review, Awaiting Updates, Cutoff Applied, Bid Submitted, Closed, Lost
+
+    -- Key Dates
     bid_date DATE,
     close_date DATE,
+    cutoff_date DATE,
+    roll_up_date DATE,
+    cf_start_date DATE,           -- Cash flow start
+    cf_end_date DATE,             -- Cash flow end
+
+    -- Yield Targets
+    performing_yield DECIMAL(5,2),     -- Target yield for performing loans (%)
+    non_performing_yield DECIMAL(5,2), -- Target yield for NPLs (%)
+
+    -- Metrics (calculated/cached)
     loan_count INTEGER DEFAULT 0,
     total_upb DECIMAL(15,2) DEFAULT 0,
+
+    -- Notes
     notes TEXT,
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -216,6 +315,11 @@ CREATE TABLE loans (
     project_id INTEGER REFERENCES projects(id),
     loan_number VARCHAR(100),
     relationship_name VARCHAR(255),
+
+    -- Assignment
+    assigned_to INTEGER REFERENCES users(id),  -- Underwriter assigned
+    review_status VARCHAR(50) DEFAULT 'Not Started',
+    -- Review status: Not Started, In Progress, Complete, Needs Review
 
     -- Balances
     upb DECIMAL(15,2),
@@ -388,14 +492,96 @@ CREATE TABLE projections (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tax Research
+CREATE TABLE tax_research (
+    id SERIAL PRIMARY KEY,
+    collateral_id INTEGER REFERENCES collateral(id),
+    loan_id INTEGER REFERENCES loans(id),
+
+    -- Tax Status
+    current_tax_due DECIMAL(12,2),
+    delinquent_amount DECIMAL(12,2),
+    tax_sale_date DATE,
+    redemption_deadline DATE,
+
+    -- Research Status
+    research_status VARCHAR(50) DEFAULT 'Pending',
+    -- Status: Pending, Researched, Needs Follow-up, Complete
+    last_researched_date DATE,
+    researched_by INTEGER REFERENCES users(id),
+
+    -- Notes
+    notes TEXT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Vendor Orders (Title, BPO, Inspections)
+CREATE TABLE vendor_orders (
+    id SERIAL PRIMARY KEY,
+    collateral_id INTEGER REFERENCES collateral(id),
+    loan_id INTEGER REFERENCES loans(id),
+    project_id INTEGER REFERENCES projects(id),
+
+    -- Order Type
+    order_type VARCHAR(50) NOT NULL,
+    -- Types: Title Search, BPO, Site Inspection, Full Appraisal
+
+    -- Vendor Info
+    vendor_name VARCHAR(255),
+    vendor_email VARCHAR(255),
+
+    -- Order Status
+    status VARCHAR(50) DEFAULT 'Not Ordered',
+    -- Status: Not Ordered, Ordered, In Progress, Received, Reviewed
+    ordered_date DATE,
+    due_date DATE,
+    received_date DATE,
+    reviewed_date DATE,
+
+    -- Cost
+    cost DECIMAL(10,2),
+
+    -- Files
+    order_file_path VARCHAR(500),    -- Sent order Excel
+    received_file_path VARCHAR(500), -- Received report
+
+    -- Special Instructions
+    instructions TEXT,
+
+    -- Notifications
+    notification_sent BOOLEAN DEFAULT FALSE,
+    notification_recipients TEXT,  -- Comma-separated emails
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Vendor Templates (for Excel export)
+CREATE TABLE vendor_templates (
+    id SERIAL PRIMARY KEY,
+    vendor_name VARCHAR(255) NOT NULL,
+    order_type VARCHAR(50) NOT NULL,
+    template_columns JSONB,  -- Column mapping for Excel export
+    contact_email VARCHAR(255),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX idx_loans_project ON loans(project_id);
+CREATE INDEX idx_loans_assigned ON loans(assigned_to);
 CREATE INDEX idx_borrowers_loan ON borrowers(loan_id);
 CREATE INDEX idx_collateral_loan ON collateral(loan_id);
 CREATE INDEX idx_payment_history_loan ON payment_history(loan_id);
 CREATE INDEX idx_comments_loan ON comments(loan_id);
 CREATE INDEX idx_photos_loan ON photos(loan_id);
 CREATE INDEX idx_counties_state ON counties(state);
+CREATE INDEX idx_tax_research_collateral ON tax_research(collateral_id);
+CREATE INDEX idx_tax_research_status ON tax_research(research_status);
+CREATE INDEX idx_vendor_orders_project ON vendor_orders(project_id);
+CREATE INDEX idx_vendor_orders_status ON vendor_orders(status);
 ```
 
 ---
