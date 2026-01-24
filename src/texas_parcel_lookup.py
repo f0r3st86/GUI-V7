@@ -3,22 +3,34 @@ Texas Parcel Lookup Module
 Provides unified interface for looking up property information by parcel ID
 
 Supported Counties:
-- Harris (HCAD) - Direct API access
-- Dallas (DCAD) - Bulk data required
-- Tarrant (TAD) - Bulk data required
+- Harris (HCAD) - Direct API access (WORKING)
+- Dallas (DCAD) - Web scraping (WORKING)
+- Tarrant (TAD) - Requires browser automation (Cloudflare protected)
 
 Usage:
     from texas_parcel_lookup import lookup_parcel
 
+    # Harris County (API)
     result = lookup_parcel("harris", "1170310000010")
+
+    # Dallas County (Web scraping)
+    result = lookup_parcel("dallas", "99091019530000000")
+
     print(result)
 """
 
 import requests
 import json
-from typing import Optional, Dict, Any
+import re
+from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 from urllib.parse import quote
+
+try:
+    from bs4 import BeautifulSoup
+    HAS_BS4 = True
+except ImportError:
+    HAS_BS4 = False
 
 
 @dataclass
@@ -251,80 +263,274 @@ class HarrisCountyLookup:
 
 class DallasCountyLookup:
     """
-    Dallas County (DCAD) parcel lookup
+    Dallas County (DCAD) parcel lookup via web scraping
 
-    Status: REQUIRES BULK DATA
-    - No public API available
-    - Must download and parse bulk CSV files
-    - Or use web scraping (complex ASP.NET forms)
+    Status: WORKING (Web Scraping)
+    - Scrapes property detail pages from dallascad.org
+    - Parcel IDs are 17-character strings (e.g., "99091019530000000")
     """
 
-    BULK_DATA_URL = "https://www.dallascad.org/DataProducts.aspx"
+    BASE_URL = "https://www.dallascad.org"
+    DETAIL_URL = "https://www.dallascad.org/AcctDetailRes.aspx"
+    SEARCH_URL = "https://www.dallascad.org/SearchAddr.aspx"
 
-    def __init__(self, db_path: str = None):
+    def __init__(self, timeout: int = 30):
         """
         Initialize Dallas County lookup
 
         Args:
-            db_path: Path to SQLite database with bulk data
-                     If None, lookups will fail with instructions
+            timeout: Request timeout in seconds
         """
-        self.db_path = db_path
-        self._db_conn = None
+        if not HAS_BS4:
+            raise ImportError("BeautifulSoup4 required for Dallas lookup. Install with: pip install beautifulsoup4")
+
+        self.timeout = timeout
+        self.session = requests.Session()
+        self.session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        })
 
     def lookup(self, parcel_id: str) -> Optional[ParcelInfo]:
         """
-        Look up a parcel by ID
+        Look up a parcel by ID (web scraping)
 
-        Requires bulk data to be downloaded and loaded first.
+        Args:
+            parcel_id: Dallas CAD property ID (17-char string, e.g., "99091019530000000")
+
+        Returns:
+            ParcelInfo object or None if not found
         """
-        if not self.db_path:
-            raise NotImplementedError(
-                "Dallas County lookup requires bulk data.\n"
-                f"Download from: {self.BULK_DATA_URL}\n"
-                "Then load into SQLite and provide db_path."
-            )
+        url = f"{self.DETAIL_URL}?ID={parcel_id}"
 
-        # TODO: Implement SQLite lookup when db_path provided
-        raise NotImplementedError("SQLite lookup not yet implemented")
+        try:
+            response = self.session.get(url, timeout=self.timeout)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # Check for error page
+            title = soup.find('title')
+            if title and 'Error' in title.get_text():
+                return None
+
+            return self._parse_detail_page(parcel_id, soup)
+
+        except requests.RequestException as e:
+            print(f"Error fetching DCAD page: {e}")
+            return None
+
+    def _parse_detail_page(self, parcel_id: str, soup: BeautifulSoup) -> Optional[ParcelInfo]:
+        """Parse DCAD property detail page"""
+
+        raw_data = {}
+
+        # Extract all labeled spans
+        for span in soup.find_all('span', id=True):
+            span_id = span.get('id', '')
+            text = span.get_text(strip=True)
+            if text:
+                raw_data[span_id] = text
+
+        # Extract owner name - look for row after "Owner Name" header
+        owner_name = ""
+        legal_desc = raw_data.get('LegalDesc1_lblLegal1', '')
+
+        # Find owner by looking for row pattern: "Owner Name" | "Ownership %"
+        # followed by: "OWNER NAME HERE" | "100%"
+        for tr in soup.find_all('tr'):
+            cells = tr.find_all('td')
+            if len(cells) >= 2:
+                first_cell = cells[0].get_text(strip=True)
+                # Check if this is the owner data row (has percentage like "100%")
+                second_cell = cells[1].get_text(strip=True) if len(cells) > 1 else ''
+                if re.match(r'\d+%$', second_cell) and first_cell and 'Owner' not in first_cell:
+                    owner_name = first_cell
+                    break
+
+        # Fallback to legal description for owner name
+        if not owner_name and legal_desc:
+            owner_name = legal_desc
+
+        # Extract address - look for street address pattern in page text
+        address = ""
+        # Common street suffixes
+        street_pattern = r'^\d+\s+[EWNS]?\s*[A-Z][A-Z\s]+(?:ST|DR|AVE|RD|LN|BLVD|CT|CIR|WAY|PL|PKWY|HWY)$'
+
+        for text in soup.stripped_strings:
+            if re.match(street_pattern, text, re.I):
+                address = text
+                break
+
+        # If no address found, look in any cell with address-like content
+        if not address:
+            for td in soup.find_all('td'):
+                text = td.get_text(strip=True)
+                if re.match(street_pattern, text, re.I):
+                    address = text
+                    break
+
+        # Extract values
+        def parse_money(text: str) -> float:
+            """Parse money string like '$15,920' to float"""
+            if not text:
+                return 0.0
+            cleaned = re.sub(r'[^\d.]', '', text)
+            try:
+                return float(cleaned) if cleaned else 0.0
+            except ValueError:
+                return 0.0
+
+        improvement_val = parse_money(raw_data.get('ValueSummary1_lblImpVal', ''))
+        land_val = parse_money(raw_data.get('ValueSummary1_pnlValue_lblLandVal', ''))
+        total_val = parse_money(raw_data.get('ValueSummary1_pnlValue_lblTotalVal', ''))
+
+        # Extract tax year
+        tax_year = raw_data.get('ValueSummary1_lblApprYr', '')
+        # Clean up tax year (e.g., "2025 Certified Values" -> "2025")
+        year_match = re.search(r'(\d{4})', tax_year)
+        if year_match:
+            tax_year = year_match.group(1)
+
+        if not owner_name and not total_val:
+            return None
+
+        return ParcelInfo(
+            county="Dallas",
+            parcel_id=parcel_id,
+            owner_name=owner_name,
+            property_address=address,
+            mailing_address=None,
+            land_value=land_val,
+            building_value=improvement_val,
+            total_value=total_val,
+            tax_year=tax_year,
+            legal_description=legal_desc,
+            acreage=None,
+            property_class=None,
+            raw_data=raw_data
+        )
+
+    def search_by_address(self, street_num: int, street_name: str, city: str = "DALLAS", limit: int = 10) -> List[Dict]:
+        """
+        Search for properties by address
+
+        Args:
+            street_num: Street number
+            street_name: Street name
+            city: City name (default: DALLAS)
+            limit: Max results
+
+        Returns:
+            List of dicts with parcel_id and address
+        """
+        # First get the search page for ViewState
+        resp = self.session.get(self.SEARCH_URL, timeout=self.timeout)
+        soup = BeautifulSoup(resp.text, 'html.parser')
+
+        viewstate = soup.find('input', {'name': '__VIEWSTATE'})
+        viewstate_gen = soup.find('input', {'name': '__VIEWSTATEGENERATOR'})
+        event_validation = soup.find('input', {'name': '__EVENTVALIDATION'})
+
+        # City codes (partial list)
+        city_codes = {
+            'DALLAS': '2', 'RICHARDSON': '38', 'PLANO': '37',
+            'GARLAND': '22', 'IRVING': '31', 'MESQUITE': '34'
+        }
+        city_code = city_codes.get(city.upper(), '2')
+
+        form_data = {
+            '__VIEWSTATE': viewstate['value'] if viewstate else '',
+            '__VIEWSTATEGENERATOR': viewstate_gen['value'] if viewstate_gen else '',
+            '__EVENTVALIDATION': event_validation['value'] if event_validation else '',
+            '__EVENTTARGET': '',
+            '__EVENTARGUMENT': '',
+            'txtAddrNum': str(street_num),
+            'txtStName': street_name.upper(),
+            'ddlCity': city_code,
+            'txtBldgID': '',
+            'txtUnitID': '',
+            'txtAddrNum1': '',
+            'txtAddrNum2': '',
+            'AcctTypeCheckList1:chkAcctType:0': 'on',
+            'AcctTypeCheckList1:chkAcctType:1': 'on',
+            'AcctTypeCheckList1:chkAcctType:2': 'on',
+            'cmdSubmit': 'Search'
+        }
+
+        resp = self.session.post(self.SEARCH_URL, data=form_data, timeout=self.timeout)
+        soup = BeautifulSoup(resp.text, 'html.parser')
+
+        results = []
+        links = soup.find_all('a', href=re.compile(r'AcctDetail.*ID='))
+
+        for link in links[:limit]:
+            href = link.get('href', '')
+            text = link.get_text(strip=True)
+            match = re.search(r'ID=([^&"]+)', href)
+            if match:
+                results.append({
+                    'parcel_id': match.group(1),
+                    'address': text
+                })
+
+        return results
 
 
 class TarrantCountyLookup:
     """
     Tarrant County (TAD) parcel lookup
 
-    Status: REQUIRES BULK DATA
-    - Bulk downloads protected by Cloudflare
-    - May need browser automation to download
+    Status: REQUIRES BROWSER AUTOMATION
+    - Website protected by Cloudflare (returns 403 for requests)
+    - Need Selenium/Playwright to access
+    - Bulk data downloads also protected
     """
 
     BULK_DATA_URL = "https://www.tad.org/content/data-download/PropertyData(Delimited).ZIP"
+    SEARCH_URL = "https://www.tad.org/property-search/"
 
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: str = None, use_selenium: bool = False):
         """
         Initialize Tarrant County lookup
 
         Args:
             db_path: Path to SQLite database with bulk data
+            use_selenium: If True, attempt to use Selenium for web access
         """
         self.db_path = db_path
+        self.use_selenium = use_selenium
 
     def lookup(self, parcel_id: str) -> Optional[ParcelInfo]:
         """
         Look up a parcel by ID
 
-        Requires bulk data to be downloaded and loaded first.
+        Tarrant County website is protected by Cloudflare.
+        Options:
+        1. Download bulk data manually (browser) and load into SQLite
+        2. Use Selenium/Playwright for automated browser access
         """
-        if not self.db_path:
+        if self.db_path:
+            # TODO: Implement SQLite lookup
+            raise NotImplementedError("SQLite lookup not yet implemented")
+
+        if self.use_selenium:
+            # TODO: Implement Selenium-based scraping
             raise NotImplementedError(
-                "Tarrant County lookup requires bulk data.\n"
-                f"Download from: {self.BULK_DATA_URL}\n"
-                "(Note: May require browser automation due to Cloudflare)\n"
-                "Then load into SQLite and provide db_path."
+                "Selenium-based lookup not yet implemented.\n"
+                "Install selenium and chromedriver, then enable use_selenium=True"
             )
 
-        # TODO: Implement SQLite lookup when db_path provided
-        raise NotImplementedError("SQLite lookup not yet implemented")
+        raise NotImplementedError(
+            "Tarrant County lookup requires special handling.\n\n"
+            "The TAD website is protected by Cloudflare and blocks automated requests.\n\n"
+            "Options:\n"
+            "1. Download bulk data manually from browser:\n"
+            f"   {self.BULK_DATA_URL}\n"
+            "   Then provide db_path to use local SQLite lookup.\n\n"
+            "2. Use browser automation (Selenium/Playwright):\n"
+            "   pip install selenium\n"
+            "   Then enable use_selenium=True\n"
+        )
 
 
 # County lookup registry
