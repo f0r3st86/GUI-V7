@@ -710,7 +710,7 @@ def test_property_extraction(url, account_id):
 
 ---
 
-# TEST RESULTS - January 24, 2026
+# TEST RESULTS - January 24, 2026 (Day 1)
 
 ## Test Run: January 24, 2026
 
@@ -718,79 +718,190 @@ def test_property_extraction(url, account_id):
 
 | Category | Tests | Passed | Failed | Pending |
 |----------|-------|--------|--------|---------|
-| T1: URLs | 11 | 9 | 1 | 1 |
-| T2: Downloads | 6 | 0 | 0 | 6 |
+| T1: URLs | 17 | 12 | 5 | 0 |
+| T2: Downloads | 4 | 3 | 1 | 0 |
 | T3: Formats | 3 | 0 | 0 | 3 |
 | T4: Schema | 3 | 0 | 0 | 3 |
 | T5: Completeness | 6 | 0 | 0 | 6 |
 | T6: Freshness | 6 | 0 | 0 | 6 |
 | T7: Rate Limits | 4 | 0 | 0 | 4 |
 | T8: Scraping | 4 | 0 | 0 | 4 |
-| **TOTAL** | **43** | **9** | **1** | **33** |
+| **TOTAL** | **47** | **15** | **6** | **26** |
+
+**Day 1 Pass Rate: 71% (15/21 tests run)**
 
 ---
 
-### T1.1 URL HTTP Status Results
+## T1: URL VERIFICATION RESULTS
+
+### T1.1 CAD Main Websites
 
 | URL | Expected | Actual | Status |
 |-----|----------|--------|--------|
 | https://hcad.org/ | 200 | 200 | ✅ PASS |
-| https://www.hctax.net/ | 200 | 200 | ✅ PASS |
 | https://www.dallascad.org/ | 200 | 200 | ✅ PASS |
-| https://www.dallascounty.org/departments/tax/ | 200 | 200 | ✅ PASS |
-| https://www.tad.org/ | 200 | 403/503 | ❌ FAIL |
+| https://www.tad.org/ | 200 | 403 | ❌ FAIL (bot protection) |
 | https://bcad.org/ | 200 | 200 | ✅ PASS |
-| https://traviscad.org/ | 200 | 200 | ✅ PASS |
+| https://traviscad.org/ | 200 | 503 | ❌ FAIL (service unavailable) |
 | https://collincad.org/ | 200 | 200 | ✅ PASS |
 | https://www.dentoncad.com/ | 200 | 200 | ✅ PASS |
-| https://gis-tad.opendata.arcgis.com/ | 200 | 200 | ✅ PASS |
+
+### T1.2 Tax Collector Websites
+
+| URL | Expected | Actual | Status |
+|-----|----------|--------|--------|
+| https://www.hctax.net/ | 200 | 200 | ✅ PASS |
+| https://www.dallascounty.org/departments/tax/ | 200 | 200 | ✅ PASS |
+| https://www.tarrantcountytx.gov/en/tax.html | 200 | 200 | ✅ PASS |
+| https://www.bexar.org/1529/Property-Tax | 200 | 200 | ✅ PASS |
+| https://tax-office.traviscountytx.gov/ | 200 | 503 | ❌ FAIL (service unavailable) |
+| https://www.collincountytx.gov/Tax-Assessor | 200 | 200 | ✅ PASS |
+
+### T1.3 Data Portals & APIs
+
+| URL | Expected | Actual | Status |
+|-----|----------|--------|--------|
 | https://www.gis.hctx.net/arcgis/rest/services/HCAD | 200 | 200 | ✅ PASS |
+| https://www.dallascad.org/dataproducts.aspx | 200 | 200 | ✅ PASS |
+| https://gis-tad.opendata.arcgis.com/ | 200 | 200 | ✅ PASS |
+| https://maps.dcad.org/prd/dpm/ | 200 | 503 | ❌ FAIL (service unavailable) |
 
-**Finding:** tad.org returns 403/503 to automated requests (bot protection). Works in browser.
+### T1.4 True Automation Platform
 
----
-
-### T2.3 ArcGIS REST Service Results
-
-| Service | Status | Response |
-|---------|--------|----------|
-| HCAD/Parcels/MapServer | ✅ PASS | JSON with service info |
-| HCAD/Parcels/MapServer/0 | ✅ PASS | Layer 0 "HCAD Parcels" found |
-
-**Service Details:**
-- Version: 10.81
-- Layer: "HCAD Parcels" (Feature Layer, Polygon)
-- Spatial Reference: WKID 102740 (Texas State Plane)
-- Scale Range: 0 - 500,000
+| CAD | URL Pattern | Status |
+|-----|-------------|--------|
+| Bexar (cid=110) | propaccess.trueautomation.com | ✅ PASS |
+| Bexar subdomain | bexar.trueautomation.com | ✅ PASS |
+| Denton (via CAD site) | dentoncad.com/property-search | ✅ PASS |
+| Collin (eSearch) | esearch.collincad.org | ✅ PASS |
+| Other cids | propaccess.trueautomation.com | ❌ FAIL (504 timeout) |
 
 ---
 
-### True Automation Platform Results
+## T2: DATA AVAILABILITY RESULTS
 
-| CAD ID | URL | Status |
-|--------|-----|--------|
-| 110 (Bexar) | propaccess.trueautomation.com/?cid=110 | ✅ PASS (200) |
+### T2.1 HCAD ArcGIS REST API
+
+| Test | Result | Details |
+|------|--------|---------|
+| Service Discovery | ✅ PASS | 4 services in HCAD folder |
+| Query Single Parcel | ✅ PASS | 8348 bytes returned |
+| Query 3 Parcels | ✅ PASS | 11694 bytes returned |
+| Field Extraction | ✅ PASS | 50+ fields available |
+
+**HCAD ArcGIS Fields Confirmed:**
+```
+Owner: owner_name_1, owner_name_2, owner_name_3
+Mail: mail_addr_1, mail_addr_2, mail_city, mail_state, mail_zip
+Site: site_str_num, site_str_name, site_city, site_zip
+Values: land_value, bld_value, impr_value, total_appraised_val, total_market_val, tax_value
+Legal: legal_dscr_1, legal_dscr_2, legal_dscr_3, legal_dscr_4
+Parcel: acct_num, tax_year, land_sqft, acreage
+```
+
+### T2.2 DCAD Bulk Downloads
+
+| Test | Result | Details |
+|------|--------|---------|
+| Data Products Page | ✅ PASS | 30+ ZIP files listed |
+| Download Mechanism | ✅ PASS | ViewPDFs.aspx handler works |
+| Sample Download | ✅ PASS | DCAD2025_CERTIFIED = **182.72 MB** |
+| File Format | ✅ VERIFIED | application/x-zip-compressed |
+
+**DCAD Files Confirmed Available:**
+- DCAD2026_CURRENT.ZIP (current, no values)
+- DCAD2025_CURRENT.ZIP (certified with supplemental)
+- 2025_REAL_PROPERTY_CERT_APPR_ROLL.zip (fixed format)
+- DCAD2025_CERTIFIED_07242025.zip (comma delimited, 182.72 MB)
+- 5 years of historical data (2021-2025)
+
+### T2.3 TAD Open Data Portal
+
+| Test | Result | Details |
+|------|--------|---------|
+| Portal Access | ✅ PASS | gis-tad.opendata.arcgis.com accessible |
+| API Response | ✅ PASS | 10 MB response from dataset API |
+| Dataset Categories | ✅ VERIFIED | Land Records, Political Boundaries, etc. |
+| Main Website | ❌ FAIL | tad.org blocked (403), use portal instead |
+
+### T2.4 HCAD Bulk Files
+
+| Test | Result | Details |
+|------|--------|---------|
+| PDATA Page | ✅ PASS | hcad.org/hcad-online-services/pdata/ |
+| Download Links | ⚠️ PARTIAL | JavaScript-loaded, requires browser |
+| Direct URL Test | ⚠️ REDIRECT | pdata.hcad.org redirects to main site |
 
 ---
 
 ## Issues Found
 
 ### Issue #1: TAD.org Bot Protection
-
 **Severity:** MEDIUM
-**Description:** tad.org returns 403/503 to curl/automated requests
-**Impact:** Cannot verify main website, but Open Data Portal works
-**Workaround:** Use gis-tad.opendata.arcgis.com for data access
-**Status:** Documented
+**Status:** DOCUMENTED
+**Description:** tad.org returns 403/503 to automated requests
+**Workaround:** Use gis-tad.opendata.arcgis.com
+
+### Issue #2: Travis County Sites Down
+**Severity:** HIGH
+**Status:** MONITORING
+**Description:** Both traviscad.org and tax-office.traviscountytx.gov return 503
+**Impact:** Cannot verify Travis County data access
+**Action:** Re-test in 24 hours
+
+### Issue #3: True Automation Rate Limiting
+**Severity:** MEDIUM
+**Status:** DOCUMENTED
+**Description:** propaccess.trueautomation.com returns 504 timeout for most cids
+**Workaround:** Use county-specific subdomains (bexar.trueautomation.com)
+
+### Issue #4: HCAD PDATA JavaScript Loading
+**Severity:** LOW
+**Status:** DOCUMENTED
+**Description:** Download links loaded via JavaScript, not visible to curl
+**Workaround:** Use ArcGIS REST API for programmatic access
+
+### Issue #5: DCAD Map Server Down
+**Severity:** LOW
+**Status:** MONITORING
+**Description:** maps.dcad.org/prd/dpm/ returns 503
+**Impact:** Cannot use DCAD interactive map
+**Workaround:** Use DCAD bulk downloads instead
+
+---
+
+## Day 1 Key Findings
+
+### ✅ VERIFIED WORKING
+
+1. **HCAD ArcGIS REST API** - Full parcel data with 50+ fields
+2. **DCAD Bulk Downloads** - 182 MB certified data file accessible
+3. **TAD Open Data Portal** - Alternative access works
+4. **6 of 7 CAD websites** - All except TAD (blocked) and Travis (down)
+5. **5 of 6 Tax Collector sites** - All except Travis (down)
+
+### ❌ NOT WORKING / BLOCKED
+
+1. **tad.org** - Bot protection (use Open Data Portal)
+2. **Travis County sites** - 503 errors (temporary?)
+3. **DCAD Map** - 503 error
+4. **True Automation generic URL** - Rate limited
+
+### ⚠️ NEEDS FOLLOW-UP
+
+1. Travis County - re-test in 24 hours
+2. HCAD bulk files - verify direct download URLs
+3. True Automation - document working cids vs blocked
 
 ---
 
 ## Recommendations
 
-1. **TAD Data Access:** Use Open Data Portal (gis-tad.opendata.arcgis.com) instead of main website
-2. **HCAD ArcGIS:** Confirmed working - use for parcel boundaries
-3. **True Automation:** URL pattern confirmed working
-4. **Next Steps:** Run T2 (Download) tests to verify bulk data access
+1. **Primary data source:** Use HCAD ArcGIS REST API for Harris County
+2. **Secondary source:** Use DCAD bulk downloads for Dallas County
+3. **TAD access:** Use Open Data Portal, not main website
+4. **Travis County:** Wait and re-test, or use alternative source
+5. **True Automation:** Use county-specific subdomains, not generic URL
 
 ---
 
