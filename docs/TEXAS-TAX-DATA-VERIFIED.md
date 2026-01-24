@@ -119,16 +119,31 @@ Texas property tax data is accessible through **two distinct systems**:
 
 ## 2. Dallas County
 
-**Population:** 2.6M | **Parcels:** 900K+
+**Population:** 2.6M | **Parcels:** 900K+ | **Data Access:** BULK DOWNLOADS AVAILABLE
 
 ### Dallas Central Appraisal District (DCAD)
 
-| Resource | URL | Status | Platform |
-|----------|-----|--------|----------|
-| **Main Website** | [dallascad.org](https://www.dallascad.org/) | VERIFIED | - |
-| **Property Search** | [propaccess.trueautomation.com/?cid=19](https://propaccess.trueautomation.com/clientdb/?cid=19) | VERIFIED | True Automation |
+| Resource | URL | Status | Format |
+|----------|-----|--------|--------|
+| **Main Website** | [dallascad.org](https://www.dallascad.org/) | VERIFIED | HTML |
+| **Property Search (Account)** | [dallascad.org/SearchAcct.aspx](https://www.dallascad.org/SearchAcct.aspx) | VERIFIED | HTML |
+| **Property Search (Address)** | [dallascad.org/SearchAddr.aspx](https://www.dallascad.org/SearchAddr.aspx) | VERIFIED | HTML |
+| **Property Map** | [maps.dcad.org/prd/dpm](https://maps.dcad.org/prd/dpm/) | VERIFIED | ArcGIS |
+| **Data Products** | [dallascad.org/dataproducts.aspx](https://www.dallascad.org/dataproducts.aspx) | VERIFIED | ZIP/CSV |
 
-**Note:** Dallas CAD uses the True Automation (Harris Govern) platform.
+**IMPORTANT: Dallas CAD has their own custom system - NOT True Automation**
+
+### DCAD Bulk Data Products (FREE)
+
+| Data Type | Years Available | Format |
+|-----------|-----------------|--------|
+| **Current Appraisal Data** | 2026 (no values), 2021-2025 (certified) | Comma-delimited ZIP |
+| **Certified Appraisal Roll** | 2021-2025 | Fixed-width & comma-delimited |
+| **BPP Detail Files** | 2021-2025 | Comma-delimited ZIP |
+| **ARB Data** | 2021-2025 + archived | Comma-delimited ZIP |
+| **Annual Notice Data** | 2024-2025 | Comma-delimited ZIP |
+
+**Data Last Updated:** January 22, 2026 (per website)
 
 ### Dallas County Tax Office
 
@@ -143,17 +158,37 @@ Texas property tax data is accessible through **two distinct systems**:
 
 ## 3. Tarrant County (Fort Worth)
 
-**Population:** 2.1M | **Parcels:** 750K+ | **Note:** Highest number of tax accounts in Texas
+**Population:** 2.1M | **Parcels:** 750K+ | **Data Access:** OPEN DATA PORTAL + BULK DOWNLOADS
 
 ### Tarrant Appraisal District (TAD)
 
-| Resource | URL | Status |
-|----------|-----|--------|
-| **Main Website** | [tad.org](https://www.tad.org/) | VERIFIED |
-| **Property Search** | [tad.org/search-results](https://www.tad.org/search-results) | VERIFIED |
+| Resource | URL | Status | Format |
+|----------|-----|--------|--------|
+| **Main Website** | [tad.org](https://www.tad.org/) | VERIFIED | HTML |
+| **Property Search** | [tad.org/search-results](https://www.tad.org/search-results) | VERIFIED | HTML |
+| **Open Data Portal** | [gis-tad.opendata.arcgis.com](https://gis-tad.opendata.arcgis.com/) | VERIFIED | ArcGIS API |
+| **Data Download** | [tad.org/data-download](https://www.tad.org/data-download/) | VERIFIED | Shapefiles/PDF |
 
+### TAD Bulk Data Available
+
+| Data Type | Format | Size |
+|-----------|--------|------|
+| **ParcelView (Parcel polygons + DB tables)** | Shapefile | ~715 MB |
+| **School District Boundaries** | Shapefile | - |
+| **City Boundaries** | Shapefile | - |
+| **MUD Districts** | Shapefile | - |
+| **Neighborhoods** | Shapefile | - |
+| **Tax Maps (2019-2022)** | PDF | Large |
+
+**Open Data Portal Categories:**
+- Political Boundaries
+- Land Records (Parcels)
+- Special Districts
+- Flood Data
+- Documents (Data Dictionaries)
+
+**Contact:** 817-284-0024 | webmaster-gis@TAD.org
 **Address:** 2500 Handley-Ederville Rd., Fort Worth, TX 76118-6909
-**Contact:** 817-284-0024
 
 ### Tarrant County Tax Office
 
@@ -243,24 +278,41 @@ Texas property tax data is accessible through **two distinct systems**:
 
 ---
 
-## 7-10. Other Major Counties
+## 7. Denton County
 
-### Denton County
-| Type | URL | Platform |
-|------|-----|----------|
-| **CAD Property Search** | [propaccess.trueautomation.com/?cid=19](https://propaccess.trueautomation.com/clientdb/?cid=19) | True Automation |
+**Population:** 900K+ | **Parcels:** 350K+ | **Platform:** True Automation (cid=19)
+
+### Denton Central Appraisal District
+
+| Resource | URL | Status | Platform |
+|----------|-----|--------|----------|
+| **Main Website** | [dentoncad.com](https://www.dentoncad.com/) | VERIFIED | - |
+| **Property Search** | [dentoncad.com/property-search](https://www.dentoncad.com/property-search) | VERIFIED | Custom |
+| **eSearch Portal** | [esearch.dentoncad.com](https://esearch.dentoncad.com/) | VERIFIED | Custom |
+| **True Automation** | [propaccess.trueautomation.com/?cid=19](https://propaccess.trueautomation.com/clientdb/?cid=19) | VERIFIED | True Automation |
+| **CADNet (Plats/Data)** | [dentoncad.net](https://dentoncad.net/) | VERIFIED | Custom |
+
+---
+
+## 8-10. Other Major Counties
 
 ### Hidalgo County (McAllen)
+**Population:** 870K+ | Status: NOT VERIFIED
+
 | Type | URL |
 |------|-----|
 | **CAD Website** | [hidalgoad.org](https://www.hidalgoad.org/) |
 
 ### Fort Bend County
+**Population:** 800K+ | Status: NOT VERIFIED
+
 | Type | URL |
 |------|-----|
 | **CAD Website** | [fbcad.org](https://www.fbcad.org/) |
 
 ### El Paso County
+**Population:** 865K+ | Status: NOT VERIFIED
+
 | Type | URL |
 |------|-----|
 | **CAD Website** | [epcad.org](https://www.epcad.org/) |
@@ -269,9 +321,30 @@ Texas property tax data is accessible through **two distinct systems**:
 
 # PLATFORM ANALYSIS
 
+## Major CAD Software Platforms in Texas
+
+| Platform | Estimated Coverage | Notable Counties |
+|----------|-------------------|------------------|
+| **Harris Govern (True Automation)** | ~50% of CADs | Bexar, Collin, Denton, many rural |
+| **Custom Systems** | ~20% of CADs | Harris (HCAD), Dallas (DCAD), Tarrant (TAD) |
+| **Tyler Technologies** | ~15% of CADs | Various |
+| **Aumentum Technologies** | ~10% of CADs | Various |
+| **Other/Unknown** | ~5% of CADs | Small rural counties |
+
+## Counties with Custom Systems (NOT True Automation)
+
+| County | System | Bulk Data |
+|--------|--------|-----------|
+| **Harris** | Custom (HCAD) | YES - Tab-delimited files |
+| **Dallas** | Custom (DCAD) | YES - Comma-delimited ZIP |
+| **Tarrant** | Custom (TAD) | YES - Shapefiles + Open Data Portal |
+| **Travis** | Custom (TCAD) | Verify - check website |
+
+---
+
 ## Harris Govern (True Automation) Platform
 
-**Verified Market Share:** 50%+ of Texas CADs
+**Verified Market Share:** ~50% of Texas CADs (per vendor claims)
 
 ### URL Patterns
 
@@ -287,21 +360,23 @@ https://{county}.trueautomation.com/mapSearch/?cid={CAD_ID}
 
 ### Verified CAD IDs
 
-| County | CAD ID | URL |
-|--------|--------|-----|
-| Bexar | 110 | bexar.trueautomation.com |
-| Collin | 111 | propaccess.trueautomation.com/?cid=111 |
-| Denton | 19 | propaccess.trueautomation.com/?cid=19 |
-| Burnet | 85 | propaccess.trueautomation.com/?cid=85 |
-| Cass | 3 | propaccess.trueautomation.com/?cid=3 |
-| Comal | 56 | propaccess.trueautomation.com/?cid=56 |
-| Cooke | 107 | propaccess.trueautomation.com/?cid=107 |
-| Guadalupe | 2 | propaccess.trueautomation.com/?cid=2 |
-| Hale | 41 | propaccess.trueautomation.com/?cid=41 |
-| Hill | 32 | propaccess.trueautomation.com/?cid=32 |
-| San Jacinto | 22 | propaccess.trueautomation.com/?cid=22 |
-| Swisher | 54 | propaccess.trueautomation.com/?cid=54 |
-| Wilson | 27 | propaccess.trueautomation.com/?cid=27 |
+| County | CAD ID | URL | Status |
+|--------|--------|-----|--------|
+| Bexar | 110 | bexar.trueautomation.com | VERIFIED |
+| Collin | 111 | propaccess.trueautomation.com/?cid=111 | VERIFIED |
+| Denton | 19 | propaccess.trueautomation.com/?cid=19 | VERIFIED |
+| Burnet | 85 | propaccess.trueautomation.com/?cid=85 | From search |
+| Cass | 3 | propaccess.trueautomation.com/?cid=3 | From search |
+| Comal | 56 | propaccess.trueautomation.com/?cid=56 | From search |
+| Cooke | 107 | propaccess.trueautomation.com/?cid=107 | From search |
+| Guadalupe | 2 | propaccess.trueautomation.com/?cid=2 | From search |
+| Hale | 41 | propaccess.trueautomation.com/?cid=41 | VERIFIED |
+| Hill | 32 | propaccess.trueautomation.com/?cid=32 | From search |
+| San Jacinto | 22 | propaccess.trueautomation.com/?cid=22 | VERIFIED |
+| Swisher | 54 | propaccess.trueautomation.com/?cid=54 | VERIFIED |
+| Wilson | 27 | propaccess.trueautomation.com/?cid=27 | VERIFIED |
+
+**Note:** Dallas County does NOT use True Automation - they have their own custom system.
 
 ### Scraping Strategy
 
@@ -310,99 +385,117 @@ https://{county}.trueautomation.com/mapSearch/?cid={CAD_ID}
 2. Configure with CAD ID parameter
 3. Standard field mappings across all sites
 4. Rate limit: 3-5 seconds between requests
-5. Cover 100+ counties with one scraper
+5. Estimated coverage: 100+ counties with one scraper
 ```
 
 ---
 
 # DATA ACCESS SUMMARY
 
+## Counties with Bulk Data Downloads (FREE)
+
+| County | Population | Parcels | Bulk Format | Open Data Portal |
+|--------|------------|---------|-------------|------------------|
+| **Harris (HCAD)** | 4.7M | 1.8M | Tab-delimited TXT | No (ArcGIS only) |
+| **Dallas (DCAD)** | 2.6M | 900K | Comma-delimited CSV | No |
+| **Tarrant (TAD)** | 2.1M | 750K | Shapefiles | YES (ArcGIS) |
+
+**Combined Coverage:** ~3.45M parcels from bulk downloads alone
+
 ## Best Data Sources by Type
 
 | Data Type | Best Source | Access Method |
 |-----------|-------------|---------------|
-| **Assessed Values** | HCAD (Harris) | Bulk download (FREE) |
-| **Property Characteristics** | HCAD (Harris) | Bulk download (FREE) |
-| **Owner Information** | HCAD / CAD websites | Bulk / Scraping |
-| **Parcel Boundaries** | HCAD GIS | Shapefile download (FREE) |
+| **Assessed Values** | HCAD, DCAD, TAD | Bulk download (FREE) |
+| **Property Characteristics** | HCAD, DCAD | Bulk download (FREE) |
+| **Owner Information** | All bulk sources | Bulk / Scraping |
+| **Parcel Boundaries** | HCAD GIS, TAD Open Data | Shapefile download (FREE) |
 | **Current Tax Bills** | Tax Collector websites | Scraping |
 | **Delinquent Taxes** | Tax Collector websites | Scraping |
 | **Payment History** | Tax Collector websites | Scraping (limited) |
 | **Sales History** | Limited (TX non-disclosure) | CAD websites if available |
 
-## Tier Classification
+## Tier Classification (REVISED)
 
-| Tier | Counties | Access Method | Effort |
-|------|----------|---------------|--------|
-| **Tier 1** | Harris | Bulk download + ArcGIS API | LOW |
-| **Tier 2** | True Automation counties (~100+) | Platform scraping | MEDIUM |
-| **Tier 3** | Custom websites (~50) | Individual scrapers | HIGH |
-| **Tier 4** | Small/rural counties (~100) | Manual/phone | VERY HIGH |
+| Tier | Counties | Access Method | Effort | Parcels |
+|------|----------|---------------|--------|---------|
+| **Tier 1** | Harris, Dallas, Tarrant | Bulk download + API | LOW | ~3.45M |
+| **Tier 2** | Bexar, Travis, Collin + True Automation (~100+) | Platform scraping | MEDIUM | ~10M |
+| **Tier 3** | Custom websites (~50) | Individual scrapers | HIGH | ~2M |
+| **Tier 4** | Small/rural counties (~100) | Manual/phone | VERY HIGH | ~500K |
 
 ---
 
-# IMPLEMENTATION PLAN
+# IMPLEMENTATION PLAN (REVISED)
 
-## Phase 1: Harris County (Week 1)
+## Phase 1: Bulk Data Counties (Days 1-5)
 
 ```
 Priority: CRITICAL
-Effort: 2-3 days
-Coverage: 1.8M parcels
+Effort: 5 days total
+Coverage: 3.45M parcels (Harris + Dallas + Tarrant)
 
-Steps:
-1. Download HCAD bulk data files
-2. Parse tab-delimited format
-3. Map to unified database schema
-4. Import Real_acct.txt, Real_building_res.txt, Real_land.txt
-5. Connect to ArcGIS MapServer for boundaries
-6. Scrape hctax.net for delinquent tax data
+Step 1A: Harris County (HCAD) - Days 1-2
+- Download bulk files from hcad.org/pdata
+- Parse tab-delimited format
+- Files: Real_acct.txt, Real_building_res.txt, Real_land.txt
+- Import 1.8M parcels
+- Connect to ArcGIS MapServer for boundaries
+
+Step 1B: Dallas County (DCAD) - Days 3-4
+- Download ZIP files from dallascad.org/dataproducts.aspx
+- Parse comma-delimited format
+- Import 900K parcels
+- Access property map at maps.dcad.org
+
+Step 1C: Tarrant County (TAD) - Day 5
+- Download ParcelView shapefile (~715 MB)
+- Access Open Data Portal (gis-tad.opendata.arcgis.com)
+- Import 750K parcels with boundaries
 ```
 
 **Expected Output:**
-- Complete property data for 1.8M parcels
+- 3.45M parcels with complete property data
 - Owner, address, values, characteristics
-- Parcel boundaries (Shapefile/GeoJSON)
-- Current delinquent tax status
+- Parcel boundaries for all three counties
 
-## Phase 2: True Automation Counties (Weeks 2-3)
+## Phase 2: True Automation Counties (Days 6-12)
 
 ```
 Priority: HIGH
-Effort: 5-7 days (scraper development + data collection)
+Effort: 7 days (scraper development + data collection)
 Coverage: ~10M parcels (100+ counties)
 
 Steps:
 1. Build True Automation platform scraper
-2. Configure for top 10 counties by population
+2. Test with verified CAD IDs:
+   - Bexar (cid=110)
+   - Collin (cid=111)
+   - Denton (cid=19)
 3. Map fields to unified schema
 4. Rate-limited data collection (3-5 sec delays)
-5. Expand to remaining True Automation counties
+5. Discover and add remaining True Automation CADs
 ```
 
-**Target Counties:**
-1. Dallas (cid varies)
-2. Bexar (cid=110)
-3. Collin (cid=111)
-4. Denton (cid=19)
-5. + 100+ additional counties
+**Note:** Dallas does NOT use True Automation - use bulk data instead
 
-## Phase 3: Tax Collector Data (Week 4)
+## Phase 3: Tax Collector Data (Days 13-16)
 
 ```
 Priority: MEDIUM
-Effort: 3-4 days
-Coverage: Top 10 counties
+Effort: 4 days
+Coverage: Top 6 counties
 
 Steps:
 1. Build scrapers for each Tax Collector platform:
    - hctax.net (Harris)
-   - dallascounty.org
-   - taxonline.tarrantcounty.com
-   - bexar.acttax.com
-   - tax-office.traviscountytx.gov
+   - dallascounty.org/departments/tax
+   - taxonline.tarrantcounty.com (Tarrant)
+   - bexar.acttax.com (Bexar)
+   - tax-office.traviscountytx.gov (Travis)
+   - taxpublic.collincountytx.gov (Collin)
 2. Extract delinquent tax amounts
-3. Link to CAD property records
+3. Link to CAD property records by account number
 ```
 
 ## Phase 4: Remaining Counties (Ongoing)
@@ -412,8 +505,8 @@ Priority: LOW
 Effort: As needed based on portfolio
 
 Steps:
-1. Identify non-True Automation counties with properties of interest
-2. Build individual scrapers
+1. Check if county uses True Automation (try cid parameter)
+2. If not, build individual scraper
 3. Add to database incrementally
 ```
 
@@ -442,11 +535,27 @@ Steps:
 
 | Data Source | Confidence | Notes |
 |-------------|------------|-------|
-| HCAD Bulk Downloads | **100%** | Verified URLs, documented format |
-| HCAD ArcGIS Services | **100%** | Verified REST endpoints |
-| True Automation Platform | **95%** | Verified URLs, CAD IDs confirmed |
-| Tax Collector Websites | **95%** | Verified URLs, search confirmed |
-| CAD ID Complete List | **70%** | Partial list verified, full list requires discovery |
+| HCAD Bulk Downloads | **100%** | Verified URLs, format documented |
+| HCAD ArcGIS Services | **100%** | Verified 4 MapServer services in HCAD folder |
+| DCAD Bulk Downloads | **100%** | Verified data products page, multiple formats |
+| TAD Open Data Portal | **100%** | Verified ArcGIS portal exists |
+| TAD Shapefile Downloads | **95%** | Verified exists, 403 on direct access (may need form) |
+| True Automation Platform | **95%** | Verified URL patterns, 13 CAD IDs confirmed |
+| Tax Collector Websites (Top 6) | **95%** | All URLs verified, search functionality confirmed |
+| Counties 7-10 (Denton, Hidalgo, etc.) | **80%** | Main URLs verified, bulk data not confirmed |
+| True Automation Complete List | **60%** | Only ~13 of estimated 100+ CAD IDs verified |
+| Platform Market Share Claims | **70%** | Based on vendor claims, not independently verified |
+
+## What Still Needs Verification
+
+| Item | Current Status | To Verify |
+|------|----------------|-----------|
+| Complete True Automation CAD ID list | 13 verified | Test cid=1 through cid=200 systematically |
+| Travis County bulk data | Not found | Check if TCAD offers downloads |
+| Bexar County bulk data | Not found | Check if BCAD offers downloads |
+| Tax Collector scraping feasibility | URLs only | Test actual data extraction |
+| HCAD file sizes | Not documented | Download and measure |
+| DCAD file sizes | "Large ZIP files" | Download and measure |
 
 ---
 
@@ -477,3 +586,11 @@ Steps:
 | Jan 24, 2026 | HCAD bulk data and ArcGIS services verified |
 | Jan 24, 2026 | Top 6 county CAD/Tax Collector URLs verified |
 | Jan 24, 2026 | True Automation CAD IDs verified |
+| Jan 24, 2026 | **CORRECTION:** Dallas CAD does NOT use True Automation - has custom system |
+| Jan 24, 2026 | **ADDED:** Dallas CAD bulk data products (CSV/ZIP downloads) |
+| Jan 24, 2026 | **ADDED:** Tarrant Open Data Portal (ArcGIS) |
+| Jan 24, 2026 | **ADDED:** Tarrant shapefile downloads (~715 MB ParcelView) |
+| Jan 24, 2026 | **FIXED:** Removed Dallas from True Automation CAD list |
+| Jan 24, 2026 | **ADDED:** Platform breakdown table (True Automation vs Custom) |
+| Jan 24, 2026 | **ADDED:** "What Still Needs Verification" section |
+| Jan 24, 2026 | **REVISED:** Tier 1 now includes Harris, Dallas, AND Tarrant (3.45M parcels) |
