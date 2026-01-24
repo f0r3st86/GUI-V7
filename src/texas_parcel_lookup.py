@@ -480,57 +480,268 @@ class TarrantCountyLookup:
     """
     Tarrant County (TAD) parcel lookup
 
-    Status: REQUIRES BROWSER AUTOMATION
+    Status: REQUIRES BROWSER AUTOMATION OR BULK DATA
     - Website protected by Cloudflare (returns 403 for requests)
-    - Need Selenium/Playwright to access
-    - Bulk data downloads also protected
+    - Can use Selenium with Chrome/Firefox if installed
+    - Or download bulk data manually and use SQLite
     """
 
     BULK_DATA_URL = "https://www.tad.org/content/data-download/PropertyData(Delimited).ZIP"
     SEARCH_URL = "https://www.tad.org/property-search/"
+    PROPERTY_URL = "https://www.tad.org/property/"
 
-    def __init__(self, db_path: str = None, use_selenium: bool = False):
+    def __init__(self, db_path: str = None, use_selenium: bool = False, headless: bool = True):
         """
         Initialize Tarrant County lookup
 
         Args:
-            db_path: Path to SQLite database with bulk data
-            use_selenium: If True, attempt to use Selenium for web access
+            db_path: Path to SQLite database with bulk data (if downloaded)
+            use_selenium: If True, use Selenium for web scraping
+            headless: If True, run browser in headless mode (no GUI)
         """
         self.db_path = db_path
         self.use_selenium = use_selenium
+        self.headless = headless
+        self._driver = None
+
+    def _init_selenium(self):
+        """Initialize Selenium WebDriver"""
+        try:
+            from selenium import webdriver
+            from selenium.webdriver.chrome.options import Options
+            from selenium.webdriver.chrome.service import Service
+        except ImportError:
+            raise ImportError(
+                "Selenium not installed. Install with:\n"
+                "  pip install selenium webdriver-manager"
+            )
+
+        options = Options()
+        if self.headless:
+            options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--window-size=1920,1080')
+        options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+
+        try:
+            # Try using webdriver-manager for automatic driver management
+            from webdriver_manager.chrome import ChromeDriverManager
+            service = Service(ChromeDriverManager().install())
+            self._driver = webdriver.Chrome(service=service, options=options)
+        except Exception:
+            # Fallback to default chromedriver
+            try:
+                self._driver = webdriver.Chrome(options=options)
+            except Exception as e:
+                raise RuntimeError(
+                    f"Could not start Chrome browser: {e}\n\n"
+                    "Make sure Chrome/Chromium is installed:\n"
+                    "  - Ubuntu/Debian: sudo apt install chromium-browser\n"
+                    "  - macOS: brew install --cask google-chrome\n"
+                    "  - Windows: Download from google.com/chrome\n"
+                )
+
+        self._driver.set_page_load_timeout(30)
+        return self._driver
+
+    def _close_selenium(self):
+        """Close Selenium WebDriver"""
+        if self._driver:
+            try:
+                self._driver.quit()
+            except:
+                pass
+            self._driver = None
 
     def lookup(self, parcel_id: str) -> Optional[ParcelInfo]:
         """
         Look up a parcel by ID
 
-        Tarrant County website is protected by Cloudflare.
-        Options:
-        1. Download bulk data manually (browser) and load into SQLite
-        2. Use Selenium/Playwright for automated browser access
+        Args:
+            parcel_id: Tarrant County property ID
+
+        Returns:
+            ParcelInfo object or None if not found
         """
         if self.db_path:
-            # TODO: Implement SQLite lookup
-            raise NotImplementedError("SQLite lookup not yet implemented")
+            return self._lookup_sqlite(parcel_id)
 
         if self.use_selenium:
-            # TODO: Implement Selenium-based scraping
-            raise NotImplementedError(
-                "Selenium-based lookup not yet implemented.\n"
-                "Install selenium and chromedriver, then enable use_selenium=True"
-            )
+            return self._lookup_selenium(parcel_id)
 
         raise NotImplementedError(
             "Tarrant County lookup requires special handling.\n\n"
             "The TAD website is protected by Cloudflare and blocks automated requests.\n\n"
             "Options:\n"
-            "1. Download bulk data manually from browser:\n"
+            "1. Use Selenium (requires Chrome browser installed):\n"
+            "   lookup = TarrantCountyLookup(use_selenium=True)\n"
+            "   result = lookup.lookup('12345678')\n\n"
+            "2. Download bulk data manually from browser:\n"
             f"   {self.BULK_DATA_URL}\n"
-            "   Then provide db_path to use local SQLite lookup.\n\n"
-            "2. Use browser automation (Selenium/Playwright):\n"
-            "   pip install selenium\n"
-            "   Then enable use_selenium=True\n"
+            "   Then: lookup = TarrantCountyLookup(db_path='path/to/data.db')\n"
         )
+
+    def _lookup_sqlite(self, parcel_id: str) -> Optional[ParcelInfo]:
+        """Look up parcel from local SQLite database"""
+        import sqlite3
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Try common column names for parcel ID
+        for id_col in ['prop_id', 'parcel_id', 'account', 'acct_num', 'property_id']:
+            try:
+                cursor.execute(f"SELECT * FROM properties WHERE {id_col} = ?", (parcel_id,))
+                row = cursor.fetchone()
+                if row:
+                    columns = [desc[0] for desc in cursor.description]
+                    data = dict(zip(columns, row))
+                    conn.close()
+                    return self._parse_sqlite_row(parcel_id, data)
+            except sqlite3.OperationalError:
+                continue
+
+        conn.close()
+        return None
+
+    def _parse_sqlite_row(self, parcel_id: str, data: Dict) -> ParcelInfo:
+        """Parse SQLite row into ParcelInfo"""
+        # Map common field names
+        owner = data.get('owner_name') or data.get('owner') or data.get('owner_name_1', '')
+        address = data.get('situs_address') or data.get('property_address') or data.get('address', '')
+        land_val = float(data.get('land_value') or data.get('land_val') or 0)
+        bldg_val = float(data.get('improvement_value') or data.get('bldg_value') or data.get('impr_val') or 0)
+        total_val = float(data.get('total_value') or data.get('market_value') or data.get('total_market_val') or 0)
+
+        return ParcelInfo(
+            county="Tarrant",
+            parcel_id=parcel_id,
+            owner_name=owner,
+            property_address=address,
+            mailing_address=data.get('mailing_address'),
+            land_value=land_val,
+            building_value=bldg_val,
+            total_value=total_val,
+            tax_year=str(data.get('tax_year', '')),
+            legal_description=data.get('legal_description'),
+            acreage=data.get('acreage'),
+            property_class=data.get('property_class'),
+            raw_data=data
+        )
+
+    def _lookup_selenium(self, parcel_id: str) -> Optional[ParcelInfo]:
+        """Look up parcel using Selenium browser automation"""
+        import time
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+
+        try:
+            driver = self._init_selenium()
+
+            # Navigate to TAD search
+            driver.get(self.SEARCH_URL)
+            time.sleep(5)  # Wait for Cloudflare
+
+            # Check if we're past Cloudflare
+            if "challenge" in driver.page_source.lower():
+                print("Waiting for Cloudflare challenge...")
+                time.sleep(10)
+
+            # Try to find and use the search form
+            try:
+                # Look for search input
+                search_input = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='text'], input[type='search']"))
+                )
+                search_input.clear()
+                search_input.send_keys(parcel_id)
+
+                # Find and click search button
+                search_btn = driver.find_element(By.CSS_SELECTOR, "button[type='submit'], input[type='submit']")
+                search_btn.click()
+
+                time.sleep(3)
+
+                # Parse results
+                return self._parse_selenium_page(parcel_id, driver.page_source)
+
+            except Exception as e:
+                print(f"Search form not found or error: {e}")
+                return None
+
+        finally:
+            self._close_selenium()
+
+    def _parse_selenium_page(self, parcel_id: str, page_source: str) -> Optional[ParcelInfo]:
+        """Parse TAD property page from Selenium"""
+        if not HAS_BS4:
+            return None
+
+        soup = BeautifulSoup(page_source, 'html.parser')
+
+        # Extract property data - TAD-specific parsing
+        owner = ""
+        address = ""
+        land_value = 0.0
+        bldg_value = 0.0
+        total_value = 0.0
+
+        # Look for common patterns in TAD pages
+        for text in soup.stripped_strings:
+            if 'Owner' in text:
+                # Try to get next text element
+                pass
+            if re.match(r'^\d+\s+[A-Z]', text):
+                address = text
+
+        # Look for value table
+        for table in soup.find_all('table'):
+            for row in table.find_all('tr'):
+                cells = row.find_all('td')
+                if len(cells) >= 2:
+                    label = cells[0].get_text(strip=True).lower()
+                    value = cells[1].get_text(strip=True)
+
+                    if 'owner' in label:
+                        owner = value
+                    elif 'land' in label and 'value' in label:
+                        land_value = self._parse_money(value)
+                    elif 'improvement' in label or 'building' in label:
+                        bldg_value = self._parse_money(value)
+                    elif 'total' in label or 'market' in label:
+                        total_value = self._parse_money(value)
+
+        if not owner and not total_value:
+            return None
+
+        return ParcelInfo(
+            county="Tarrant",
+            parcel_id=parcel_id,
+            owner_name=owner,
+            property_address=address,
+            mailing_address=None,
+            land_value=land_value,
+            building_value=bldg_value,
+            total_value=total_value,
+            tax_year="",
+            legal_description=None,
+            acreage=None,
+            property_class=None,
+            raw_data={}
+        )
+
+    def _parse_money(self, text: str) -> float:
+        """Parse money string to float"""
+        if not text:
+            return 0.0
+        cleaned = re.sub(r'[^\d.]', '', text)
+        try:
+            return float(cleaned) if cleaned else 0.0
+        except ValueError:
+            return 0.0
 
 
 # County lookup registry
