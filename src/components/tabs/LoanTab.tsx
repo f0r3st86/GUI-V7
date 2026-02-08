@@ -273,6 +273,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>MW Loan #:</label>
                 <input
                   type="text"
+                  aria-label="MW Loan Number"
                   value={selectedLoanData.mwLoanNo}
                   readOnly
                   className={`${styles.readOnlyBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} font-medium focus:outline-none cursor-not-allowed`}
@@ -282,6 +283,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Borrower:</label>
                 <input
                   type="text"
+                  aria-label="Borrower"
                   value={selectedLoanData.borrowerName}
                   onChange={(e) => handleLoanFieldChange('borrowerName', e.target.value)}
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -291,6 +293,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Relationship:</label>
                 <input
                   type="text"
+                  aria-label="Relationship"
                   value={selectedLoanData.relatedLoans}
                   onChange={(e) => handleLoanFieldChange('relatedLoans', e.target.value)}
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -300,6 +303,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Pool:</label>
                 <input
                   type="text"
+                  aria-label="Pool"
                   value={selectedLoanData.pool || ''}
                   onChange={(e) => handleLoanFieldChange('pool', e.target.value)}
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -308,6 +312,7 @@ export const LoanTab = React.memo(() => {
               <div>
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Status:</label>
                 <select
+                  aria-label="Status"
                   value={selectedLoanData.status || ''}
                   onChange={(e) => handleLoanFieldChange('status', e.target.value)}
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -326,6 +331,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Last Import:</label>
                 <input
                   type="text"
+                  aria-label="Last Import Date"
                   value={selectedLoanData.lastImportDate || ''}
                   onChange={(e) => handleDateChange('lastImportDate', e.target.value)}
                   placeholder="MM/DD/YY"
@@ -344,6 +350,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Orig Balance:</label>
                 <input
                   type="text"
+                  aria-label="Original Balance"
                   value={localOrigBalance}
                   onChange={(e) => handleCurrencyChange('origBalance', e.target.value, setLocalOrigBalance)}
                   className={`${styles.inputBg} ${getInputStyle('origBalance')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -354,6 +361,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Principal:</label>
                 <input
                   type="text"
+                  aria-label="Principal"
                   value={localPrincipal}
                   onChange={(e) => handleCurrencyChange('principal', e.target.value, setLocalPrincipal)}
                   className={`${styles.inputBg} ${getInputStyle('principal')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -364,6 +372,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Interest:</label>
                 <input
                   type="text"
+                  aria-label="Interest"
                   value={localInterest}
                   onChange={(e) => handleCurrencyChange('interest', e.target.value, setLocalInterest)}
                   className={`${styles.inputBg} ${getInputStyle('interest')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -374,6 +383,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Escrow:</label>
                 <input
                   type="text"
+                  aria-label="Escrow"
                   value={localEscrow}
                   onChange={(e) => handleCurrencyChange('escrow', e.target.value, setLocalEscrow)}
                   className={`${styles.inputBg} ${getInputStyle('escrow')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -384,6 +394,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Other:</label>
                 <input
                   type="text"
+                  aria-label="Other"
                   value={localOther}
                   onChange={(e) => handleCurrencyChange('other', e.target.value, setLocalOther)}
                   className={`${styles.inputBg} ${getInputStyle('other')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -394,6 +405,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Total Balance:</label>
                 <input
                   type="text"
+                  aria-label="Total Balance"
                   value={'$' + (selectedLoanData.principal + selectedLoanData.interest + selectedLoanData.escrowBalance + selectedLoanData.otherBalance).toLocaleString()}
                   className={`${styles.readOnlyBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textGreen} font-medium focus:outline-none cursor-not-allowed`}
                   readOnly
@@ -411,6 +423,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Int Rate:</label>
                 <input
                   type="text"
+                  aria-label="Interest Rate"
                   value={localIntRate}
                   onChange={(e) => handleRateChange('intRate', e.target.value, setLocalIntRate)}
                   className={`${styles.inputBg} ${getInputStyle('intRate')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -421,6 +434,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Default Rate:</label>
                 <input
                   type="text"
+                  aria-label="Default Rate"
                   value={localDRate}
                   onChange={(e) => handleRateChange('dRate', e.target.value, setLocalDRate)}
                   className={`${styles.inputBg} ${getInputStyle('dRate')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -431,6 +445,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Payment:</label>
                 <input
                   type="text"
+                  aria-label="Payment"
                   value={localPmt}
                   onChange={(e) => handleCurrencyChange('pmt', e.target.value, setLocalPmt)}
                   className={`${styles.inputBg} ${getInputStyle('pmt')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -441,6 +456,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Escrow Pmt:</label>
                 <input
                   type="text"
+                  aria-label="Escrow Payment"
                   value={localEscPmt}
                   onChange={(e) => handleCurrencyChange('escPmt', e.target.value, setLocalEscPmt)}
                   className={`${styles.inputBg} ${getInputStyle('escPmt')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -450,6 +466,7 @@ export const LoanTab = React.memo(() => {
               <div>
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Pmt Freq:</label>
                 <select
+                  aria-label="Payment Frequency"
                   value={selectedLoanData.pmtFreq}
                   onChange={(e) => handleLoanFieldChange('pmtFreq', e.target.value)}
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -464,6 +481,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Unfunded Commitment:</label>
                 <input
                   type="text"
+                  aria-label="Unfunded Commitment"
                   value={selectedLoanData.unfundedCommitment || ''}
                   onChange={(e) => handleLoanFieldChange('unfundedCommitment', e.target.value)}
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -481,6 +499,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Not Due:</label>
                 <input
                   type="text"
+                  aria-label="Not Due Date"
                   value={selectedLoanData.notDue || ''}
                   onChange={(e) => handleDateChange('notDue', e.target.value)}
                   placeholder="MM/DD/YY"
@@ -491,6 +510,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Last PMT:</label>
                 <input
                   type="text"
+                  aria-label="Last Payment Date"
                   value={selectedLoanData.lastPmt || ''}
                   onChange={(e) => handleDateChange('lastPmt', e.target.value)}
                   placeholder="MM/DD/YY"
@@ -501,6 +521,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Orig Dt:</label>
                 <input
                   type="text"
+                  aria-label="Origination Date"
                   value={selectedLoanData.origDt || ''}
                   onChange={(e) => handleDateChange('origDt', e.target.value)}
                   placeholder="MM/DD/YY"
@@ -511,6 +532,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Mat Dt:</label>
                 <input
                   type="text"
+                  aria-label="Maturity Date"
                   value={selectedLoanData.matDt || ''}
                   onChange={(e) => handleDateChange('matDt', e.target.value)}
                   placeholder="MM/DD/YY"
@@ -521,6 +543,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Acc Dt:</label>
                 <input
                   type="text"
+                  aria-label="Acceleration Date"
                   value={selectedLoanData.accDt || ''}
                   onChange={(e) => handleDateChange('accDt', e.target.value)}
                   placeholder="MM/DD/YY"
@@ -531,6 +554,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Due Dt:</label>
                 <input
                   type="text"
+                  aria-label="Due Date"
                   value={selectedLoanData.dueDt || ''}
                   onChange={(e) => handleDateChange('dueDt', e.target.value)}
                   placeholder="MM/DD/YY"
@@ -549,6 +573,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Address 1:</label>
                 <input
                   type="text"
+                  aria-label="Address Line 1"
                   value={selectedLoanData.address1 || ''}
                   onChange={(e) => handleLoanFieldChange('address1', e.target.value)}
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -558,6 +583,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>Address 2:</label>
                 <input
                   type="text"
+                  aria-label="Address Line 2"
                   value={selectedLoanData.address2 || ''}
                   onChange={(e) => handleLoanFieldChange('address2', e.target.value)}
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -567,6 +593,7 @@ export const LoanTab = React.memo(() => {
                 <label className={`text-xs ${styles.textMuted} block mb-1`}>City:</label>
                 <input
                   type="text"
+                  aria-label="City"
                   value={selectedLoanData.city || ''}
                   onChange={(e) => handleLoanFieldChange('city', e.target.value)}
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -576,6 +603,7 @@ export const LoanTab = React.memo(() => {
                 <div>
                   <label className={`text-xs ${styles.textMuted} block mb-1`}>State:</label>
                   <select
+                    aria-label="State"
                     value={selectedLoanData.state || ''}
                     onChange={(e) => handleLoanFieldChange('state', e.target.value)}
                     className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -589,6 +617,7 @@ export const LoanTab = React.memo(() => {
                   <label className={`text-xs ${styles.textMuted} block mb-1`}>Zip:</label>
                   <input
                     type="text"
+                    aria-label="Zip Code"
                     value={selectedLoanData.zip || ''}
                     onChange={(e) => handleZipChange(e.target.value)}
                     placeholder="12345"
@@ -610,6 +639,7 @@ export const LoanTab = React.memo(() => {
             <div>
               <label className={`text-xs ${styles.textMuted} block mb-1`}>Rate Type:</label>
               <select
+                aria-label="Rate Type"
                 value={selectedLoanData.rateType || ''}
                 onChange={(e) => handleLoanFieldChange('rateType', e.target.value)}
                 className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -624,6 +654,7 @@ export const LoanTab = React.memo(() => {
               <label className={`text-xs ${styles.textMuted} block mb-1`}>Floor:</label>
               <input
                 type="text"
+                aria-label="Rate Floor"
                 value={localFloor}
                 onChange={(e) => handleRateChange('floor', e.target.value, setLocalFloor)}
                 placeholder="0.000"
@@ -634,6 +665,7 @@ export const LoanTab = React.memo(() => {
               <label className={`text-xs ${styles.textMuted} block mb-1`}>Ceiling:</label>
               <input
                 type="text"
+                aria-label="Rate Ceiling"
                 value={localCeiling}
                 onChange={(e) => handleRateChange('ceiling', e.target.value, setLocalCeiling)}
                 placeholder="0.000"
@@ -644,6 +676,7 @@ export const LoanTab = React.memo(() => {
               <label className={`text-xs ${styles.textMuted} block mb-1`}>Margin:</label>
               <input
                 type="text"
+                aria-label="Rate Margin"
                 value={localMargin}
                 onChange={(e) => handleRateChange('margin', e.target.value, setLocalMargin)}
                 placeholder="0.000"
@@ -654,6 +687,7 @@ export const LoanTab = React.memo(() => {
               <label className={`text-xs ${styles.textMuted} block mb-1`}>ChDt:</label>
               <input
                 type="text"
+                aria-label="Change Date"
                 value={selectedLoanData.chDt || ''}
                 onChange={(e) => handleDateChange('chDt', e.target.value)}
                 placeholder="MM/DD/YY"
@@ -664,6 +698,7 @@ export const LoanTab = React.memo(() => {
               <label className={`text-xs ${styles.textMuted} block mb-1`}>ChFrq:</label>
               <input
                 type="text"
+                aria-label="Change Frequency"
                 value={selectedLoanData.chFrq || ''}
                 onChange={(e) => handleLoanFieldChange('chFrq', e.target.value)}
                 className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -672,6 +707,7 @@ export const LoanTab = React.memo(() => {
             <div>
               <label className={`text-xs ${styles.textMuted} block mb-1`}>Index:</label>
               <select
+                aria-label="Rate Index"
                 value={selectedLoanData.rateIndex || ''}
                 onChange={(e) => handleLoanFieldChange('rateIndex', e.target.value)}
                 className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -692,6 +728,7 @@ export const LoanTab = React.memo(() => {
               <label className={`text-xs ${styles.textMuted} block mb-1`}>Ah/Bhd:</label>
               <input
                 type="text"
+                aria-label="Ahead Behind"
                 value={selectedLoanData.ahBhd || ''}
                 onChange={(e) => handleLoanFieldChange('ahBhd', e.target.value)}
                 className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -700,6 +737,7 @@ export const LoanTab = React.memo(() => {
             <div>
               <label className={`text-xs ${styles.textMuted} block mb-1`}>AssetType:</label>
               <select
+                aria-label="Asset Type"
                 value={selectedLoanData.assetType || ''}
                 onChange={(e) => handleLoanFieldChange('assetType', e.target.value)}
                 className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
@@ -725,6 +763,7 @@ export const LoanTab = React.memo(() => {
               <label className={`text-xs ${styles.textMuted} block mb-1`}>Months Interest Accrued:</label>
               <input
                 type="text"
+                aria-label="Months Interest Accrued"
                 value={calculateInterestAccrued(selectedLoanData.interest, selectedLoanData.principal, selectedLoanData.intRate)}
                 className={`${styles.readOnlyBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textYellow} font-medium focus:outline-none cursor-not-allowed`}
                 readOnly
@@ -735,6 +774,7 @@ export const LoanTab = React.memo(() => {
               <label className={`text-xs ${styles.textMuted} block mb-1`}>Months to Maturity:</label>
               <input
                 type="text"
+                aria-label="Months to Maturity"
                 value={selectedLoanData.matDt ? calculateMonthsToMaturity(selectedLoanData.matDt) : '0'}
                 className={`${styles.readOnlyBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textYellow} font-medium focus:outline-none cursor-not-allowed`}
                 readOnly
@@ -745,6 +785,7 @@ export const LoanTab = React.memo(() => {
               <label className={`text-xs ${styles.textMuted} block mb-1`}>Months to Amortization:</label>
               <input
                 type="text"
+                aria-label="Months to Amortization"
                 value={calculateAmortizationMonths(selectedLoanData.principal, selectedLoanData.pmt, selectedLoanData.intRate)}
                 className={`${styles.readOnlyBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textYellow} font-medium focus:outline-none cursor-not-allowed`}
                 readOnly

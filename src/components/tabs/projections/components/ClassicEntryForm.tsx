@@ -54,7 +54,7 @@ export const ClassicEntryForm: React.FC<ClassicEntryFormProps> = ({
       <div className="grid grid-cols-7 gap-3 items-end">
         <div>
           <label className={`text-xs ${styles.textMuted} block mb-1`}>Start Month:</label>
-          <select ref={classicStartMonthRef} className={inputClass}>
+          <select ref={classicStartMonthRef} aria-label="Start Month" className={inputClass}>
             {months.map(m => (
               <option key={m} value={m}>{m}</option>
             ))}
@@ -63,12 +63,12 @@ export const ClassicEntryForm: React.FC<ClassicEntryFormProps> = ({
 
         <div>
           <label className={`text-xs ${styles.textMuted} block mb-1`}>Start Year:</label>
-          <input type="text" ref={classicStartYearRef} placeholder="2025" className={inputClass} />
+          <input type="text" ref={classicStartYearRef} aria-label="Start Year" placeholder="2025" className={inputClass} />
         </div>
 
         <div>
           <label className={`text-xs ${styles.textMuted} block mb-1`}>End Month:</label>
-          <select ref={classicEndMonthRef} className={inputClass}>
+          <select ref={classicEndMonthRef} aria-label="End Month" className={inputClass}>
             {months.map(m => (
               <option key={m} value={m}>{m}</option>
             ))}
@@ -77,17 +77,17 @@ export const ClassicEntryForm: React.FC<ClassicEntryFormProps> = ({
 
         <div>
           <label className={`text-xs ${styles.textMuted} block mb-1`}>End Year:</label>
-          <input type="text" ref={classicEndYearRef} placeholder="2027" className={inputClass} />
+          <input type="text" ref={classicEndYearRef} aria-label="End Year" placeholder="2027" className={inputClass} />
         </div>
 
         <div>
           <label className={`text-xs ${styles.textMuted} block mb-1`}>Amount ($):</label>
-          <input type="text" ref={classicAmountRef} placeholder="500" className={inputClass} />
+          <input type="text" ref={classicAmountRef} aria-label="Amount" placeholder="500" className={inputClass} />
         </div>
 
         <div>
           <label className={`text-xs ${styles.textMuted} block mb-1`}>Type:</label>
-          <select ref={classicTypeRef} className={inputClass}>
+          <select ref={classicTypeRef} aria-label="Entry Type" className={inputClass}>
             <option value="income">Income</option>
             <option value="expense">Expense</option>
           </select>

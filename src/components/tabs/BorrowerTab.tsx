@@ -360,6 +360,7 @@ export const BorrowerTab = React.memo(() => {
                 type="text"
                 value={selectedBorrower.name}
                 onChange={(e) => handleBorrowerFieldChange('name', e.target.value)}
+                aria-label="Borrower Name"
                 className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} font-medium focus:outline-none ${styles.focusBorder}`}
               />
             </div>
@@ -375,6 +376,7 @@ export const BorrowerTab = React.memo(() => {
                     value={selectedBorrower.phone}
                     onChange={(e) => handlePhoneChange(e.target.value)}
                     placeholder="(555) 555-5555"
+                    aria-label="Phone"
                     className={`${styles.inputBg} ${getInputStyle('phone')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
@@ -384,6 +386,7 @@ export const BorrowerTab = React.memo(() => {
                     type="text"
                     value={selectedBorrower.address1}
                     onChange={(e) => handleBorrowerFieldChange('address1', e.target.value)}
+                    aria-label="Address Line 1"
                     className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
@@ -393,6 +396,7 @@ export const BorrowerTab = React.memo(() => {
                     type="text"
                     value={selectedBorrower.address2}
                     onChange={(e) => handleBorrowerFieldChange('address2', e.target.value)}
+                    aria-label="Address Line 2"
                     className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
@@ -403,6 +407,7 @@ export const BorrowerTab = React.memo(() => {
                       type="text"
                       value={selectedBorrower.city}
                       onChange={(e) => handleBorrowerFieldChange('city', e.target.value)}
+                      aria-label="City"
                       className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     />
                   </div>
@@ -413,6 +418,7 @@ export const BorrowerTab = React.memo(() => {
                       value={selectedBorrower.state}
                       onChange={(e) => handleBorrowerFieldChange('state', e.target.value)}
                       maxLength={2}
+                      aria-label="State"
                       className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     />
                   </div>
@@ -424,6 +430,7 @@ export const BorrowerTab = React.memo(() => {
                       onChange={(e) => handleZipChange(e.target.value)}
                       placeholder="12345"
                       maxLength={10}
+                      aria-label="Zip Code"
                       className={`${styles.inputBg} ${getInputStyle('zip')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     />
                   </div>
@@ -442,6 +449,7 @@ export const BorrowerTab = React.memo(() => {
                     value={selectedBorrower.ssnEin}
                     onChange={(e) => handleSsnEinChange(e.target.value)}
                     placeholder="XXX-XX-XXXX or XX-XXXXXXX"
+                    aria-label="SSN or EIN"
                     className={`${styles.inputBg} ${getInputStyle('ssnEin')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
@@ -452,6 +460,7 @@ export const BorrowerTab = React.memo(() => {
                     value={selectedBorrower.dob}
                     onChange={(e) => handleDateChange('dob', e.target.value)}
                     placeholder="MM/DD/YY"
+                    aria-label="Date of Birth"
                     className={`${styles.inputBg} ${getInputStyle('dob')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
@@ -470,6 +479,7 @@ export const BorrowerTab = React.memo(() => {
                     onChange={(e) => handleCreditScoreChange(e.target.value)}
                     placeholder="300-850"
                     maxLength={3}
+                    aria-label="Credit Score"
                     className={`${styles.inputBg} ${getInputStyle('creditScore')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
@@ -480,6 +490,7 @@ export const BorrowerTab = React.memo(() => {
                     value={selectedBorrower.creditScoreDate}
                     onChange={(e) => handleDateChange('creditScoreDate', e.target.value)}
                     placeholder="MM/DD/YY"
+                    aria-label="Credit Score Date"
                     className={`${styles.inputBg} ${getInputStyle('creditScoreDate')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
@@ -496,6 +507,7 @@ export const BorrowerTab = React.memo(() => {
                     <select
                       value={selectedBorrower.bkStatus}
                       onChange={(e) => handleBorrowerFieldChange('bkStatus', e.target.value)}
+                      aria-label="Bankruptcy Status"
                       className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     >
                       <option value="none">None</option>
@@ -510,6 +522,7 @@ export const BorrowerTab = React.memo(() => {
                     <select
                       value={selectedBorrower.bkChapter}
                       onChange={(e) => handleBorrowerFieldChange('bkChapter', e.target.value)}
+                      aria-label="Bankruptcy Chapter"
                       className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                       disabled={selectedBorrower.bkStatus === 'none'}
                     >
@@ -528,6 +541,7 @@ export const BorrowerTab = React.memo(() => {
                     type="text"
                     value={selectedBorrower.bkCourtCase}
                     onChange={(e) => handleBorrowerFieldChange('bkCourtCase', e.target.value)}
+                    aria-label="Bankruptcy Court Case Number"
                     className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     disabled={selectedBorrower.bkStatus === 'none'}
                   />
@@ -538,6 +552,7 @@ export const BorrowerTab = React.memo(() => {
                     type="text"
                     value={selectedBorrower.bkCourtLocation}
                     onChange={(e) => handleBorrowerFieldChange('bkCourtLocation', e.target.value)}
+                    aria-label="Bankruptcy Court Location"
                     className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     disabled={selectedBorrower.bkStatus === 'none'}
                   />
@@ -547,6 +562,7 @@ export const BorrowerTab = React.memo(() => {
                   <select
                     value={selectedBorrower.bkAssets}
                     onChange={(e) => handleBorrowerFieldChange('bkAssets', e.target.value)}
+                    aria-label="Bankruptcy Assets"
                     className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     disabled={selectedBorrower.bkStatus === 'none'}
                   >
@@ -606,6 +622,7 @@ export const BorrowerTab = React.memo(() => {
                           value={loanRel.role}
                           onChange={(e) => changeLoanRole(loan.mwLoanNo, e.target.value)}
                           disabled={!loanRel.selected}
+                          aria-label="Borrower Role"
                           className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-0.5 text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                           onClick={(e) => e.stopPropagation()}
                         >

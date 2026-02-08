@@ -368,6 +368,7 @@ export const CollateralTab = React.memo(() => {
                     type="text"
                     value={selectedCollateral.description}
                     onChange={(e) => handleCollateralFieldChange('description', e.target.value)}
+                    aria-label="Description"
                     className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
@@ -377,6 +378,7 @@ export const CollateralTab = React.memo(() => {
                     type="text"
                     value={selectedCollateral.address1}
                     onChange={(e) => handleCollateralFieldChange('address1', e.target.value)}
+                    aria-label="Address"
                     className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
@@ -387,6 +389,7 @@ export const CollateralTab = React.memo(() => {
                       type="text"
                       value={selectedCollateral.city}
                       onChange={(e) => handleCollateralFieldChange('city', e.target.value)}
+                      aria-label="City"
                       className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     />
                   </div>
@@ -395,6 +398,7 @@ export const CollateralTab = React.memo(() => {
                     <select
                       value={selectedCollateral.state}
                       onChange={(e) => handleCollateralFieldChange('state', e.target.value)}
+                      aria-label="State"
                       className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     >
                       {US_STATES.map(state => (
@@ -408,6 +412,7 @@ export const CollateralTab = React.memo(() => {
                       type="text"
                       value={selectedCollateral.zip}
                       onChange={(e) => handleCollateralFieldChange('zip', e.target.value)}
+                      aria-label="Zip Code"
                       className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     />
                   </div>
@@ -419,6 +424,7 @@ export const CollateralTab = React.memo(() => {
                       type="text"
                       value={selectedCollateral.county}
                       onChange={(e) => handleCollateralFieldChange('county', e.target.value)}
+                      aria-label="County"
                       className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     />
                   </div>
@@ -428,6 +434,7 @@ export const CollateralTab = React.memo(() => {
                       type="text"
                       value={selectedCollateral.parcelId}
                       onChange={(e) => handleCollateralFieldChange('parcelId', e.target.value)}
+                      aria-label="Parcel ID"
                       className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     />
                   </div>
@@ -440,6 +447,7 @@ export const CollateralTab = React.memo(() => {
                       value={localSqft}
                       onChange={(e) => handleIntegerChange('sqft', e.target.value, setLocalSqft)}
                       placeholder="0"
+                      aria-label="Square Feet"
                       className={`${styles.inputBg} ${getInputStyle('sqft')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     />
                   </div>
@@ -449,6 +457,7 @@ export const CollateralTab = React.memo(() => {
                       type="text"
                       value={selectedCollateral.acres}
                       onChange={(e) => handleCollateralFieldChange('acres', e.target.value)}
+                      aria-label="Acres"
                       className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     />
                   </div>
@@ -458,6 +467,7 @@ export const CollateralTab = React.memo(() => {
                       type="text"
                       value={selectedCollateral.yearBuilt}
                       onChange={(e) => handleCollateralFieldChange('yearBuilt', e.target.value)}
+                      aria-label="Year Built"
                       className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     />
                   </div>
@@ -467,6 +477,7 @@ export const CollateralTab = React.memo(() => {
                       type="text"
                       value={selectedCollateral.units}
                       onChange={(e) => handleCollateralFieldChange('units', e.target.value)}
+                      aria-label="Units"
                       className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                     />
                   </div>
@@ -493,6 +504,7 @@ export const CollateralTab = React.memo(() => {
                     value={localListPrice}
                     onChange={(e) => handleCurrencyChange('listPrice', e.target.value, setLocalListPrice)}
                     placeholder="0.00"
+                    aria-label="List Price"
                     className={`${styles.inputBg} ${getInputStyle('listPrice')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
@@ -502,6 +514,7 @@ export const CollateralTab = React.memo(() => {
                     value={localAppraisedValue}
                     onChange={(e) => handleCurrencyChange('appraisedValue', e.target.value, setLocalAppraisedValue)}
                     placeholder="0.00"
+                    aria-label="Appraised Value"
                     className={`${styles.inputBg} ${getInputStyle('appraisedValue')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
@@ -511,6 +524,7 @@ export const CollateralTab = React.memo(() => {
                     value={localOurValue}
                     onChange={(e) => handleCurrencyChange('ourValue', e.target.value, setLocalOurValue)}
                     placeholder="0.00"
+                    aria-label="Our Value"
                     className={`${styles.inputBg} ${getInputStyle('ourValue')} border rounded px-2 py-1 w-full text-xs ${styles.textGreen} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
@@ -520,6 +534,7 @@ export const CollateralTab = React.memo(() => {
                     value={localBpoValue}
                     onChange={(e) => handleCurrencyChange('bpoValue', e.target.value, setLocalBpoValue)}
                     placeholder="0.00"
+                    aria-label="BPO Value"
                     className={`${styles.inputBg} ${getInputStyle('bpoValue')} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
                 </div>
@@ -531,6 +546,7 @@ export const CollateralTab = React.memo(() => {
                     type="text"
                     value={selectedCollateral.listPrice && selectedCollateral.sqft ?
                       `$${calculatePerSqft(selectedCollateral.listPrice, selectedCollateral.sqft)}` : '$0'}
+                    aria-label="List Price per Square Foot"
                     className={`${styles.readOnlyBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textYellow} font-medium focus:outline-none cursor-not-allowed`}
                     readOnly
                   />
@@ -541,6 +557,7 @@ export const CollateralTab = React.memo(() => {
                     type="text"
                     value={selectedCollateral.appraisedValue && selectedCollateral.sqft ?
                       `$${calculatePerSqft(selectedCollateral.appraisedValue, selectedCollateral.sqft)}` : '$0'}
+                    aria-label="Appraised Value per Square Foot"
                     className={`${styles.readOnlyBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textYellow} font-medium focus:outline-none cursor-not-allowed`}
                     readOnly
                   />
@@ -551,6 +568,7 @@ export const CollateralTab = React.memo(() => {
                     type="text"
                     value={selectedCollateral.ourValue && selectedCollateral.sqft ?
                       `$${calculatePerSqft(selectedCollateral.ourValue, selectedCollateral.sqft)}` : '$0'}
+                    aria-label="Our Value per Square Foot"
                     className={`${styles.readOnlyBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textYellow} font-medium focus:outline-none cursor-not-allowed`}
                     readOnly
                   />
@@ -561,6 +579,7 @@ export const CollateralTab = React.memo(() => {
                     type="text"
                     value={selectedCollateral.bpoValue && selectedCollateral.sqft ?
                       `$${calculatePerSqft(selectedCollateral.bpoValue, selectedCollateral.sqft)}` : '$0'}
+                    aria-label="BPO per Square Foot"
                     className={`${styles.readOnlyBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textYellow} font-medium focus:outline-none cursor-not-allowed`}
                     readOnly
                   />

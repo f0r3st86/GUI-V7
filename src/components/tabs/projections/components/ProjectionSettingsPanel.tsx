@@ -36,6 +36,7 @@ export const ProjectionSettingsPanel: React.FC<ProjectionSettingsPanelProps> = (
           <select
             value={projSettings.paymentMethod}
             onChange={(e) => updateProjSetting('paymentMethod', e.target.value as typeof projSettings.paymentMethod)}
+            aria-label="Payment Method"
             className={inputClass}
           >
             {PAYMENT_METHODS.map(method => (
@@ -56,6 +57,7 @@ export const ProjectionSettingsPanel: React.FC<ProjectionSettingsPanelProps> = (
                 type="text"
                 value={projSettings.userPayment}
                 onChange={(e) => updateProjSetting('userPayment', e.target.value)}
+                aria-label="User Payment Amount"
                 placeholder="0.00"
                 className={inputClass}
               />
@@ -69,6 +71,7 @@ export const ProjectionSettingsPanel: React.FC<ProjectionSettingsPanelProps> = (
                 type="text"
                 value={projSettings.amortMonths}
                 onChange={(e) => updateProjSetting('amortMonths', e.target.value)}
+                aria-label="Amortization Months"
                 placeholder="360"
                 className={inputClass}
               />
@@ -82,6 +85,7 @@ export const ProjectionSettingsPanel: React.FC<ProjectionSettingsPanelProps> = (
           <select
             value={projSettings.rateMethod}
             onChange={(e) => updateProjSetting('rateMethod', e.target.value as typeof projSettings.rateMethod)}
+            aria-label="Rate Method"
             className={inputClass}
           >
             {RATE_METHODS.map(method => (
@@ -100,6 +104,7 @@ export const ProjectionSettingsPanel: React.FC<ProjectionSettingsPanelProps> = (
                 type="text"
                 value={projSettings.userRate}
                 onChange={(e) => updateProjSetting('userRate', e.target.value)}
+                aria-label="User Rate"
                 placeholder="0.00"
                 className={inputClass}
               />
@@ -118,6 +123,7 @@ export const ProjectionSettingsPanel: React.FC<ProjectionSettingsPanelProps> = (
               type="text"
               value={projSettings.initialLegal}
               onChange={(e) => updateProjSetting('initialLegal', e.target.value)}
+              aria-label="Initial Legal Cost"
               placeholder="0"
               className={inputClassXs}
             />
@@ -128,6 +134,7 @@ export const ProjectionSettingsPanel: React.FC<ProjectionSettingsPanelProps> = (
               type="text"
               value={projSettings.initialLegalStartMonth}
               onChange={(e) => updateProjSetting('initialLegalStartMonth', e.target.value)}
+              aria-label="Legal Cost Start Month"
               placeholder="1"
               className={inputClassXs}
             />
@@ -138,6 +145,7 @@ export const ProjectionSettingsPanel: React.FC<ProjectionSettingsPanelProps> = (
               type="text"
               value={projSettings.holdingCosts}
               onChange={(e) => updateProjSetting('holdingCosts', e.target.value)}
+              aria-label="Holding Costs"
               placeholder="0"
               className={inputClassXs}
             />
@@ -148,6 +156,7 @@ export const ProjectionSettingsPanel: React.FC<ProjectionSettingsPanelProps> = (
               type="text"
               value={projSettings.holdingCostsEndMonth}
               onChange={(e) => updateProjSetting('holdingCostsEndMonth', e.target.value)}
+              aria-label="Holding Costs Through Month"
               placeholder="12"
               className={inputClassXs}
             />
@@ -159,6 +168,7 @@ export const ProjectionSettingsPanel: React.FC<ProjectionSettingsPanelProps> = (
             <select
               value={projSettings.addBackBasis || 'Initial Only'}
               onChange={(e) => updateProjSetting('addBackBasis', e.target.value as 'Initial Only' | 'Initial + Holding')}
+              aria-label="Add Back Basis"
               className={inputClassXs}
             >
               <option value="Initial Only">Initial Only</option>
@@ -172,6 +182,7 @@ export const ProjectionSettingsPanel: React.FC<ProjectionSettingsPanelProps> = (
               value={projSettings.addBackPercentage || ''}
               onChange={(e) => handleAddBackPercentageChange(e.target.value)}
               onBlur={(e) => handleAddBackPercentageBlur(e.target.value)}
+              aria-label="Recovery Percentage"
               placeholder="0"
               className={inputClassXs}
             />

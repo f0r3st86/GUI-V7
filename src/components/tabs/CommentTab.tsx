@@ -179,6 +179,7 @@ export const CommentTab = React.memo(() => {
                   <select
                     value={selectedComment.loanNo}
                     onChange={(e) => handleCommentFieldChange('loanNo', e.target.value)}
+                    aria-label="Loan Number"
                     className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} font-medium focus:outline-none ${styles.focusBorder}`}
                   >
                     {(loans || []).map(loan => (
@@ -193,6 +194,7 @@ export const CommentTab = React.memo(() => {
                   <select
                     value={selectedComment.commentType}
                     onChange={(e) => handleCommentFieldChange('commentType', e.target.value)}
+                    aria-label="Comment Type"
                     className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   >
                     {COMMENT_TYPES.map(type => (
@@ -206,6 +208,7 @@ export const CommentTab = React.memo(() => {
                     type="text"
                     value={selectedComment.date}
                     onChange={(e) => handleCommentFieldChange('date', e.target.value)}
+                    aria-label="Comment Date"
                     placeholder="MM/DD/YY"
                     className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
                   />
@@ -218,6 +221,7 @@ export const CommentTab = React.memo(() => {
                 <textarea
                   value={selectedComment.text}
                   onChange={(e) => handleCommentFieldChange('text', e.target.value)}
+                  aria-label="Comment Text"
                   placeholder="Enter comment text here. Can be as long as needed - perfect for note history, detailed underwriting notes, legal documentation, etc."
                   className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-xs ${styles.textPrimary} focus:outline-none ${styles.focusBorder} font-mono`}
                   style={{ minHeight: '400px', resize: 'vertical' }}

@@ -80,6 +80,7 @@ export const OverviewTab = React.memo(() => {
             setRelationshipOverview(e.target.value);
             autoResize(e.target);
           }}
+          aria-label="Relationship Overview"
           placeholder="Enter relationship overview details..."
           className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder} resize-none overflow-hidden`}
           style={{ minHeight: '150px' }}
@@ -96,6 +97,7 @@ export const OverviewTab = React.memo(() => {
             setCollateralOverview(e.target.value);
             autoResize(e.target);
           }}
+          aria-label="Collateral Overview"
           placeholder="Enter collateral overview details..."
           className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder} resize-none overflow-hidden`}
           style={{ minHeight: '150px' }}
@@ -109,6 +111,7 @@ export const OverviewTab = React.memo(() => {
           type="text"
           value={bidConditions}
           onChange={(e) => setBidConditions(e.target.value)}
+          aria-label="Bid Conditions"
           placeholder="Enter bid conditions..."
           className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
         />

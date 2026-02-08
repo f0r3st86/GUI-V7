@@ -33,6 +33,7 @@ export const BidStatisticsPanel: React.FC<BidStatisticsPanelProps> = ({
             type="text"
             value={discountRate}
             onChange={(e) => setDiscountRate(e.target.value)}
+            aria-label="Discount Rate"
             placeholder="15"
             className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 ${compact ? 'w-12' : 'w-16'} text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
           />

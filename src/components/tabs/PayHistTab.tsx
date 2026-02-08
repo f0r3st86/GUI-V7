@@ -343,6 +343,7 @@ export const PayHistTab = React.memo(() => {
                         value={record.year}
                         onChange={(e) => handleCellEdit(record.id, 'year', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, record.id, 'year')}
+                        aria-label="Payment Year"
                         placeholder="YYYY"
                         maxLength={4}
                         className={`w-full px-3 py-2 text-xs ${styles.textPrimary} bg-transparent focus:outline-none ${
@@ -360,6 +361,7 @@ export const PayHistTab = React.memo(() => {
                         value={record.month}
                         onChange={(e) => handleCellEdit(record.id, 'month', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, record.id, 'month')}
+                        aria-label="Payment Month"
                         placeholder="1-12"
                         maxLength={2}
                         className={`w-full px-3 py-2 text-xs ${styles.textPrimary} bg-transparent focus:outline-none ${
@@ -421,6 +423,7 @@ export const PayHistTab = React.memo(() => {
               type="text"
               value={payHistDate}
               onChange={(e) => setPayHistDate(e.target.value)}
+              aria-label="Pay History Date"
               placeholder="M-D-YY (e.g., 9-12-25)"
               className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
             />

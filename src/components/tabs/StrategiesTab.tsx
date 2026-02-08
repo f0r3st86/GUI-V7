@@ -69,6 +69,7 @@ export const StrategiesTab = React.memo(() => {
             setStrategies(e.target.value);
             autoResize(e.target);
           }}
+          aria-label="Strategies"
           placeholder="Enter strategy notes..."
           className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-2 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder} resize-none overflow-hidden`}
           style={{ minHeight: '150px' }}

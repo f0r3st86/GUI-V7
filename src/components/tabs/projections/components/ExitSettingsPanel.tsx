@@ -49,6 +49,7 @@ export const ExitSettingsPanel: React.FC<ExitSettingsPanelProps> = ({
             value={startMonthInput}
             onChange={(e) => handleStartMonthChange(e.target.value)}
             onBlur={handleStartMonthBlur}
+            aria-label="Cash Flow Start Month"
             placeholder="1"
             className={inputClass}
           />
@@ -61,6 +62,7 @@ export const ExitSettingsPanel: React.FC<ExitSettingsPanelProps> = ({
             value={endMonthInput}
             onChange={(e) => handleEndMonthChange(e.target.value)}
             onBlur={handleEndMonthBlur}
+            aria-label="Exit Month"
             placeholder="24"
             className={inputClass}
           />
@@ -75,6 +77,7 @@ export const ExitSettingsPanel: React.FC<ExitSettingsPanelProps> = ({
         <select
           value={exitSettings.method}
           onChange={(e) => updateExitSetting('method', e.target.value as typeof exitSettings.method)}
+          aria-label="Exit Type"
           className={inputClass}
         >
           {EXIT_METHODS.map(method => (
@@ -91,6 +94,7 @@ export const ExitSettingsPanel: React.FC<ExitSettingsPanelProps> = ({
             type="text"
             value={exitSettings.dpoPercentage}
             onChange={(e) => updateExitSetting('dpoPercentage', e.target.value)}
+            aria-label="DPO Percentage"
             placeholder="95"
             className={inputClass}
           />
@@ -104,6 +108,7 @@ export const ExitSettingsPanel: React.FC<ExitSettingsPanelProps> = ({
             type="text"
             value={exitSettings.valueCapPercentage}
             onChange={(e) => updateExitSetting('valueCapPercentage', e.target.value)}
+            aria-label="Value Cap Percentage"
             placeholder="90"
             className={inputClass}
           />
@@ -117,6 +122,7 @@ export const ExitSettingsPanel: React.FC<ExitSettingsPanelProps> = ({
             type="text"
             value={exitSettings.userEnterAmount}
             onChange={(e) => updateExitSetting('userEnterAmount', e.target.value)}
+            aria-label="Exit Value"
             placeholder="0.00"
             className={inputClass}
           />
@@ -130,6 +136,7 @@ export const ExitSettingsPanel: React.FC<ExitSettingsPanelProps> = ({
             type="text"
             value={exitSettings.ytmDesired}
             onChange={(e) => updateExitSetting('ytmDesired', e.target.value)}
+            aria-label="Desired YTM Percentage"
             placeholder="12.00"
             className={inputClass}
           />
@@ -144,6 +151,7 @@ export const ExitSettingsPanel: React.FC<ExitSettingsPanelProps> = ({
               type="text"
               value={exitSettings.liquidationMonths}
               onChange={(e) => updateExitSetting('liquidationMonths', e.target.value)}
+              aria-label="Liquidation Months"
               placeholder="12"
               className={inputClass}
             />
