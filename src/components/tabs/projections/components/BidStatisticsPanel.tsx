@@ -44,7 +44,7 @@ export const BidStatisticsPanel: React.FC<BidStatisticsPanelProps> = ({
       <div className={`grid grid-cols-2 ${gap}`}>
         <div className={`${styles.readOnlyBg} rounded ${padding} ${styles.inputBorder} border`}>
           <div className={`text-xs ${styles.textMuted} mb-1`}>Bid Price</div>
-          <div className={`${metricSize} font-bold ${bidStatistics.bidPrice >= 0 ? styles.textGreen : 'text-red-500'}`}>
+          <div className={`${metricSize} font-bold ${bidStatistics.bidPrice >= 0 ? styles.textGreen : styles.textRed}`}>
             ${bidStatistics.bidPrice.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
           </div>
         </div>
@@ -66,7 +66,7 @@ export const BidStatisticsPanel: React.FC<BidStatisticsPanelProps> = ({
         </div>
         <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
           <div className={`text-xs ${styles.textMuted}`}>Cash Yield</div>
-          <div className={`${secondarySize} font-medium ${bidStatistics.cashYield >= 0 ? styles.textGreen : 'text-red-500'}`}>
+          <div className={`${secondarySize} font-medium ${bidStatistics.cashYield >= 0 ? styles.textGreen : styles.textRed}`}>
             {bidStatistics.cashYield.toFixed(1)}%
           </div>
         </div>
@@ -75,7 +75,7 @@ export const BidStatisticsPanel: React.FC<BidStatisticsPanelProps> = ({
           <div className={`${secondarySize} font-medium ${
             bidStatistics.bidToCollateralPercentage <= 70 ? styles.textGreen :
             bidStatistics.bidToCollateralPercentage <= 90 ? styles.textYellow :
-            'text-red-500'
+            styles.textRed
           }`}>
             {bidStatistics.bidToCollateralPercentage.toFixed(1)}%
           </div>
@@ -84,7 +84,7 @@ export const BidStatisticsPanel: React.FC<BidStatisticsPanelProps> = ({
           <div className={`text-xs ${styles.textMuted}`}>F12/P12</div>
           <div className={`${secondarySize} font-medium ${
             bidStatistics.f12vsP12Change > 0 ? styles.textGreen :
-            bidStatistics.f12vsP12Change < 0 ? 'text-red-500' :
+            bidStatistics.f12vsP12Change < 0 ? styles.textRed :
             styles.textPrimary
           }`}>
             {bidStatistics.p12CashFlow > 0 ? (
@@ -101,14 +101,14 @@ export const BidStatisticsPanel: React.FC<BidStatisticsPanelProps> = ({
         <div className={`grid grid-cols-2 ${gap}`}>
           <div className={`${styles.readOnlyBg} rounded ${padding} ${styles.inputBorder} border`}>
             <div className={`text-xs ${styles.textMuted} mb-1`}>YTM (IRR)</div>
-            <div className={`${metricSize} font-bold ${bidStatistics.ytm >= 0 ? styles.textGreen : 'text-red-500'}`}>
+            <div className={`${metricSize} font-bold ${bidStatistics.ytm >= 0 ? styles.textGreen : styles.textRed}`}>
               {bidStatistics.ytm.toFixed(2)}%
             </div>
             {!compact && <div className={`text-xs ${styles.textMuted} mt-1`}>Contractual + exit</div>}
           </div>
           <div className={`${styles.readOnlyBg} rounded ${padding} ${styles.inputBorder} border`}>
             <div className={`text-xs ${styles.textMuted} mb-1`}>YTM (XIRR)</div>
-            <div className={`${metricSize} font-bold ${bidStatistics.ytmXirr >= 0 ? styles.textGreen : 'text-red-500'}`}>
+            <div className={`${metricSize} font-bold ${bidStatistics.ytmXirr >= 0 ? styles.textGreen : styles.textRed}`}>
               {bidStatistics.ytmXirr.toFixed(2)}%
             </div>
             {!compact && <div className={`text-xs ${styles.textMuted} mt-1`}>Date-adjusted</div>}

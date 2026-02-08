@@ -347,8 +347,8 @@ export const PayHistTab = React.memo(() => {
                         maxLength={4}
                         className={`w-full px-3 py-2 text-xs ${styles.textPrimary} bg-transparent focus:outline-none ${
                           isFieldInvalid(record.id, 'year')
-                            ? 'ring-1 ring-red-500'
-                            : 'focus:ring-1 focus:ring-green-500'
+                            ? `ring-1 ${styles.invalidRing}`
+                            : `focus:ring-1 focus:${styles.validRing}`
                         }`}
                         style={{ border: 'none' }}
                       />
@@ -364,8 +364,8 @@ export const PayHistTab = React.memo(() => {
                         maxLength={2}
                         className={`w-full px-3 py-2 text-xs ${styles.textPrimary} bg-transparent focus:outline-none ${
                           isFieldInvalid(record.id, 'month')
-                            ? 'ring-1 ring-red-500'
-                            : 'focus:ring-1 focus:ring-green-500'
+                            ? `ring-1 ${styles.invalidRing}`
+                            : `focus:ring-1 focus:${styles.validRing}`
                         }`}
                         style={{ border: 'none' }}
                       />
@@ -382,8 +382,8 @@ export const PayHistTab = React.memo(() => {
                         title="You can enter calculations like 500+108.15 or 608.15*2"
                         className={`w-full px-3 py-2 text-xs ${styles.textGreen} bg-transparent focus:outline-none ${
                           isFieldInvalid(record.id, 'amount')
-                            ? 'ring-1 ring-red-500'
-                            : 'focus:ring-1 focus:ring-green-500'
+                            ? `ring-1 ${styles.invalidRing}`
+                            : `focus:ring-1 focus:${styles.validRing}`
                         }`}
                         style={{ border: 'none' }}
                       />
@@ -392,7 +392,7 @@ export const PayHistTab = React.memo(() => {
                       {record.year && record.month && record.amount && index < filteredRecords.length - 1 && (
                         <button
                           onClick={() => deletePaymentRow(record.id)}
-                          className={`${styles.textMuted} hover:text-red-500 text-xs`}
+                          className={`${styles.textMuted} ${styles.hoverDanger} text-xs`}
                           title="Delete row"
                         >
                           x
@@ -425,7 +425,7 @@ export const PayHistTab = React.memo(() => {
               className={`${styles.inputBg} ${styles.inputBorder} border rounded px-3 py-1.5 w-full text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
             />
             {payHistDate && !parsedPayHistDate && (
-              <p className="text-red-500 text-xs mt-1">Invalid date format. Use M-D-YY</p>
+              <p className={`${styles.textRed} text-xs mt-1`}>Invalid date format. Use M-D-YY</p>
             )}
             {parsedPayHistDate && (
               <p className={`text-xs mt-1 ${styles.textGreen}`}>
@@ -508,7 +508,7 @@ export const PayHistTab = React.memo(() => {
                       <span className={`text-base ${styles.textMuted}`}>% Cont.</span>
                       <span className={`text-base font-medium ${
                         trailing12.percentOfContractual >= 100 ? styles.textGreen :
-                        trailing12.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
+                        trailing12.percentOfContractual >= 80 ? styles.textYellow : styles.textRed
                       }`}>
                         {trailing12.percentOfContractual.toFixed(1)}%
                       </span>
@@ -542,7 +542,7 @@ export const PayHistTab = React.memo(() => {
                       <span className={`text-base ${styles.textMuted}`}>% Cont.</span>
                       <span className={`text-base font-medium ${
                         trailing6.percentOfContractual >= 100 ? styles.textGreen :
-                        trailing6.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
+                        trailing6.percentOfContractual >= 80 ? styles.textYellow : styles.textRed
                       }`}>
                         {trailing6.percentOfContractual.toFixed(1)}%
                       </span>
@@ -576,7 +576,7 @@ export const PayHistTab = React.memo(() => {
                       <span className={`text-base ${styles.textMuted}`}>% Cont.</span>
                       <span className={`text-base font-medium ${
                         trailing3.percentOfContractual >= 100 ? styles.textGreen :
-                        trailing3.percentOfContractual >= 80 ? styles.textYellow : 'text-red-500'
+                        trailing3.percentOfContractual >= 80 ? styles.textYellow : styles.textRed
                       }`}>
                         {trailing3.percentOfContractual.toFixed(1)}%
                       </span>

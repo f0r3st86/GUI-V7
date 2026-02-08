@@ -146,7 +146,7 @@ export const CommentTab = React.memo(() => {
                             e.stopPropagation();
                             handleDeleteComment(comment.id);
                           }}
-                          className={`${styles.textMuted} hover:text-red-500 text-xs`}
+                          className={`${styles.textMuted} ${styles.hoverDanger} text-xs`}
                           title="Delete comment"
                         >
                           x

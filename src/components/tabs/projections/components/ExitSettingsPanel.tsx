@@ -168,7 +168,7 @@ export const ExitSettingsPanel: React.FC<ExitSettingsPanelProps> = ({
         <div className="grid grid-cols-3 gap-2">
           <div className={`${styles.readOnlyBg} rounded p-2 ${styles.inputBorder} border text-center`}>
             <div className={`text-xs ${styles.textMuted}`}>Exit Value</div>
-            <div className={`text-sm font-medium ${calculatedExitValue < 0 ? 'text-red-500' : styles.textYellow}`}>
+            <div className={`text-sm font-medium ${calculatedExitValue < 0 ? styles.textRed : styles.textYellow}`}>
               ${(isFinite(calculatedExitValue) ? calculatedExitValue : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
             </div>
           </div>

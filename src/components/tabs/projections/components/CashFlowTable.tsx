@@ -40,9 +40,9 @@ export const CashFlowTable: React.FC<CashFlowTableProps> = ({
       case 'income':
         return amount! > 0 ? styles.textGreen : styles.textSecondary;
       case 'expense':
-        return amount! > 0 ? 'text-red-500' : styles.textSecondary;
+        return amount! > 0 ? styles.textRed : styles.textSecondary;
       case 'net':
-        return amount! > 0 ? styles.textGreen : amount! < 0 ? 'text-red-500' : styles.textSecondary;
+        return amount! > 0 ? styles.textGreen : amount! < 0 ? styles.textRed : styles.textSecondary;
       default:
         return styles.textSecondary;
     }
@@ -53,9 +53,9 @@ export const CashFlowTable: React.FC<CashFlowTableProps> = ({
       case 'income':
         return sum > 0 ? styles.textGreen : styles.textSecondary;
       case 'expense':
-        return sum > 0 ? 'text-red-500' : styles.textSecondary;
+        return sum > 0 ? styles.textRed : styles.textSecondary;
       case 'net':
-        return sum > 0 ? styles.textGreen : sum < 0 ? 'text-red-500' : styles.textSecondary;
+        return sum > 0 ? styles.textGreen : sum < 0 ? styles.textRed : styles.textSecondary;
       default:
         return styles.textSecondary;
     }

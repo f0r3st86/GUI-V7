@@ -26,8 +26,10 @@ const getThemeStyles = (theme: Theme): ThemeStyles => ({
   textMuted: theme === 'dark' ? 'text-gray-400' : 'text-gray-500',
   textGreen: theme === 'dark' ? 'text-green-400' : 'text-green-600',
   textYellow: theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600',
+  textRed: theme === 'dark' ? 'text-red-400' : 'text-red-600',
 
   // Hover states
+  hoverDanger: theme === 'dark' ? 'hover:text-red-400' : 'hover:text-red-600',
   hoverBg: theme === 'dark' ? 'hover:bg-zinc-800/30' : 'hover:bg-gray-100',
   hoverText: theme === 'dark' ? 'hover:text-white' : 'hover:text-gray-900',
   buttonHover: theme === 'dark' ? 'hover:bg-zinc-600' : 'hover:bg-gray-300',
@@ -38,6 +40,12 @@ const getThemeStyles = (theme: Theme): ThemeStyles => ({
   activeBg: theme === 'dark' ? 'bg-zinc-800' : 'bg-gray-200',
   activeTabBg: theme === 'dark' ? 'bg-zinc-800' : 'bg-gray-100',
   inactiveTabBg: theme === 'dark' ? 'bg-zinc-900/50' : 'bg-gray-50',
+
+  // Validation
+  invalidBorder: theme === 'dark' ? 'border-red-500' : 'border-red-500',
+  invalidBg: theme === 'dark' ? 'bg-red-500/20' : 'bg-red-50',
+  validRing: theme === 'dark' ? 'ring-green-500' : 'ring-green-600',
+  invalidRing: theme === 'dark' ? 'ring-red-500' : 'ring-red-600',
 
   // Special elements
   alertBg: theme === 'dark' ? 'bg-red-900/20' : 'bg-red-50',

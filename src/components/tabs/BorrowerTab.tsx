@@ -95,7 +95,7 @@ export const BorrowerTab = React.memo(() => {
   // Helper: Get input border style (red if invalid)
   const getInputStyle = (field: string) => {
     if (validationErrors[field]) {
-      return 'border-red-500';
+      return styles.invalidBorder;
     }
     return `${styles.inputBorder}`;
   };
@@ -313,7 +313,7 @@ export const BorrowerTab = React.memo(() => {
                   <td className={`px-2 py-2 text-center`}>
                     <span className={`px-2 py-0.5 rounded text-xs ${
                       borrower.bkStatus === 'none' ? styles.textMuted :
-                      borrower.bkStatus === 'open' ? 'bg-red-500/20 text-red-400' :
+                      borrower.bkStatus === 'open' ? `${styles.invalidBg} ${styles.textRed}` :
                       borrower.bkStatus === 'dismissed' ? 'bg-yellow-500/20 text-yellow-400' :
                       borrower.bkStatus === 'discharged' ? 'bg-green-500/20 text-green-400' :
                       styles.textMuted
@@ -330,7 +330,7 @@ export const BorrowerTab = React.memo(() => {
                         e.stopPropagation();
                         showDeleteConfirmation(borrower.id, borrower.name);
                       }}
-                      className={`${styles.textMuted} hover:text-red-500 transition-colors`}
+                      className={`${styles.textMuted} ${styles.hoverDanger} transition-colors`}
                       disabled={relationshipBorrowers.length === 1}
                       title={relationshipBorrowers.length === 1 ? "Cannot delete last borrower" : "Delete borrower"}
                     >

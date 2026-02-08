@@ -21,9 +21,12 @@ import {
   initialComments,
   initialPaymentRecords
 } from '../data';
+import { MOCK_DELAY_MIN, MOCK_DELAY_MAX } from '../data/constants';
 
 // Simulate network delay (50-200ms like real API)
-const mockDelay = () => new Promise(resolve => setTimeout(resolve, Math.random() * 150 + 50));
+const mockDelay = () => new Promise(resolve =>
+  setTimeout(resolve, Math.random() * (MOCK_DELAY_MAX - MOCK_DELAY_MIN) + MOCK_DELAY_MIN)
+);
 
 // Fast/no delay for frequently-updated data (payments during typing)
 const noDelay = () => Promise.resolve();

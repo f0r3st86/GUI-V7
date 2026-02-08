@@ -1,6 +1,27 @@
 // Constants extracted from original monolithic component
 import type { USState } from '../types';
 
+// ==================== TIMING CONSTANTS ====================
+
+/** Default debounce delay for form field inputs (ms) */
+export const DEBOUNCE_DELAY = 500;
+
+/** Default debounce delay for search inputs (ms) */
+export const DEBOUNCE_DELAY_SEARCH = 300;
+
+/** Mock API simulated network delay range (ms) */
+export const MOCK_DELAY_MIN = 50;
+export const MOCK_DELAY_MAX = 200;
+
+/** React Query cache timing */
+export const QUERY_STALE_TIME = 5 * 60 * 1000;   // 5 minutes
+export const QUERY_GC_TIME = 10 * 60 * 1000;      // 10 minutes
+
+/** Textarea minimum height (px) */
+export const TEXTAREA_MIN_HEIGHT = 150;
+
+// ==================== DATA CONSTANTS ====================
+
 // US States constant for dropdowns
 export const US_STATES: USState[] = [
   { code: '', name: 'Select State' },

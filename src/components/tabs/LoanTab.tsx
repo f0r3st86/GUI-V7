@@ -1,7 +1,7 @@
 // LoanTab component - displays loan details in 5-column grid layout
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme, useLoan } from '../../context';
-import { US_STATES } from '../../data';
+import { US_STATES, DEBOUNCE_DELAY } from '../../data';
 import {
   calculateInterestAccrued,
   calculateMonthsToMaturity,
@@ -61,18 +61,18 @@ export const LoanTab = React.memo(() => {
   const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
 
   // Debounce expensive calculation inputs (500ms delay)
-  const debouncedPrincipal = useDebounce(localPrincipal, 500);
-  const debouncedInterest = useDebounce(localInterest, 500);
-  const debouncedOrigBalance = useDebounce(localOrigBalance, 500);
-  const debouncedEscrow = useDebounce(localEscrow, 500);
-  const debouncedOther = useDebounce(localOther, 500);
-  const debouncedPmt = useDebounce(localPmt, 500);
-  const debouncedEscPmt = useDebounce(localEscPmt, 500);
-  const debouncedIntRate = useDebounce(localIntRate, 500);
-  const debouncedDRate = useDebounce(localDRate, 500);
-  const debouncedFloor = useDebounce(localFloor, 500);
-  const debouncedCeiling = useDebounce(localCeiling, 500);
-  const debouncedMargin = useDebounce(localMargin, 500);
+  const debouncedPrincipal = useDebounce(localPrincipal, DEBOUNCE_DELAY);
+  const debouncedInterest = useDebounce(localInterest, DEBOUNCE_DELAY);
+  const debouncedOrigBalance = useDebounce(localOrigBalance, DEBOUNCE_DELAY);
+  const debouncedEscrow = useDebounce(localEscrow, DEBOUNCE_DELAY);
+  const debouncedOther = useDebounce(localOther, DEBOUNCE_DELAY);
+  const debouncedPmt = useDebounce(localPmt, DEBOUNCE_DELAY);
+  const debouncedEscPmt = useDebounce(localEscPmt, DEBOUNCE_DELAY);
+  const debouncedIntRate = useDebounce(localIntRate, DEBOUNCE_DELAY);
+  const debouncedDRate = useDebounce(localDRate, DEBOUNCE_DELAY);
+  const debouncedFloor = useDebounce(localFloor, DEBOUNCE_DELAY);
+  const debouncedCeiling = useDebounce(localCeiling, DEBOUNCE_DELAY);
+  const debouncedMargin = useDebounce(localMargin, DEBOUNCE_DELAY);
 
   // Track the current loan ID to prevent stale updates
   const currentLoanIdRef = React.useRef<string | null>(null);
@@ -238,7 +238,7 @@ export const LoanTab = React.memo(() => {
   // Helper: Get input border style (red if invalid)
   const getInputStyle = (field: string) => {
     if (validationErrors[field]) {
-      return 'border-red-500';
+      return styles.invalidBorder;
     }
     return `${styles.inputBorder}`;
   };

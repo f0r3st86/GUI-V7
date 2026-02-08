@@ -319,8 +319,10 @@ export interface ThemeStyles {
   textMuted: string;
   textGreen: string;
   textYellow: string;
+  textRed: string;
 
   // Hover states
+  hoverDanger: string;
   hoverBg: string;
   hoverText: string;
   buttonHover: string;
@@ -331,6 +333,12 @@ export interface ThemeStyles {
   activeBg: string;
   activeTabBg: string;
   inactiveTabBg: string;
+
+  // Validation
+  invalidBorder: string;
+  invalidBg: string;
+  validRing: string;
+  invalidRing: string;
 
   // Special elements
   alertBg: string;

@@ -1,6 +1,7 @@
 // React Query hooks for Projection Settings operations
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectionSettingsApi } from '../api';
+import { QUERY_STALE_TIME } from '../data/constants';
 import type { ProjectionSettings } from '../types';
 
 // Query keys
@@ -37,7 +38,7 @@ export function useProjectionSettings(mwLoanNo: string) {
     queryKey: projectionSettingsKeys.byLoan(mwLoanNo),
     queryFn: () => projectionSettingsApi.getByLoan(mwLoanNo),
     enabled: !!mwLoanNo,
-    staleTime: 1000 * 60 * 5, // Settings don't change often, cache for 5 minutes
+    staleTime: QUERY_STALE_TIME,
   });
 }
 

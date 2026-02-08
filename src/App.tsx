@@ -22,15 +22,14 @@ import {
 } from './components/tabs';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { enableHighRefreshRate, FPSMonitor, getFrameBudget, debug } from './utils';
+import { QUERY_STALE_TIME, QUERY_GC_TIME } from './data/constants';
 
 // Create React Query client
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Data stays fresh for 5 minutes
-      staleTime: 5 * 60 * 1000,
-      // Cache data for 10 minutes
-      gcTime: 10 * 60 * 1000,
+      staleTime: QUERY_STALE_TIME,
+      gcTime: QUERY_GC_TIME,
       // Retry failed requests once
       retry: 1,
       // Refetch on window focus for data consistency

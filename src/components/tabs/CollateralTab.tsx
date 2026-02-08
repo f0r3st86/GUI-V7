@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useTheme, useLoan } from '../../context';
-import { US_STATES } from '../../data';
+import { US_STATES, DEBOUNCE_DELAY } from '../../data';
 import {
   calculatePerSqft,
   validateCurrency,
@@ -96,11 +96,11 @@ export const CollateralTab = React.memo(() => {
   }, [collateralLoanRelationships, selectedCollateralId, getSortedLoans]);
 
   // Debounce expensive inputs (500ms for $/SF calculations)
-  const debouncedListPrice = useDebounce(localListPrice, 500);
-  const debouncedAppraisedValue = useDebounce(localAppraisedValue, 500);
-  const debouncedOurValue = useDebounce(localOurValue, 500);
-  const debouncedBpoValue = useDebounce(localBpoValue, 500);
-  const debouncedSqft = useDebounce(localSqft, 500);
+  const debouncedListPrice = useDebounce(localListPrice, DEBOUNCE_DELAY);
+  const debouncedAppraisedValue = useDebounce(localAppraisedValue, DEBOUNCE_DELAY);
+  const debouncedOurValue = useDebounce(localOurValue, DEBOUNCE_DELAY);
+  const debouncedBpoValue = useDebounce(localBpoValue, DEBOUNCE_DELAY);
+  const debouncedSqft = useDebounce(localSqft, DEBOUNCE_DELAY);
 
   // Track the current collateral ID to prevent stale updates
   const currentCollateralIdRef = React.useRef<number | null>(null);
@@ -169,7 +169,7 @@ export const CollateralTab = React.memo(() => {
   // Helper: Get input border style (red if invalid)
   const getInputStyle = (field: string) => {
     if (validationErrors[field]) {
-      return 'border-red-500';
+      return styles.invalidBorder;
     }
     return `${styles.inputBorder}`;
   };
@@ -341,7 +341,7 @@ export const CollateralTab = React.memo(() => {
                         e.stopPropagation();
                         showDeleteConfirmation(collateral.id, collateral.description);
                       }}
-                      className={`${styles.textMuted} hover:text-red-500 transition-colors`}
+                      className={`${styles.textMuted} ${styles.hoverDanger} transition-colors`}
                       disabled={collateralList.length === 1}
                     >
                       x

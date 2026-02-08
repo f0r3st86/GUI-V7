@@ -1,6 +1,7 @@
 // React Query hooks for Exit Settings operations
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { exitSettingsApi } from '../api';
+import { QUERY_STALE_TIME } from '../data/constants';
 import type { ExitSettings } from '../types';
 
 // Query keys
@@ -37,7 +38,7 @@ export function useExitSettings(mwLoanNo: string) {
     queryKey: exitSettingsKeys.byLoan(mwLoanNo),
     queryFn: () => exitSettingsApi.getByLoan(mwLoanNo),
     enabled: !!mwLoanNo,
-    staleTime: 1000 * 60 * 5, // Settings don't change often, cache for 5 minutes
+    staleTime: QUERY_STALE_TIME,
   });
 }
 

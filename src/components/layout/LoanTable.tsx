@@ -104,7 +104,7 @@ export const LoanTable: React.FC = () => {
                   loan.change > 0
                     ? styles.textGreen
                     : loan.change < 0
-                      ? 'text-red-500'
+                      ? styles.textRed
                       : styles.textMuted
                 }`}>
                   {loan.change > 0 ? '+' : ''}{loan.change}%
