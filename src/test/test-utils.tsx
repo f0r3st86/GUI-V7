@@ -10,20 +10,75 @@ import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { LoanProvider, useLoan } from '../context/LoanContext';
 import { ProjectionProvider, useProjection } from '../context/ProjectionContext';
 import { ExitProvider, useExit } from '../context/ExitContext';
+import {
+  initialLoans,
+  initialBorrowers,
+  initialCollateral,
+  initialCollateralLoanRelationships,
+  initialComments,
+  initialPaymentRecords,
+} from '../data';
+import type { ProjectionSettings, ExitSettings } from '../types';
 
-// Create a new QueryClient for each test to prevent state leakage
-const createTestQueryClient = () => new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-      gcTime: 0,
-      staleTime: 0,
+// Default settings matching the mock API defaults
+const defaultProjectionSettings: ProjectionSettings = {
+  paymentMethod: 'Contractual',
+  rateMethod: 'Contractual',
+  userPayment: '',
+  userRate: '',
+  amortMonths: '360',
+  trailPeriod: '12',
+  trailPercentage: '100',
+  initialLegal: '',
+  initialLegalStartMonth: '1',
+  holdingCosts: '',
+  holdingCostsEndMonth: '12',
+  addBackPercentage: '0',
+  addBackBasis: 'Initial Only'
+};
+
+const defaultExitSettings: ExitSettings = {
+  method: 'Pay in Full',
+  startMonth: '1',
+  endMonth: '24',
+  dpoPercentage: '95',
+  valueCapPercentage: '90',
+  userEnterAmount: '',
+  ytmDesired: '12',
+  liquidationMonths: '12',
+  liquidationAddInterest: false
+};
+
+// Create a new QueryClient for each test, pre-seeded with mock data
+// so components render content immediately instead of "Loading..."
+const createTestQueryClient = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+        staleTime: Infinity,
+      },
+      mutations: {
+        retry: false,
+      },
     },
-    mutations: {
-      retry: false,
-    },
-  },
-});
+  });
+
+  // Pre-seed caches with initial data (same data the mock API returns)
+  queryClient.setQueryData(['loans'], [...initialLoans]);
+  queryClient.setQueryData(['borrowers'], [...initialBorrowers]);
+  queryClient.setQueryData(['collateral'], [...initialCollateral]);
+  queryClient.setQueryData(['collateral-relationships'], { ...initialCollateralLoanRelationships });
+  queryClient.setQueryData(['comments'], [...initialComments]);
+  queryClient.setQueryData(['payments'], [...initialPaymentRecords]);
+
+  // Pre-seed per-loan settings for the default selected loan ('7758')
+  queryClient.setQueryData(['projectionSettings', 'loan', '7758'], { ...defaultProjectionSettings });
+  queryClient.setQueryData(['exitSettings', 'loan', '7758'], { ...defaultExitSettings });
+
+  return queryClient;
+};
 
 // Extended render options with context overrides
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {

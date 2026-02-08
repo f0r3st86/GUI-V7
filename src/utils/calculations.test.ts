@@ -192,10 +192,10 @@ describe('calculateFV', () => {
   it('should calculate future value with payments', () => {
     // FV formula: PV grows with interest while payments reduce balance
     // $100,000 at 8% for 12 months with -$1,000 payments
-    // The FV represents the remaining balance after payments
+    // Payments ($12k/yr) exceed interest (~$8k first yr), so balance decreases
     const fv = calculateFV(8, 12, -1000, 100000);
-    // With positive PV and negative payments, FV will be positive (loan balance remaining)
-    expect(fv).toBeGreaterThan(100000); // Balance grows with interest
+    expect(fv).toBeGreaterThan(0);
+    expect(fv).toBeLessThan(100000); // Balance reduced by net payments
   });
 
   it('should calculate future value without payments', () => {

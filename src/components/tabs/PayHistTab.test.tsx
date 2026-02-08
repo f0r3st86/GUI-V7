@@ -107,22 +107,19 @@ describe('PayHistTab', () => {
     it('should show trailing analytics headers', () => {
       render(<PayHistTab />);
 
-      // Should show trailing analytics headers
-      expect(screen.getByText('T12')).toBeInTheDocument();
-      expect(screen.getByText('T6')).toBeInTheDocument();
-      expect(screen.getByText('T3')).toBeInTheDocument();
+      expect(screen.getByText('Trailing 12')).toBeInTheDocument();
+      expect(screen.getByText('Trailing 6')).toBeInTheDocument();
+      expect(screen.getByText('Trailing 3')).toBeInTheDocument();
     });
 
     it('should show metric rows in trailing analytics', () => {
       render(<PayHistTab />);
 
-      expect(screen.getByText('$/Mo')).toBeInTheDocument();
-      expect(screen.getByText('$/Yr')).toBeInTheDocument();
-      expect(screen.getByText('Actual')).toBeInTheDocument();
-      expect(screen.getByText('% Cont.')).toBeInTheDocument();
-      expect(screen.getByText('% Int.')).toBeInTheDocument();
-      expect(screen.getByText('Mo Pd (Cont.)')).toBeInTheDocument();
-      expect(screen.getByText('Mo Pd (Int.)')).toBeInTheDocument();
+      // Each trailing card renders $/Mo, Actual, % Cont., Mo Pd
+      expect(screen.getAllByText('$/Mo')).toHaveLength(3);
+      expect(screen.getAllByText('Actual')).toHaveLength(3);
+      expect(screen.getAllByText('% Cont.')).toHaveLength(3);
+      expect(screen.getAllByText('Mo Pd')).toHaveLength(3);
     });
   });
 
