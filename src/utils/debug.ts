@@ -1,9 +1,8 @@
 // Debug utility - gates console logging based on environment
 // All console.log calls should use this instead of direct console access
 
-// Always enable debug logging - Vite will tree-shake this in production
-// when using vite build with proper minification
-const isDev = true;
+// Gate debug logging on Vite's dev mode flag
+const isDev = import.meta.env.DEV;
 
 export const debug = {
   /**

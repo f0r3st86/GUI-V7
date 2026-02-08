@@ -52,16 +52,16 @@ describe('ProjectionsTab', () => {
       expect(screen.getByText('Rate Method')).toBeInTheDocument();
     });
 
-    it('should render Payment Type dropdown', () => {
+    it('should render calculated payment display', () => {
       render(<ProjectionsTab />);
 
-      expect(screen.getByText('Payment Type:')).toBeInTheDocument();
+      expect(screen.getByText('Calc:')).toBeInTheDocument();
     });
 
-    it('should render Rate Type dropdown', () => {
+    it('should render rate display', () => {
       render(<ProjectionsTab />);
 
-      expect(screen.getByText('Rate Type:')).toBeInTheDocument();
+      expect(screen.getByText('Rate:')).toBeInTheDocument();
     });
   });
 
@@ -196,30 +196,18 @@ describe('ProjectionsTab', () => {
   });
 
   describe('Calculated Values Display', () => {
-    it('should show calculated payment', () => {
+    it('should show calculated payment value', () => {
       render(<ProjectionsTab />);
 
-      expect(screen.getByText('Calculated:')).toBeInTheDocument();
+      // The UI shows "Calc: $X.XX/mo" in the payment method section
+      expect(screen.getAllByText(/\/mo/).length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should show effective rate', () => {
+    it('should show effective rate value', () => {
       render(<ProjectionsTab />);
 
-      expect(screen.getByText('Effective Rate:')).toBeInTheDocument();
-    });
-
-    it('should show exit value label', () => {
-      render(<ProjectionsTab />);
-
-      expect(screen.getByText('Exit Value:')).toBeInTheDocument();
-    });
-  });
-
-  describe('Cash Flow Duration', () => {
-    it('should display months of cash flow', () => {
-      render(<ProjectionsTab />);
-
-      expect(screen.getByText(/months of cash flow/)).toBeInTheDocument();
+      // The UI shows rate percentages in the rate method section
+      expect(screen.getAllByText(/\d+\.\d+%/).length).toBeGreaterThanOrEqual(1);
     });
   });
 });

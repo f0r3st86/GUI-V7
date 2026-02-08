@@ -145,25 +145,10 @@ export const ProjectionsTab = React.memo(() => {
     return <div className="p-4"><p className={styles.textMuted}>No loan selected</p></div>;
   }
 
-  const cashFlowMonths = Math.max(0,
-    (parseInt(calculations.sanitizedExitSettings.endMonth) || 24) -
-    (parseInt(calculations.sanitizedExitSettings.startMonth) || 1) + 1
-  );
-
   return (
     <div className="p-4">
       <ModeSelector mode={mode} setMode={setMode} styles={styles} />
       <LoanHeader selectedLoan={selectedLoan} selectedLoanData={selectedLoanData} styles={styles} />
-
-      {/* Hidden labels for test compatibility */}
-      <div className="hidden">
-        <span>Payment Type:</span>
-        <span>Rate Type:</span>
-        <span>Calculated:</span>
-        <span>Effective Rate:</span>
-        <span>Exit Value:</span>
-        <span>{cashFlowMonths} months of cash flow</span>
-      </div>
 
       {/* Modern Mode */}
       {mode === 'modern' && (

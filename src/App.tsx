@@ -21,7 +21,7 @@ import {
   StrategiesTab
 } from './components/tabs';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { enableHighRefreshRate, FPSMonitor, getFrameBudget } from './utils';
+import { enableHighRefreshRate, FPSMonitor, getFrameBudget, debug } from './utils';
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -117,21 +117,19 @@ const AppLayout: React.FC = () => {
   // Enable 120fps optimizations on mount
   useEffect(() => {
     const budget = getFrameBudget();
-    console.log(`[Performance] Display supports ${budget.fps}fps (${budget.budget}ms budget)`);
+    debug.log(`[Performance] Display supports ${budget.fps}fps (${budget.budget}ms budget)`);
 
     // Enable CSS optimizations for high refresh rates
     enableHighRefreshRate();
 
-    // Optional: Monitor actual FPS (only in dev, remove or comment out for production)
-    const enableFPSMonitor = true; // Set to false in production
-    if (enableFPSMonitor) {
+    // Monitor actual FPS in dev only
+    if (import.meta.env.DEV) {
       const fpsMonitor = new FPSMonitor((fps) => {
         const status = fps >= 115 ? '🟢' : fps >= 55 ? '🟡' : '🔴';
-        console.log(`${status} FPS: ${fps} (Target: ${budget.fps})`);
+        debug.log(`${status} FPS: ${fps} (Target: ${budget.fps})`);
       });
       fpsMonitor.start();
 
-      // Cleanup
       return () => fpsMonitor.stop();
     }
   }, []);

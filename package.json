@@ -4,6 +4,7 @@
   "description": "Loan Portfolio Management System - Refactored",
   "author": "Your Company Name",
   "private": true,
+  "type": "module",
   "main": "electron.js",
   "homepage": "./",
   "dependencies": {

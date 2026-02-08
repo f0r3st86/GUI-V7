@@ -1,4 +1,5 @@
 // Performance monitoring utility for measuring frame rates and render times
+import { debug } from './debug';
 
 /**
  * FPS Monitor - Tracks actual frame rate in production
@@ -75,7 +76,7 @@ export const createProfilerCallback = (componentName: string) => {
       status = '⚠️ Slow';
     }
 
-    console.log(`[Profiler] ${componentName}`, {
+    debug.log(`[Profiler] ${componentName}`, {
       phase,
       actualDuration: `${actualDuration.toFixed(2)}ms`,
       status,
@@ -154,8 +155,8 @@ export const enableHighRefreshRate = (): void => {
   `;
   document.head.appendChild(style);
 
-  console.log('[Performance] High refresh rate optimizations enabled');
-  console.log('[Performance] Target: 120fps (8.33ms budget per frame)');
+  debug.log('[Performance] High refresh rate optimizations enabled');
+  debug.log('[Performance] Target: 120fps (8.33ms budget per frame)');
 };
 
 /**
