@@ -29,9 +29,15 @@ export const Modal: React.FC<ModalProps> = ({
   if (!show) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className={`${styles.sectionBg} rounded-lg p-6 max-w-md w-full mx-4 ${styles.borderColor} border`}>
-        <h3 className={`text-lg font-medium ${styles.textPrimary} mb-4`}>{title}</h3>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" role="presentation" onClick={onCancel}>
+      <div
+        className={`${styles.sectionBg} rounded-lg p-6 max-w-md w-full mx-4 ${styles.borderColor} border`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 id="modal-title" className={`text-lg font-medium ${styles.textPrimary} mb-4`}>{title}</h3>
         <div className={`${styles.textSecondary} mb-6`}>
           {children}
         </div>

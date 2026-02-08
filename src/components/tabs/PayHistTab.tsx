@@ -617,3 +617,4 @@ export const PayHistTab = React.memo(() => {
     </div>
   );
 });
+PayHistTab.displayName = 'PayHistTab';

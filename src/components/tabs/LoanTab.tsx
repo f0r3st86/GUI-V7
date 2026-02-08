@@ -757,3 +757,4 @@ export const LoanTab = React.memo(() => {
     </div>
   );
 });
+LoanTab.displayName = 'LoanTab';

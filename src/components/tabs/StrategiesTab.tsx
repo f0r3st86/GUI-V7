@@ -77,3 +77,4 @@ export const StrategiesTab = React.memo(() => {
     </div>
   );
 });
+StrategiesTab.displayName = 'StrategiesTab';

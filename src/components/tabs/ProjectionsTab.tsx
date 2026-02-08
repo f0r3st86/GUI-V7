@@ -269,3 +269,4 @@ export const ProjectionsTab = React.memo(() => {
     </div>
   );
 });
+ProjectionsTab.displayName = 'ProjectionsTab';

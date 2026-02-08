@@ -116,3 +116,4 @@ export const OverviewTab = React.memo(() => {
     </div>
   );
 });
+OverviewTab.displayName = 'OverviewTab';

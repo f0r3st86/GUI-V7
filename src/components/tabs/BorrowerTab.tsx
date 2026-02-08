@@ -662,3 +662,4 @@ export const BorrowerTab = React.memo(() => {
     </div>
   );
 });
+BorrowerTab.displayName = 'BorrowerTab';

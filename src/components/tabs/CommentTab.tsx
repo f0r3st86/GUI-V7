@@ -247,3 +247,4 @@ export const CommentTab = React.memo(() => {
     </div>
   );
 });
+CommentTab.displayName = 'CommentTab';

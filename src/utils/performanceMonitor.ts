@@ -185,8 +185,7 @@ export const rafDebounce = <T extends (...args: any[]) => void>(
  */
 export const supportsHighRefreshRate = (): boolean => {
   // Check if screen refresh rate is above 60Hz
-  // @ts-ignore - experimental API
-  const refreshRate = window.screen?.refreshRate || 60;
+  const refreshRate = (window.screen as Screen & { refreshRate?: number })?.refreshRate || 60;
   return refreshRate > 60;
 };
 

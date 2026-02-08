@@ -27,17 +27,17 @@ export const Header: React.FC = () => {
         </button>
 
         {/* Notifications */}
-        <button className={`p-2 rounded ${styles.hoverBg} ${styles.textMuted} ${styles.hoverText} transition-colors`}>
+        <button className={`p-2 rounded ${styles.hoverBg} ${styles.textMuted} ${styles.hoverText} transition-colors`} aria-label="Notifications">
           <Bell size={18} />
         </button>
 
         {/* Settings */}
-        <button className={`p-2 rounded ${styles.hoverBg} ${styles.textMuted} ${styles.hoverText} transition-colors`}>
+        <button className={`p-2 rounded ${styles.hoverBg} ${styles.textMuted} ${styles.hoverText} transition-colors`} aria-label="Settings">
           <Settings size={18} />
         </button>
 
         {/* User */}
-        <button className={`p-2 rounded ${styles.hoverBg} ${styles.textMuted} ${styles.hoverText} transition-colors`}>
+        <button className={`p-2 rounded ${styles.hoverBg} ${styles.textMuted} ${styles.hoverText} transition-colors`} aria-label="User profile">
           <User size={18} />
         </button>
       </div>

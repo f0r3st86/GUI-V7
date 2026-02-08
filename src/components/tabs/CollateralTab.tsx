@@ -656,3 +656,4 @@ export const CollateralTab = React.memo(() => {
     </div>
   );
 });
+CollateralTab.displayName = 'CollateralTab';
