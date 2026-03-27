@@ -1,0 +1,187 @@
+-- ============================================================
+-- FIELD MAPPING: React Interface <-> SQL Table
+-- Shows exactly how each React/TypeScript field maps to SQL
+-- ============================================================
+
+-- ============================================================
+-- tblLoan  <->  Loan interface (types/index.ts)
+-- ============================================================
+-- React Field              SQL Column               SQL Type            Notes
+-- ---------------------------------------------------------------
+-- mwLoanNo                 MWLoanNo                 NVARCHAR(20)        PRIMARY KEY
+-- relatedLoans             RelatedLoans             NVARCHAR(100)       FK to tblRelationships
+-- borrowerName             BorrowerName             NVARCHAR(200)
+-- origBalance              OrigBalance              DECIMAL(18,2)
+-- principal                Principal                DECIMAL(18,2)
+-- interest                 Interest                 DECIMAL(18,2)
+-- escrowBalance            EscrowBalance            DECIMAL(18,2)
+-- otherBalance             OtherBalance             DECIMAL(18,2)
+-- intRate                  IntRate                  DECIMAL(8,4)        e.g. 8.5000
+-- dRate                    DRate                    DECIMAL(8,4)        Default rate
+-- pmt                      Pmt                      DECIMAL(18,2)       Monthly payment
+-- escPmt                   EscPmt                   DECIMAL(18,2)
+-- pmtFreq                  PmtFreq                  NVARCHAR(5)         M, Q, A
+-- notDue                   NotDue                   NVARCHAR(20)        MM/DD/YY
+-- lastPmt                  LastPmt                  NVARCHAR(20)        MM/DD/YY
+-- origDt                   OrigDt                   NVARCHAR(20)        MM/DD/YY
+-- matDt                    MatDt                    NVARCHAR(20)        MM/DD/YY
+-- accDt                    AccDt                    NVARCHAR(20)        MM/DD/YY
+-- dueDt                    DueDt                    NVARCHAR(20)        MM/DD/YY
+-- lastPdt                  LastPdt                  NVARCHAR(20)        MM/DD/YY
+-- status                   Status                   NVARCHAR(10)        PA, FA, FC, JG, LT, ''
+-- change                   Change                   DECIMAL(8,2)        % change
+-- lastImportDate           LastImportDate           NVARCHAR(20)
+-- pool                     Pool                     NVARCHAR(20)
+-- address1                 Address1                 NVARCHAR(200)
+-- address2                 Address2                 NVARCHAR(200)
+-- city                     City                     NVARCHAR(100)
+-- state                    State                    NVARCHAR(5)
+-- zip                      Zip                      NVARCHAR(20)
+-- rateType                 RateType                 NVARCHAR(20)        Fixed, Variable, Adjustable
+-- floor                    Floor                    NVARCHAR(20)
+-- ceiling                  Ceiling                  NVARCHAR(20)
+-- margin                   Margin                   NVARCHAR(20)
+-- chDt                     ChDt                     NVARCHAR(20)        Rate change date
+-- chFrq                    ChFrq                    NVARCHAR(20)        Rate change freq
+-- rateIndex                RateIndex                NVARCHAR(50)
+-- ahBhd                    AhBhd                    NVARCHAR(20)
+-- assetType                AssetType                NVARCHAR(50)
+-- unfundedCommitment       UnfundedCommitment       NVARCHAR(50)
+-- selected                 Selected                 BIT                 UI state only
+
+-- ============================================================
+-- tblBorrowers  <->  Borrower interface (types/index.ts)
+-- ============================================================
+-- React Field              SQL Column               SQL Type            Notes
+-- ---------------------------------------------------------------
+-- id                       BorrowerID               INT IDENTITY        PRIMARY KEY
+-- relationship             Relationship             NVARCHAR(100)       FK to tblRelationships
+-- name                     BorrName                 NVARCHAR(200)
+-- address1                 Address1                 NVARCHAR(200)
+-- address2                 Address2                 NVARCHAR(200)
+-- city                     City                     NVARCHAR(100)
+-- state                    State                    NVARCHAR(5)
+-- zip                      Zip                      NVARCHAR(20)
+-- phone                    Phone                    NVARCHAR(30)
+-- dob                      DOB                      NVARCHAR(20)        MM/DD/YYYY
+-- ssnEin                   SSN_EIN                  NVARCHAR(20)        Masked in UI
+-- creditScore              CreditScore              NVARCHAR(10)
+-- creditScoreDate          CreditScoreDate          NVARCHAR(20)
+-- bkStatus                 BKStatus                 NVARCHAR(20)        none, active, discharged, dismissed
+-- bkChapter                BKChapter                NVARCHAR(10)
+-- bkCourtCase              BKCourtCase              NVARCHAR(50)
+-- bkCourtLocation          BKCourtLocation          NVARCHAR(100)
+-- bkAssets                 BKAssets                 NVARCHAR(100)
+-- type                     BorrowerType             NVARCHAR(20)        Borrower or Guarantor
+--
+-- loanRelationships  ->  tblBorrowerLoanRelationships (junction table)
+--   loanRelationships[loanNo].selected  ->  Selected  BIT
+--   loanRelationships[loanNo].role      ->  Role      NVARCHAR(20)
+
+-- ============================================================
+-- CollateralInfo  <->  Collateral interface (types/index.ts)
+-- ============================================================
+-- React Field              SQL Column               SQL Type            Notes
+-- ---------------------------------------------------------------
+-- id                       CollateralID             INT IDENTITY        PRIMARY KEY
+-- loanNo                   LoanNo                   NVARCHAR(20)        Primary linked loan
+-- collateralCode           CollateralCode           NVARCHAR(50)
+-- description              Description              NVARCHAR(200)
+-- address1                 Address1                 NVARCHAR(200)
+-- city                     City                     NVARCHAR(100)
+-- state                    State                    NVARCHAR(5)
+-- zip                      Zip                      NVARCHAR(20)
+-- county                   County                   NVARCHAR(100)
+-- parcelId                 ParcelID                 NVARCHAR(50)
+-- taxes                    Taxes                    NVARCHAR(50)        Stored as string '12,500'
+-- delinquentTaxes          DelinquentTaxes          NVARCHAR(50)
+-- taxAssessedValue         TaxAssessedValue         NVARCHAR(50)
+-- taxMarketValue           TaxMarketValue           NVARCHAR(50)
+-- sellerLienPosition       SellerLienPosition       NVARCHAR(10)
+-- sellerLienAmount         SellerLienAmount         NVARCHAR(50)
+-- titleLienPosition        TitleLienPosition        NVARCHAR(10)
+-- titleLienAmount          TitleLienAmount          NVARCHAR(50)
+-- listPrice                ListPrice                NVARCHAR(50)
+-- daysOnMarket             DaysOnMarket             NVARCHAR(20)
+-- appraisedValue           AppraisedValue           NVARCHAR(50)
+-- appraisedDate            AppraisedDate            NVARCHAR(20)
+-- ourValue                 OurValue                 NVARCHAR(50)
+-- ourValueDate             OurValueDate             NVARCHAR(20)
+-- bpoValue                 BPOValue                 NVARCHAR(50)
+-- bpoDate                  BPODate                  NVARCHAR(20)
+-- sqft                     SqFt                     NVARCHAR(20)
+-- acres                    Acres                    NVARCHAR(20)
+-- yearBuilt                YearBuilt                NVARCHAR(10)
+-- units                    Units                    NVARCHAR(10)
+
+-- ============================================================
+-- tblComments  <->  Comment interface (types/index.ts)
+-- ============================================================
+-- React Field              SQL Column               SQL Type            Notes
+-- ---------------------------------------------------------------
+-- id                       CommentID                INT IDENTITY        PRIMARY KEY
+-- loanNo                   MWLoanNo                 NVARCHAR(20)        FK to tblLoan
+-- commentType              CommentType              NVARCHAR(30)        Note, Legal, etc.
+-- date                     CommentDate              NVARCHAR(20)        MM/DD/YY
+-- text                     CommentText              NVARCHAR(MAX)
+
+-- ============================================================
+-- tblPayHistory  <->  PaymentRecord interface (types/index.ts)
+-- ============================================================
+-- React Field              SQL Column               SQL Type            Notes
+-- ---------------------------------------------------------------
+-- id                       PaymentID                INT IDENTITY        PRIMARY KEY
+-- loanNo                   MWLoanNo                 NVARCHAR(20)        FK to tblLoan
+-- year                     PaymentYear              NVARCHAR(10)        e.g. '2025'
+-- month                    PaymentMonth             NVARCHAR(5)         e.g. '4'
+-- amount                   Amount                   NVARCHAR(50)        e.g. '3522.00'
+
+-- ============================================================
+-- tblProjectionSettings  <->  ProjectionSettings (types/index.ts)
+-- ============================================================
+-- React Field              SQL Column               SQL Type            Notes
+-- ---------------------------------------------------------------
+-- (per-loan key)           MWLoanNo                 NVARCHAR(20)        FK to tblLoan
+-- paymentMethod            PaymentMethod            NVARCHAR(30)
+-- rateMethod               RateMethod               NVARCHAR(20)
+-- userPayment              UserPayment              NVARCHAR(50)
+-- userRate                 UserRate                 NVARCHAR(50)
+-- amortMonths              AmortMonths              NVARCHAR(10)
+-- trailPeriod              TrailPeriod              NVARCHAR(10)
+-- trailPercentage          TrailPercentage          NVARCHAR(10)
+-- initialLegal             InitialLegal             NVARCHAR(50)
+-- initialLegalStartMonth   InitialLegalStartMonth   NVARCHAR(10)
+-- holdingCosts             HoldingCosts             NVARCHAR(50)
+-- holdingCostsEndMonth     HoldingCostsEndMonth     NVARCHAR(10)
+-- addBackPercentage        AddBackPercentage        NVARCHAR(10)
+-- addBackBasis             AddBackBasis             NVARCHAR(30)
+
+-- ============================================================
+-- tblExitSettings  <->  ExitSettings (types/index.ts)
+-- ============================================================
+-- React Field              SQL Column               SQL Type            Notes
+-- ---------------------------------------------------------------
+-- (per-loan key)           MWLoanNo                 NVARCHAR(20)        FK to tblLoan
+-- method                   ExitMethod               NVARCHAR(30)
+-- startMonth               StartMonth               NVARCHAR(10)
+-- endMonth                 EndMonth                 NVARCHAR(10)
+-- dpoPercentage            DPOPercentage            NVARCHAR(10)
+-- valueCapPercentage       ValueCapPercentage       NVARCHAR(10)
+-- userEnterAmount          UserEnterAmount          NVARCHAR(50)
+-- ytmDesired               YTMDesired               NVARCHAR(10)
+-- liquidationMonths        LiquidationMonths        NVARCHAR(10)
+-- liquidationAddInterest   LiquidationAddInterest   BIT
+
+-- ============================================================
+-- tblRelationships  <->  Overview tab flags
+-- ============================================================
+-- React Derived Flag       SQL Column               SQL Type            Notes
+-- ---------------------------------------------------------------
+-- currentRelationship      RelatedLoans             NVARCHAR(100)       Unique relationship name
+-- flags.bankruptcy         InBankruptcy             BIT
+-- flags.foreclosure        ForeclosureFlag          BIT
+-- flags.litigation         LitigationFlag           BIT
+-- flags.forbearance        ForbearanceFlag          BIT
+-- flags.judgment           JudgmentFlag             BIT
+-- (overview tab)           LowYieldAsset            BIT
+-- (overview tab)           ExitCode                 NVARCHAR(20)
