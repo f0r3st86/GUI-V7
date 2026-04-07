@@ -7,3 +7,4 @@ export * from './PayHistTab';
 export * from './ProjectionsTab';
 export * from './OverviewTab';
 export * from './StrategiesTab';
+export * from './ReportTab';

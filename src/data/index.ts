@@ -5,3 +5,4 @@ export * from './initialBorrowers';
 export * from './initialCollateral';
 export * from './initialComments';
 export * from './initialPayments';
+export * from './initialReportData';

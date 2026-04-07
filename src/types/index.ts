@@ -352,6 +352,43 @@ export interface ThemeStyles {
   menuBg: string;
 }
 
+// ==================== REPORT TYPES ====================
+
+export type PhotoType = 'exterior' | 'interior' | 'aerial' | 'street' | 'comp' | 'other';
+
+export interface PropertyPhoto {
+  id: number;
+  collateralId: number;
+  url: string;
+  caption: string;
+  type: PhotoType;
+}
+
+export interface PropertyLocation {
+  collateralId: number;
+  lat: number;
+  lng: number;
+  address: string;
+}
+
+export interface ComparableSale {
+  id: number;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  salePrice: number;
+  saleDate: string;
+  sqft: number;
+  pricePerSqft: number;
+  distanceMiles: number;
+  yearBuilt: string;
+  propertyType: string;
+  lat: number;
+  lng: number;
+  photos: PropertyPhoto[];
+}
+
 // ==================== US STATES TYPE ====================
 
 export interface USState {

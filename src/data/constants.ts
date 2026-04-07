@@ -49,7 +49,7 @@ export const US_STATES: USState[] = [
 export const TABS = [
   'Loan', 'Borrower', 'Collateral', 'Comment', 'BPOTitleUCC',
   'PayHist', 'FinStmts', 'Projections', 'Strategies', 'Tasks',
-  'Overview', 'Property'
+  'Overview', 'Property', 'Report'
 ];
 
 // Comment types
