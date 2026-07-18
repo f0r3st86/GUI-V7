@@ -8,7 +8,7 @@ export const LoanTable: React.FC = () => {
   const { theme, styles } = useTheme();
 
   // UI state from Context
-  const { selectedLoan, setSelectedLoan, currentRelationship } = useLoan();
+  const { selectedLoan, setSelectedLoan, currentRelationship, setRelationshipBrowserOpen } = useLoan();
 
   // Data from React Query
   const { data: loans, isLoading } = useLoans();
@@ -45,6 +45,13 @@ export const LoanTable: React.FC = () => {
             ({relationshipLoans.length} loans)
           </span>
         </div>
+        <button
+          onClick={() => setRelationshipBrowserOpen(true)}
+          className={`px-2.5 py-1 rounded text-xs ${styles.inputBg} ${styles.inputBorder} border ${styles.textSecondary} ${styles.buttonHover}`}
+          aria-label="Browse relationships"
+        >
+          Browse Relationships
+        </button>
       </div>
 
       {/* Loan Table */}

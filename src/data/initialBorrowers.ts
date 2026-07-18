@@ -97,5 +97,30 @@ export const initialBorrowers: Borrower[] = [
       '6826': { selected: false, role: 'Borrower' },
       '7758': { selected: false, role: 'Borrower' }
     }
+  },
+  {
+    id: 4,
+    relationship: 'Coastal',
+    name: 'Harbor View Properties LLC',
+    address1: '42 Waterfront Drive',
+    address2: '',
+    city: 'Rockland',
+    state: 'ME',
+    zip: '04841',
+    phone: '(207) 555-0442',
+    dob: '',
+    ssnEin: '82-4455667',
+    creditScore: '705',
+    creditScoreDate: '09/20/24',
+    bkStatus: 'none',
+    bkChapter: '',
+    bkCourtCase: '',
+    bkCourtLocation: '',
+    bkAssets: 'No Assets',
+    type: 'Borrower',
+    loanRelationships: {
+      '8101': { selected: true, role: 'Borrower' },
+      '8102': { selected: true, role: 'Borrower' }
+    }
   }
 ];

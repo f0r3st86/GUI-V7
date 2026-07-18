@@ -22,6 +22,7 @@ export const LoanProvider: React.FC<LoanProviderProps> = ({ children }) => {
   const [selectedBorrowerId, setSelectedBorrowerId] = useState<number>(1);
   const [selectedCollateralId, setSelectedCollateralId] = useState<number>(1);
   const [selectedCommentId, setSelectedCommentId] = useState<number>(1);
+  const [relationshipBrowserOpen, setRelationshipBrowserOpen] = useState<boolean>(false);
 
   // ==================== DERIVED FROM REACT QUERY ====================
   const { data: loans } = useLoans();
@@ -47,9 +48,12 @@ export const LoanProvider: React.FC<LoanProviderProps> = ({ children }) => {
     setSelectedCollateralId,
     selectedCommentId,
     setSelectedCommentId,
+    relationshipBrowserOpen,
+    setRelationshipBrowserOpen,
   }), [
     selectedLoan, selectedLoanData, currentRelationship, activeTab,
-    selectedBorrowerId, selectedCollateralId, selectedCommentId
+    selectedBorrowerId, selectedCollateralId, selectedCommentId,
+    relationshipBrowserOpen
   ]);
 
   return (

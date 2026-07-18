@@ -422,6 +422,10 @@ export interface LoanContextType {
   setSelectedCollateralId: React.Dispatch<React.SetStateAction<number>>;
   selectedCommentId: number;
   setSelectedCommentId: React.Dispatch<React.SetStateAction<number>>;
+
+  // Relationship browser visibility
+  relationshipBrowserOpen: boolean;
+  setRelationshipBrowserOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export interface ThemeContextType {

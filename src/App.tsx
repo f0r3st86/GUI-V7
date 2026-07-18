@@ -9,7 +9,7 @@ import {
   useTheme,
   useLoan
 } from './context';
-import { Header, MenuBar, LoanTable, TabNavigation } from './components/layout';
+import { Header, MenuBar, LoanTable, TabNavigation, RelationshipBrowser } from './components/layout';
 import {
   LoanTab,
   BorrowerTab,
@@ -119,6 +119,7 @@ const TabContent: React.FC = () => {
 // Main layout component with theme applied
 const AppLayout: React.FC = () => {
   const { styles } = useTheme();
+  const { relationshipBrowserOpen } = useLoan();
 
   // Enable 120fps optimizations on mount
   useEffect(() => {
@@ -148,16 +149,27 @@ const AppLayout: React.FC = () => {
       {/* Menu Bar */}
       <MenuBar />
 
-      {/* Loan Table (Relationship Loans) */}
-      <LoanTable />
+      {relationshipBrowserOpen ? (
+        /* Portfolio-level relationship browser */
+        <div className={`${styles.sectionBg}`}>
+          <ErrorBoundary>
+            <RelationshipBrowser />
+          </ErrorBoundary>
+        </div>
+      ) : (
+        <>
+          {/* Loan Table (Relationship Loans) */}
+          <LoanTable />
 
-      {/* Tab Navigation */}
-      <TabNavigation />
+          {/* Tab Navigation */}
+          <TabNavigation />
 
-      {/* Tab Content */}
-      <div className={`${styles.sectionBg}`}>
-        <TabContent />
-      </div>
+          {/* Tab Content */}
+          <div className={`${styles.sectionBg}`}>
+            <TabContent />
+          </div>
+        </>
+      )}
     </div>
   );
 };
