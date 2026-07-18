@@ -398,63 +398,30 @@ export interface USState {
 
 // ==================== CONTEXT TYPES ====================
 
+/**
+ * UI-state-only context. Server state (loans, borrowers, collateral,
+ * comments, payments) lives in React Query — use the hooks in src/hooks.
+ * selectedLoanData/currentRelationship are derived from the React Query
+ * loans cache inside the provider.
+ */
 export interface LoanContextType {
-  // Loan state
-  loans: Loan[];
-  setLoans: React.Dispatch<React.SetStateAction<Loan[]>>;
+  // Loan selection
   selectedLoan: string;
   setSelectedLoan: React.Dispatch<React.SetStateAction<string>>;
   selectedLoanData: Loan | undefined;
   currentRelationship: string;
 
-  // Tab state
+  // Tab navigation
   activeTab: string;
   setActiveTab: React.Dispatch<React.SetStateAction<string>>;
 
-  // Borrower state
-  borrowersList: Borrower[];
-  setBorrowersList: React.Dispatch<React.SetStateAction<Borrower[]>>;
+  // Entity selection
   selectedBorrowerId: number;
   setSelectedBorrowerId: React.Dispatch<React.SetStateAction<number>>;
-  selectedBorrower: Borrower | undefined;
-  deleteConfirmation: DeleteConfirmation;
-  setDeleteConfirmation: React.Dispatch<React.SetStateAction<DeleteConfirmation>>;
-
-  // Collateral state
-  collateralList: Collateral[];
-  setCollateralList: React.Dispatch<React.SetStateAction<Collateral[]>>;
   selectedCollateralId: number;
   setSelectedCollateralId: React.Dispatch<React.SetStateAction<number>>;
-  selectedCollateral: Collateral | undefined;
-  collateralLoanRelationships: CollateralLoanRelationships;
-  setCollateralLoanRelationships: React.Dispatch<React.SetStateAction<CollateralLoanRelationships>>;
-  deleteCollateralConfirmation: DeleteCollateralConfirmation;
-  setDeleteCollateralConfirmation: React.Dispatch<React.SetStateAction<DeleteCollateralConfirmation>>;
-
-  // Comment state
-  commentsList: Comment[];
-  setCommentsList: React.Dispatch<React.SetStateAction<Comment[]>>;
   selectedCommentId: number;
   setSelectedCommentId: React.Dispatch<React.SetStateAction<number>>;
-  selectedComment: Comment | undefined;
-
-  // Payment state
-  paymentRecords: PaymentRecord[];
-  setPaymentRecords: React.Dispatch<React.SetStateAction<PaymentRecord[]>>;
-  paymentGridData: PaymentGridData;
-  setPaymentGridData: React.Dispatch<React.SetStateAction<PaymentGridData>>;
-
-  // Helper functions
-  handleLoanFieldChange: (field: string, value: string | number) => void;
-  getRelationshipBorrowers: () => Borrower[];
-  getSortedLoans: () => Loan[];
-  getCurrentBorrowerLoanRelationships: () => Record<string, LoanRelationship>;
-  getCollateralForLoan: () => Collateral[];
-  getFilteredPaymentRecords: () => PaymentRecord[];
-  getNextPaymentId: () => number;
-  getNextBorrowerId: () => number;
-  getNextCollateralId: () => number;
-  getNextCommentId: () => number;
 }
 
 export interface ThemeContextType {

@@ -19,7 +19,7 @@ import {
   useUpdateCollateralRelationships,
   useLoans
 } from '../../../../hooks';
-import type { Collateral } from '../../../../types';
+import type { Collateral, DeleteCollateralConfirmation } from '../../../../types';
 import type { CollateralFormState } from '../types';
 
 export function useCollateralForm(): CollateralFormState | { isLoading: true } | { isLoading: false; selectedCollateral: undefined } {
@@ -27,10 +27,16 @@ export function useCollateralForm(): CollateralFormState | { isLoading: true } |
   const {
     selectedLoan,
     selectedCollateralId,
-    setSelectedCollateralId,
-    deleteCollateralConfirmation,
-    setDeleteCollateralConfirmation
+    setSelectedCollateralId
   } = useLoan();
+
+  // Delete confirmation is local to this form (same pattern as useBorrowerForm)
+  const [deleteCollateralConfirmation, setDeleteCollateralConfirmation] =
+    useState<DeleteCollateralConfirmation>({
+      show: false,
+      collateralId: null,
+      collateralDescription: ''
+    });
 
   const { data: collateral, isLoading: loadingCollateral } = useCollateral();
   const { data: collateralLoanRelationships } = useCollateralRelationships();
