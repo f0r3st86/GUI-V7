@@ -8,7 +8,8 @@
 // from vwRelationshipSummary, grouped by RelatedLoans.
 import React, { useState, useMemo } from 'react';
 import { useTheme, useLoan } from '../../context';
-import { useLoans, useBorrowers, useCollateral, useCollateralRelationships } from '../../hooks';
+import { useLoans, useBorrowers, useCollateral, useCollateralRelationships, useRelationships } from '../../hooks';
+import type { Relationship } from '../../types';
 
 type SortField = 'name' | 'loans' | 'upb' | 'rate';
 type SortDirection = 'asc' | 'desc';
@@ -24,12 +25,17 @@ interface RelationshipRow {
   firstLoanNo: string;
 }
 
-// Relationship-level distress flags derived from loan statuses
-const FLAG_LABELS: Record<string, string> = {
-  FC: 'Foreclosure',
-  LT: 'Litigation',
-  FA: 'Forbearance',
-  JG: 'Judgment',
+// Stored relationship flags (tblRelationships bits) -> display labels
+const flagLabels = (r: Relationship | undefined): string[] => {
+  if (!r) return [];
+  const out: string[] = [];
+  if (r.inBankruptcy) out.push('Bankruptcy');
+  if (r.foreclosureFlag) out.push('Foreclosure');
+  if (r.litigationFlag) out.push('Litigation');
+  if (r.forbearanceFlag) out.push('Forbearance');
+  if (r.judgmentFlag) out.push('Judgment');
+  if (r.lowYieldAsset) out.push('Low Yield');
+  return out;
 };
 
 export const RelationshipBrowser: React.FC = () => {
@@ -40,6 +46,7 @@ export const RelationshipBrowser: React.FC = () => {
   const { data: borrowers = [] } = useBorrowers();
   const { data: collateral = [] } = useCollateral();
   const { data: collateralRelationships = {} } = useCollateralRelationships();
+  const { data: relationshipEntities = [] } = useRelationships();
 
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('upb');
@@ -65,11 +72,9 @@ export const RelationshipBrowser: React.FC = () => {
         ? groupLoans.reduce((s, l) => s + (l.intRate || 0) * (l.principal || 0), 0) / totalPrincipal
         : 0;
 
-      const statusFlags = new Set(groupLoans.map(l => l.status).filter(s => FLAG_LABELS[s]));
+      // Flags come from the STORED tblRelationships bits, not loan statuses
+      const relationshipEntity = relationshipEntities.find(r => r.relatedLoans === name);
       const relationshipBorrowers = borrowers.filter(b => b.relationship === name);
-      if (relationshipBorrowers.some(b => b.bkStatus && b.bkStatus.toLowerCase() !== 'none')) {
-        statusFlags.add('BK');
-      }
 
       const collateralCount = collateral.filter(c => {
         const rels = collateralRelationships[c.id];
@@ -86,11 +91,11 @@ export const RelationshipBrowser: React.FC = () => {
         collateralCount,
         totalUPB,
         weightedRate,
-        flags: Array.from(statusFlags).map(f => f === 'BK' ? 'Bankruptcy' : FLAG_LABELS[f]),
+        flags: flagLabels(relationshipEntity),
         firstLoanNo,
       };
     });
-  }, [loans, borrowers, collateral, collateralRelationships]);
+  }, [loans, borrowers, collateral, collateralRelationships, relationshipEntities]);
 
   // Search + sort
   const visibleRelationships = useMemo(() => {

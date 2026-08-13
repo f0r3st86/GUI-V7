@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTheme } from '../../context';
 import { useLoan } from '../../context';
-import { useLoans, useBorrowers, useCollateral, useCollateralRelationships } from '../../hooks';
+import { useLoans, useBorrowers, useCollateral, useCollateralRelationships, useRelationships } from '../../hooks';
 import { maskSsnEin } from '../../utils/formatters';
 
 const STORAGE_KEY = 'gui-v7-overview';
@@ -53,6 +53,7 @@ export const OverviewTab = React.memo(() => {
   const { data: borrowers = [], isLoading: borrowersLoading } = useBorrowers();
   const { data: allCollateral = [], isLoading: collateralLoading } = useCollateral();
   const { data: collateralRelationships = {} } = useCollateralRelationships();
+  const { data: relationships = [] } = useRelationships();
 
   const isLoading = loansLoading || borrowersLoading || collateralLoading;
 
@@ -83,15 +84,20 @@ export const OverviewTab = React.memo(() => {
     });
   }, [allCollateral, collateralRelationships, relationshipLoans]);
 
-  // Relationship-level flags (maps to tblRelationships columns)
+  // Relationship-level flags — STORED bits from tblRelationships
+  // (authoritative; never derived from loan statuses)
+  const relationshipData = useMemo(
+    () => relationships.find(r => r.relatedLoans === currentRelationship),
+    [relationships, currentRelationship]
+  );
   const flags = useMemo(() => ({
-    bankruptcy: relationshipBorrowers.some(b =>
-      b.bkStatus && b.bkStatus !== 'none' && b.bkStatus !== 'None'),
-    foreclosure: relationshipLoans.some(l => l.status === 'FC'),
-    litigation: relationshipLoans.some(l => l.status === 'LT'),
-    forbearance: relationshipLoans.some(l => l.status === 'FA'),
-    judgment: relationshipLoans.some(l => l.status === 'JG'),
-  }), [relationshipLoans, relationshipBorrowers]);
+    bankruptcy: relationshipData?.inBankruptcy ?? false,
+    foreclosure: relationshipData?.foreclosureFlag ?? false,
+    litigation: relationshipData?.litigationFlag ?? false,
+    forbearance: relationshipData?.forbearanceFlag ?? false,
+    judgment: relationshipData?.judgmentFlag ?? false,
+    lowYield: relationshipData?.lowYieldAsset ?? false,
+  }), [relationshipData]);
 
   // Aggregate loan totals
   const totals = useMemo(() => {
@@ -205,6 +211,7 @@ export const OverviewTab = React.memo(() => {
             { key: 'litigation', label: 'Litigation', active: flags.litigation },
             { key: 'forbearance', label: 'Forbearance', active: flags.forbearance },
             { key: 'judgment', label: 'Judgment', active: flags.judgment },
+            { key: 'lowyield', label: 'Low Yield Asset', active: flags.lowYield },
           ] as const).map(flag => (
             <span
               key={flag.key}

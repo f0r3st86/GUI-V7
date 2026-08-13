@@ -6,6 +6,7 @@ export {
   mockProjectionSettingsApi as projectionSettingsApi,
   mockExitSettingsApi as exitSettingsApi,
   mockLoanApi as loanApi,
+  mockRelationshipApi as relationshipApi,
   mockBorrowerApi as borrowerApi,
   mockCollateralApi as collateralApi,
   mockCommentApi as commentApi,

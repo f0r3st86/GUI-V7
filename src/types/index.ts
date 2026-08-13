@@ -46,6 +46,33 @@ export interface Loan {
   selected?: boolean;
 }
 
+// ==================== RELATIONSHIP TYPES ====================
+
+/**
+ * Relationship entity — mirrors production tblRelationships (16 columns).
+ * See docs/UI-DATA-BINDINGS.md. Flags are stored bits (NOT derived from
+ * loan statuses); narratives are relationship-scoped; sortNo is
+ * server-computed from aggregate UPB rank within a project.
+ */
+export interface Relationship {
+  relatedLoans: string;          // PK — truncated relationship name (max ~14 chars)
+  projectName: string;           // Deal layer, e.g. 'Regions.Q3.2026'
+  sortNo: number | null;         // Server-computed UPB rank within project (read-only)
+  relationshipOverview: string;  // Overview tab narrative
+  collateralOverview: string;    // Overview tab narrative
+  conditionsDeadlines: string;   // Overview tab "Bid Conditions"
+  exitStrategyOverview: string;  // Strategies tab narrative
+  originalStrategy: string;      // Strategy history
+  exitCode: string;              // 11-value lookup (see EXIT_CODES)
+  inBankruptcy: boolean;
+  foreclosureFlag: boolean;
+  litigationFlag: boolean;
+  forbearanceFlag: boolean;
+  judgmentFlag: boolean;
+  lowYieldAsset: boolean;
+  rowguid?: string;              // System — read-only, never sent on update
+}
+
 // ==================== BORROWER TYPES ====================
 
 export interface LoanRelationship {

@@ -97,6 +97,33 @@ export const ASSET_TYPES = [
 // Bankruptcy status options
 export const BK_STATUS_OPTIONS = ['none', 'active', 'discharged', 'dismissed'];
 
+// Exit codes - the 11 authoritative values mined from production
+// tblRelationships.ExitCode (see docs/UI-DATA-BINDINGS.md)
+export const EXIT_CODES = [
+  'BK Performing',
+  'Forbearance',
+  'Liquidation-Full',
+  'Liquidation-Partial',
+  'PAA to Mat',
+  'PAA w/Haircuts',
+  'PAA/DPO',
+  'PAA/Prepay',
+  'Restruct/Extend',
+  'Settlement',
+  'ZERO BID'
+];
+
+// Relationship flag definitions - stored bits on tblRelationships,
+// displayed as the flag panel beside the relationship loan grid
+export const RELATIONSHIP_FLAGS = [
+  { key: 'inBankruptcy', label: 'BK', title: 'Bankruptcy' },
+  { key: 'forbearanceFlag', label: 'FA', title: 'Forbearance' },
+  { key: 'foreclosureFlag', label: 'FC', title: 'Foreclosure' },
+  { key: 'judgmentFlag', label: 'JG', title: 'Judgment' },
+  { key: 'litigationFlag', label: 'LT', title: 'Litigation' },
+  { key: 'lowYieldAsset', label: 'LYA', title: 'Low Yield Asset' },
+] as const;
+
 // Add back basis options
 export const ADD_BACK_BASIS_OPTIONS = ['Initial Only', 'Initial + Holding'];
 

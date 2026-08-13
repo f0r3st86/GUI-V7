@@ -17,6 +17,7 @@ import {
   initialCollateralLoanRelationships,
   initialComments,
   initialPaymentRecords,
+  initialRelationships,
 } from '../data';
 import type { ProjectionSettings, ExitSettings } from '../types';
 
@@ -67,6 +68,7 @@ const createTestQueryClient = () => {
 
   // Pre-seed caches with initial data (same data the mock API returns)
   queryClient.setQueryData(['loans'], [...initialLoans]);
+  queryClient.setQueryData(['relationships'], [...initialRelationships]);
   queryClient.setQueryData(['borrowers'], [...initialBorrowers]);
   queryClient.setQueryData(['collateral'], [...initialCollateral]);
   queryClient.setQueryData(['collateral-relationships'], { ...initialCollateralLoanRelationships });

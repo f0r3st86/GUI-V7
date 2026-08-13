@@ -11,7 +11,8 @@ import type {
   CollateralLoanRelationships,
   LoanRelationship,
   ProjectionSettings,
-  ExitSettings
+  ExitSettings,
+  Relationship
 } from '../types';
 import {
   initialLoans,
@@ -19,7 +20,8 @@ import {
   initialCollateral,
   initialCollateralLoanRelationships,
   initialComments,
-  initialPaymentRecords
+  initialPaymentRecords,
+  initialRelationships
 } from '../data';
 import { MOCK_DELAY_MIN, MOCK_DELAY_MAX } from '../data/constants';
 
@@ -34,6 +36,7 @@ const noDelay = () => Promise.resolve();
 // In-memory storage (simulates database)
 // When you have a real backend, this will be in PostgreSQL
 let mockLoans: Loan[] = [...initialLoans];
+let mockRelationships: Relationship[] = [...initialRelationships];
 let mockBorrowers: Borrower[] = [...initialBorrowers];
 let mockCollateral: Collateral[] = [...initialCollateral];
 let mockComments: Comment[] = [...initialComments];
@@ -118,6 +121,60 @@ export const mockLoanApi = {
   delete: async (mwLoanNo: string): Promise<void> => {
     await mockDelay();
     mockLoans = mockLoans.filter(loan => loan.mwLoanNo !== mwLoanNo);
+  }
+};
+
+// ==================== RELATIONSHIP API ====================
+// Mirrors production tblRelationships. Keyed by relatedLoans (natural PK).
+// sortNo and rowguid are server-owned: update() strips them from writes.
+
+export const mockRelationshipApi = {
+  getAll: async (): Promise<Relationship[]> => {
+    await mockDelay();
+    return [...mockRelationships];
+  },
+
+  getByKey: async (relatedLoans: string): Promise<Relationship | undefined> => {
+    await mockDelay();
+    return mockRelationships.find(r => r.relatedLoans === relatedLoans);
+  },
+
+  update: async (relatedLoans: string, updates: Partial<Relationship>): Promise<Relationship> => {
+    await mockDelay();
+    // Server-owned fields: silently strip (a real API would 400 or ignore)
+    const { sortNo: _sortNo, rowguid: _rowguid, relatedLoans: _key, ...writable } = updates;
+    mockRelationships = mockRelationships.map(r =>
+      r.relatedLoans === relatedLoans ? { ...r, ...writable } : r
+    );
+    const updated = mockRelationships.find(r => r.relatedLoans === relatedLoans);
+    if (!updated) throw new Error('Relationship not found');
+    return updated;
+  },
+
+  // Program action: recompute sortNo per project by aggregate principal
+  // UPB rank, largest = 1 (author-confirmed rule, see UI-DATA-BINDINGS.md)
+  recomputeSortOrder: async (): Promise<Relationship[]> => {
+    await mockDelay();
+    const upbByRel = new Map<string, number>();
+    mockLoans.forEach(l => {
+      upbByRel.set(l.relatedLoans, (upbByRel.get(l.relatedLoans) || 0) + (l.principal || 0));
+    });
+    const byProject = new Map<string, Relationship[]>();
+    mockRelationships.forEach(r => {
+      if (!byProject.has(r.projectName)) byProject.set(r.projectName, []);
+      byProject.get(r.projectName)!.push(r);
+    });
+    const newSort = new Map<string, number>();
+    byProject.forEach(rels => {
+      [...rels]
+        .sort((a, b) => (upbByRel.get(b.relatedLoans) || 0) - (upbByRel.get(a.relatedLoans) || 0))
+        .forEach((r, i) => newSort.set(r.relatedLoans, i + 1));
+    });
+    mockRelationships = mockRelationships.map(r => ({
+      ...r,
+      sortNo: newSort.get(r.relatedLoans) ?? r.sortNo
+    }));
+    return [...mockRelationships];
   }
 };
 
@@ -403,6 +460,7 @@ export const mockExitSettingsApi = {
 
 export const resetMockData = () => {
   mockLoans = [...initialLoans];
+  mockRelationships = [...initialRelationships];
   mockBorrowers = [...initialBorrowers];
   mockCollateral = [...initialCollateral];
   mockComments = [...initialComments];
