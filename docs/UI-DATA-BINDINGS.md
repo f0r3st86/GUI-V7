@@ -111,16 +111,94 @@ the React app already implements this mechanism.
 | AssetType | `assetType` | `tblLoan.AssetType` |
 | Unfunded Commitment | `unfundedCommitment` | `tblLoan.[Unfunded Commitment]` |
 
+## Grid population rules (from workbook array formulas)
+
+**Relationship loan grid** is dynamic, not static:
+```
+MWLoanNo column = SORTBY(
+  FILTER(tblLoan[MWLoanNo], tblLoan[RelatedLoans] = <relationship>),
+  FILTER(tblLoan[PrincipalBalance], ...))   -- ordered by principal balance
+```
+→ The GUI's LoanTable should order relationship loans by `PrincipalBalance`
+(largest first), matching the workbook.
+
+**Collateral grid rows** come from a hidden key column:
+```
+MWPropertyNo list = FILTER(CollateralInfo[MWPropertyNo],
+                           CollateralInfo[RelatedLoans] = <relationship>)
+```
+→ **Collateral is linked at the RELATIONSHIP level** (`CollateralInfo.RelatedLoans`),
+not per-loan. Loan-level linkage (`CollateralInfo.MWLoanNo`) is nullable/secondary.
+The GUI's collateral↔loan junction model should treat relationship scoping as
+primary when the backend lands.
+
+## Collateral selection mechanism
+
+Identical pattern to loan selection: checkbox column holds 1 →
+`XLOOKUP(1, checkboxCol, MWPropertyNoCol)` into a hidden "Property Selection"
+cell → all ~30 detail fields key off it. **`selectedCollateralId` in the GUI
+maps to `MWPropertyNo`** (integer, e.g. 400921) — not a synthetic id.
+
 ## Collateral grid (Collateral View)
+
+Keyed by hidden `MWPropertyNo` column ("This Row needs to be hidden").
 
 | UI column | React field | Production column |
 |---|---|---|
-| Priority | — | `CollateralInfo.Priority` |
+| (checkbox) | `selectedCollateralId` | — selection state |
+| Priority | — (missing in GUI) | `CollateralInfo.Priority` |
 | MwCollateralCode | `collateralCode` | `CollateralInfo.MWCollateralCode` |
 | Description | `description` | `CollateralInfo.Description` |
 | Address / City / State / Zip / County | same names | `CollateralInfo.Address`, `City`, `State`, `Zip`, `County` |
 | SellerValue | `ourValue` (approx) | `CollateralInfo.SellerAppraisedValue` |
-| MaxBpo | `bpoValue` | `CollateralInfo.MaxBPO` (per DD.Main views; export shows BPO fields on order flags) |
+| MaxBpo | `bpoValue` | `CollateralInfo.MaxBPO` (per DD.Main views) |
+
+**Grid actions:** Increase Priority | Decrease Priority | Add Collateral |
+Delete Collateral — priority reordering is a first-class operation the GUI
+does not have yet (`Priority` drives lien/valuation ordering).
+
+## Collateral tab detail panel (Collateral View rows 25-39)
+
+All fields key off the hidden selected `MWPropertyNo` (`$C$41`).
+
+| UI label | React field | Production column |
+|---|---|---|
+| MwCollateral Code | `collateralCode` | `CollateralInfo.MWCollateralCode` |
+| Description | `description` | `CollateralInfo.Description` |
+| Address / City / State / Zip | `address1`, `city`, `state`, `zip` | `CollateralInfo.Address`, `City`, `State`, `Zip` |
+| Owner Name | — (missing in GUI) | `CollateralInfo.OwnerName` |
+| PropetyNo | — (hidden key) | `CollateralInfo.MWPropertyNo` |
+| MwLien / MwSrLien / Date | `titleLienPosition`, `titleLienAmount`, — | `CollateralInfo.MWTitleLienPosition`, `MWTitleSrLienAmt`, `MWTitleDate` |
+| Seller Lien / SrLienAmt / Date | `sellerLienPosition`, `sellerLienAmount`, — | `CollateralInfo.LienPosition`, `SeniorLienAmount`, `LienAsOfDate` |
+| Lattitude / Longitude | — (Report tab uses these) | `CollateralInfo.Latitude`, `Longitude` |
+| Parcel Id | `parcelId` | `CollateralInfo.TaxParcelIDNO` |
+| County | `county` | `CollateralInfo.County` |
+| Stmt Date | — (missing in GUI) | `CollateralInfo.TaxStatementDate` |
+| Base/Year | `taxes` | `CollateralInfo.TaxAnnualAmt` |
+| Delq Amt | `delinquentTaxes` | `CollateralInfo.TaxDelinquentAmt` |
+| TAV | `taxAssessedValue` | `CollateralInfo.TaxAssessedValue` |
+| TMV | `taxMarketValue` | `CollateralInfo.TaxMarketValue` |
+| SF | `sqft` | `CollateralInfo.SQFT` |
+| Units | `units` | `CollateralInfo.NumUnits` |
+| Acres | `acres` | `CollateralInfo.Acreage` |
+| MwValue | `appraisedValue` | `CollateralInfo.CurrentAppraisedValue` |
+| SellerVal | `ourValue` | `CollateralInfo.SellerAppraisedValue` |
+| Prop Detail | — (missing in GUI) | `CollateralInfo.PropertyComment` |
+| Environmental Issues | — (missing in GUI) | `CollateralInfo.PossibleEnvironmental` |
+| Group | — (missing in GUI) | `CollateralInfo.RealEstateGroup` |
+| Flood Zone Location | — (missing in GUI) | `CollateralInfo.IsFloodZone` |
+| Tax Card | — (missing in GUI) | `CollateralInfo.TaxWebCard` |
+
+**GUI fields with no binding in this view** (likely sourced elsewhere or dropped):
+`loanNo`, `listPrice`, `daysOnMarket`, `appraisedDate`, `ourValueDate`,
+`bpoValue`/`bpoDate` (production home is `tblBPO`), `yearBuilt`.
+
+## Workbook wiring queries (confirm with author)
+
+1. **Loan View "PmtFrq"** binds `tblLoan.DaysBasis`, not `tblLoan.PmtFrequency` —
+   mislabeled UI or intentional?
+2. **Collateral View "MwValue" date** (J33) binds `SellerAppraisalDate` while the
+   value binds `CurrentAppraisedValue` — expected pair is `CurrentAppraisalDate`.
 
 ## Overview / Strategies narrative fields — schema home confirmed
 
