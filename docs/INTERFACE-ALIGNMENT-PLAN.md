@@ -84,10 +84,14 @@ implementation — this is the single integration point for the future backend.
 ### 2.4 Grid ordering + read-only enforcement
 - LoanTable + mock getAll: order relationship loans by principal descending
   (workbook SORTBY contract)
-- LastImport input becomes read-only (owned by the import job); rowguid never
-  sent on update; add `payoffBalance` as a server-computed read-only field
-  (production PayoffBalance may include fees ≠ the four-balance sum the GUI
-  currently computes as "Total")
+- **Editability policy confirmed by the workbook's yellow-cell convention**
+  (see UI-DATA-BINDINGS.md "Editability"): detail panels are FULLY editable —
+  including LastImport and PayoffBalance — while summary grids, key fields
+  (MWLoanNo/MWPropertyNo/KeyGenerator), SortNo, and rowguid are read-only.
+  Add `payoffBalance` as an editable field (not server-computed as previously
+  assumed); keep the GUI's computed four-balance "Total" as a separate
+  display. Enforce read-only only on: keys, rowguid, SortNo (set elsewhere),
+  and grid cells.
 
 ### 2.5 Missing loan fields
 `consumerLoan` checkbox, PayoffBalance display; collapse the duplicate
