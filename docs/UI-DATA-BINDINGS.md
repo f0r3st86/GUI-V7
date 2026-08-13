@@ -289,8 +289,17 @@ EntryAcctOfficer, EntryDate, and (notably) the task's RelatedLoans reference
 — plus the empty new-task entry card. KeyGenerator is never editable.
 
 **Read-only everywhere:** the relationship loan summary grids, MWLoanNo /
-KeyGenerator / MWPropertyNo keys, SortNo (displayed on every view header but
-editable on none — set elsewhere), hidden plumbing cells, `rowguid`.
+KeyGenerator / MWPropertyNo keys, SortNo, hidden plumbing cells, `rowguid`.
+
+**SortNo assignment rule (author-confirmed, data-verified):** the program
+assigns SortNo by ranking relationships within each ProjectName by aggregate
+UPB, largest = 1. Verified against production data: 5 of 10 projects
+correlate 0.99-1.00 with principal-UPB-descending rank; the rest (0.27-0.70)
+show drift, indicating SortNo is assigned point-in-time (at pool setup /
+import) rather than continuously recomputed, with balances moving afterward.
+GUI implication: `sortNo` is server-computed and read-only; the app needs a
+"recompute sort order" action (per project: rank by aggregate principal
+descending), not a SortNo input.
 
 ## Workbook wiring queries (confirm with author)
 
