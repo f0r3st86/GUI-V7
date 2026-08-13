@@ -247,7 +247,7 @@ describe('calculatePV', () => {
 describe('calculateTrailingPayments', () => {
   const mockLoans: Loan[] = [
     {
-      mwLoanNo: '7758',
+      mwLoanNo: '000005100377580',
       borrowerName: 'Test',
       relatedLoans: 'Test',
       pool: 'Pool1',
@@ -290,20 +290,20 @@ describe('calculateTrailingPayments', () => {
   ];
 
   const mockPayments: PaymentRecord[] = [
-    { id: 1, loanNo: '7758', year: '2024', month: '10', amount: '750' },
-    { id: 2, loanNo: '7758', year: '2024', month: '9', amount: '750' },
-    { id: 3, loanNo: '7758', year: '2024', month: '8', amount: '750' },
-    { id: 4, loanNo: '7758', year: '2024', month: '7', amount: '500' },
-    { id: 5, loanNo: '7758', year: '2024', month: '6', amount: '500' },
-    { id: 6, loanNo: '7758', year: '2024', month: '5', amount: '500' },
+    { id: 1, loanNo: '000005100377580', year: '2024', month: '10', amount: '750' },
+    { id: 2, loanNo: '000005100377580', year: '2024', month: '9', amount: '750' },
+    { id: 3, loanNo: '000005100377580', year: '2024', month: '8', amount: '750' },
+    { id: 4, loanNo: '000005100377580', year: '2024', month: '7', amount: '500' },
+    { id: 5, loanNo: '000005100377580', year: '2024', month: '6', amount: '500' },
+    { id: 6, loanNo: '000005100377580', year: '2024', month: '5', amount: '500' },
   ];
 
   it('should return null if no lastImportDate', () => {
-    expect(calculateTrailingPayments('7758', 12, '', mockPayments, mockLoans)).toBeNull();
+    expect(calculateTrailingPayments('000005100377580', 12, '', mockPayments, mockLoans)).toBeNull();
   });
 
   it('should calculate 3-month trailing payments', () => {
-    const result = calculateTrailingPayments('7758', 3, '10/31/24', mockPayments, mockLoans);
+    const result = calculateTrailingPayments('000005100377580', 3, '10/31/24', mockPayments, mockLoans);
     expect(result).not.toBeNull();
     // The function filters payments from startDate to endDate
     // Based on actual calculation: Aug, Sep, Oct = months 8, 9, 10
@@ -313,7 +313,7 @@ describe('calculateTrailingPayments', () => {
   });
 
   it('should calculate 6-month trailing payments', () => {
-    const result = calculateTrailingPayments('7758', 6, '10/31/24', mockPayments, mockLoans);
+    const result = calculateTrailingPayments('000005100377580', 6, '10/31/24', mockPayments, mockLoans);
     expect(result).not.toBeNull();
     // Sum of payments in 6-month window
     expect(result!.actual).toBeGreaterThan(0);
@@ -322,14 +322,14 @@ describe('calculateTrailingPayments', () => {
   });
 
   it('should calculate percentage of contractual', () => {
-    const result = calculateTrailingPayments('7758', 3, '10/31/24', mockPayments, mockLoans);
+    const result = calculateTrailingPayments('000005100377580', 3, '10/31/24', mockPayments, mockLoans);
     // Percent = actual / contractualTotal * 100
     const expectedPercent = (result!.actual / result!.contractualTotal) * 100;
     expect(result!.percentOfContractual).toBeCloseTo(expectedPercent, 2);
   });
 
   it('should calculate interest-only metrics', () => {
-    const result = calculateTrailingPayments('7758', 3, '10/31/24', mockPayments, mockLoans);
+    const result = calculateTrailingPayments('000005100377580', 3, '10/31/24', mockPayments, mockLoans);
     // Interest-only monthly = 95000 * (8.5/100/12) = ~672.92
     expect(result!.interestOnlyMonthly).toBeCloseTo(672.92, 0);
   });

@@ -11,7 +11,7 @@ export const initialCollateral: Collateral[] = [
   {
     mwPropertyNo: 400921,
     relatedLoans: 'Haskell',
-    loanNo: '7758',
+    loanNo: '000005100377580',
     collateralCode: 'Commercial Property',
     description: 'Commercial Building - Restaurant',
     address1: '500 Commercial Street',
@@ -44,7 +44,7 @@ export const initialCollateral: Collateral[] = [
   {
     mwPropertyNo: 400922,
     relatedLoans: 'Haskell',
-    loanNo: '2461',
+    loanNo: '000005100324610',
     collateralCode: 'Multi-Family',
     description: '12-Unit Apartment Building',
     address1: '1200 Main Street',

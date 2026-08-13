@@ -2,6 +2,19 @@
 import type { PaymentRecord } from '../types';
 
 /**
+ * Validate MW Loan Number against the production tblLoan.MWLoanNo shape:
+ * a STRING of 5-15 characters — digits with leading zeros preserved
+ * (e.g. '000005100350710') or digits with one embedded hyphen group
+ * (e.g. '999999-999'). Never parse as a number: leading zeros and
+ * hyphens are significant. See docs/UI-DATA-BINDINGS.md data-shape rules.
+ */
+export const validateMWLoanNo = (value: string): boolean => {
+  if (!value) return false;
+  if (value.length < 5 || value.length > 15) return false;
+  return /^\d+(-\d+)?$/.test(value);
+};
+
+/**
  * Validate month input (1-12)
  */
 export const validateMonth = (value: string): boolean => {

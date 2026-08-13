@@ -17,7 +17,7 @@ interface LoanProviderProps {
 
 export const LoanProvider: React.FC<LoanProviderProps> = ({ children }) => {
   // ==================== UI STATE ====================
-  const [selectedLoan, setSelectedLoan] = useState<string>('7758');
+  const [selectedLoan, setSelectedLoan] = useState<string>('000005100377580');
   const [activeTab, setActiveTab] = useState<string>('Loan');
   const [selectedBorrowerId, setSelectedBorrowerId] = useState<number>(1);
   // Holds the selected collateral's mwPropertyNo (production key)

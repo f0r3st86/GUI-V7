@@ -73,9 +73,9 @@ const createTestQueryClient = () => {
   queryClient.setQueryData(['comments'], [...initialComments]);
   queryClient.setQueryData(['payments'], [...initialPaymentRecords]);
 
-  // Pre-seed per-loan settings for the default selected loan ('7758')
-  queryClient.setQueryData(['projectionSettings', 'loan', '7758'], { ...defaultProjectionSettings });
-  queryClient.setQueryData(['exitSettings', 'loan', '7758'], { ...defaultExitSettings });
+  // Pre-seed per-loan settings for the default selected loan ('000005100377580')
+  queryClient.setQueryData(['projectionSettings', 'loan', '000005100377580'], { ...defaultProjectionSettings });
+  queryClient.setQueryData(['exitSettings', 'loan', '000005100377580'], { ...defaultExitSettings });
 
   return queryClient;
 };
@@ -249,7 +249,7 @@ export { customRender as render };
  * Mock data factories for testing
  */
 export const createMockLoan = (overrides = {}) => ({
-  mwLoanNo: '7758',
+  mwLoanNo: '000005100377580',
   borrowerName: 'Test Borrower',
   relatedLoans: 'TestRelationship',
   pool: 'Pool1',
@@ -311,7 +311,7 @@ export const createMockBorrower = (overrides = {}) => ({
   bkCourtLocation: '',
   bkAssets: '',
   loanRelationships: {
-    '7758': { selected: true, role: 'Borrower' }
+    '000005100377580': { selected: true, role: 'Borrower' }
   },
   ...overrides
 });
@@ -351,7 +351,7 @@ export const createMockCollateral = (overrides = {}) => ({
 
 export const createMockPaymentRecord = (overrides = {}) => ({
   id: 1,
-  loanNo: '7758',
+  loanNo: '000005100377580',
   year: '2024',
   month: '10',
   amount: 750,
@@ -360,7 +360,7 @@ export const createMockPaymentRecord = (overrides = {}) => ({
 
 export const createMockComment = (overrides = {}) => ({
   id: 1,
-  loanNo: '7758',
+  loanNo: '000005100377580',
   commentType: 'Note' as const,
   date: '10/31/24',
   text: 'Test comment text',

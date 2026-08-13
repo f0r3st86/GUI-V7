@@ -17,7 +17,7 @@ import type { Loan } from '../types';
 export const initialLoans: Loan[] = [
   {
     relatedLoans: 'Haskell',
-    mwLoanNo: '2461',
+    mwLoanNo: '000005100324610',
     borrowerName: 'Rocky Coast Real Estate Group LLC',
     origBalance: 300000,
     principal: 257454,
@@ -58,7 +58,7 @@ export const initialLoans: Loan[] = [
   },
   {
     relatedLoans: 'Haskell',
-    mwLoanNo: '5091',
+    mwLoanNo: '000005100350910',
     borrowerName: 'Blaze Restaurant Group LLC',
     origBalance: 250000,
     principal: 249027,
@@ -99,7 +99,7 @@ export const initialLoans: Loan[] = [
   },
   {
     relatedLoans: 'Haskell',
-    mwLoanNo: '7855',
+    mwLoanNo: '000005100378550',
     borrowerName: 'Rocky Coast Real Estate Group LLC',
     origBalance: 207250,
     principal: 204352,
@@ -140,7 +140,7 @@ export const initialLoans: Loan[] = [
   },
   {
     relatedLoans: 'Haskell',
-    mwLoanNo: '3685',
+    mwLoanNo: '000005100336850',
     borrowerName: 'Rocky Coast Real Estate Group LLC',
     origBalance: 252000,
     principal: 166900,
@@ -181,7 +181,7 @@ export const initialLoans: Loan[] = [
   },
   {
     relatedLoans: 'Haskell',
-    mwLoanNo: '3205',
+    mwLoanNo: '000005100332050',
     borrowerName: 'Matthew Haskell',
     origBalance: 152500,
     principal: 117520,
@@ -222,7 +222,7 @@ export const initialLoans: Loan[] = [
   },
   {
     relatedLoans: 'Haskell',
-    mwLoanNo: '6826',
+    mwLoanNo: '000005100368260',
     borrowerName: 'Matthew Haskell',
     origBalance: 50000,
     principal: 49273,
@@ -263,7 +263,7 @@ export const initialLoans: Loan[] = [
   },
   {
     relatedLoans: 'Haskell',
-    mwLoanNo: '7758',
+    mwLoanNo: '000005100377580',
     borrowerName: 'Blaze Restaurant Group LLC',
     origBalance: 32800,
     principal: 21505,
@@ -305,7 +305,7 @@ export const initialLoans: Loan[] = [
   },
   {
     relatedLoans: 'Coastal',
-    mwLoanNo: '8101',
+    mwLoanNo: '0150024381011',
     borrowerName: 'Harbor View Properties LLC',
     origBalance: 450000,
     principal: 412300,
@@ -346,7 +346,7 @@ export const initialLoans: Loan[] = [
   },
   {
     relatedLoans: 'Coastal',
-    mwLoanNo: '8102',
+    mwLoanNo: '815102-810',
     borrowerName: 'Harbor View Properties LLC',
     origBalance: 185000,
     principal: 178450,

@@ -97,7 +97,7 @@ describe('RelationshipBrowser', () => {
       const user = userEvent.setup();
       render(<RelationshipBrowser />);
 
-      await user.type(screen.getByLabelText('Search relationships'), '3685');
+      await user.type(screen.getByLabelText('Search relationships'), '000005100336850');
 
       const table = screen.getByRole('table', { name: /relationships/i });
       expect(within(table).getByText('Haskell')).toBeInTheDocument();

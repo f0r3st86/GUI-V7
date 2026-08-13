@@ -40,7 +40,7 @@ describe('CommentTab', () => {
     it('should render comments from initial data', () => {
       render(<CommentTab />);
       // Initial data has loan 7758 and 2461
-      expect(screen.getAllByText('7758').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('000005100377580').length).toBeGreaterThanOrEqual(1);
     });
 
     it('should show type badges with colored styling', () => {

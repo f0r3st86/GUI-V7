@@ -50,7 +50,7 @@ export function useLoans() {
  * Get single loan by MW Loan Number
  *
  * Usage:
- * const { data: loan, isLoading } = useLoan('7758');
+ * const { data: loan, isLoading } = useLoan('000005100377580');
  *
  * Returns: Loan | undefined with loading/error states
  */
@@ -117,7 +117,7 @@ export function useAddLoan() {
  *
  * Usage:
  * const { mutate: updateLoan } = useUpdateLoan();
- * updateLoan({ mwLoanNo: '7758', updates: { principal: 500000 } });
+ * updateLoan({ mwLoanNo: '000005100377580', updates: { principal: 500000 } });
  *
  * Features:
  * - Optimistic update
@@ -190,7 +190,7 @@ export function useUpdateLoan() {
  *
  * Usage:
  * const { mutate: deleteLoan } = useDeleteLoan();
- * deleteLoan('7758');
+ * deleteLoan('000005100377580');
  *
  * Features:
  * - Optimistic update

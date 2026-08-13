@@ -27,13 +27,13 @@ export const initialBorrowers: Borrower[] = [
     type: 'Borrower',
     // Per-borrower loan relationships
     loanRelationships: {
-      '2461': { selected: false, role: 'Borrower' },
-      '5091': { selected: true, role: 'Borrower' },
-      '7855': { selected: false, role: 'Borrower' },
-      '3685': { selected: false, role: 'Borrower' },
-      '3205': { selected: false, role: 'Borrower' },
-      '6826': { selected: false, role: 'Borrower' },
-      '7758': { selected: true, role: 'Borrower' }
+      '000005100324610': { selected: false, role: 'Borrower' },
+      '000005100350910': { selected: true, role: 'Borrower' },
+      '000005100378550': { selected: false, role: 'Borrower' },
+      '000005100336850': { selected: false, role: 'Borrower' },
+      '000005100332050': { selected: false, role: 'Borrower' },
+      '000005100368260': { selected: false, role: 'Borrower' },
+      '000005100377580': { selected: true, role: 'Borrower' }
     }
   },
   {
@@ -58,13 +58,13 @@ export const initialBorrowers: Borrower[] = [
     type: 'Guarantor',
     // Per-borrower loan relationships
     loanRelationships: {
-      '2461': { selected: true, role: 'Guarantor' },
-      '5091': { selected: false, role: 'Guarantor' },
-      '7855': { selected: true, role: 'Guarantor' },
-      '3685': { selected: true, role: 'Guarantor' },
-      '3205': { selected: true, role: 'Borrower' },
-      '6826': { selected: true, role: 'Borrower' },
-      '7758': { selected: false, role: 'Guarantor' }
+      '000005100324610': { selected: true, role: 'Guarantor' },
+      '000005100350910': { selected: false, role: 'Guarantor' },
+      '000005100378550': { selected: true, role: 'Guarantor' },
+      '000005100336850': { selected: true, role: 'Guarantor' },
+      '000005100332050': { selected: true, role: 'Borrower' },
+      '000005100368260': { selected: true, role: 'Borrower' },
+      '000005100377580': { selected: false, role: 'Guarantor' }
     }
   },
   {
@@ -89,13 +89,13 @@ export const initialBorrowers: Borrower[] = [
     type: 'Borrower',
     // Per-borrower loan relationships
     loanRelationships: {
-      '2461': { selected: true, role: 'Borrower' },
-      '5091': { selected: false, role: 'Borrower' },
-      '7855': { selected: true, role: 'Borrower' },
-      '3685': { selected: true, role: 'Borrower' },
-      '3205': { selected: false, role: 'Borrower' },
-      '6826': { selected: false, role: 'Borrower' },
-      '7758': { selected: false, role: 'Borrower' }
+      '000005100324610': { selected: true, role: 'Borrower' },
+      '000005100350910': { selected: false, role: 'Borrower' },
+      '000005100378550': { selected: true, role: 'Borrower' },
+      '000005100336850': { selected: true, role: 'Borrower' },
+      '000005100332050': { selected: false, role: 'Borrower' },
+      '000005100368260': { selected: false, role: 'Borrower' },
+      '000005100377580': { selected: false, role: 'Borrower' }
     }
   },
   {
@@ -119,8 +119,8 @@ export const initialBorrowers: Borrower[] = [
     bkAssets: 'No Assets',
     type: 'Borrower',
     loanRelationships: {
-      '8101': { selected: true, role: 'Borrower' },
-      '8102': { selected: true, role: 'Borrower' }
+      '0150024381011': { selected: true, role: 'Borrower' },
+      '815102-810': { selected: true, role: 'Borrower' }
     }
   }
 ];

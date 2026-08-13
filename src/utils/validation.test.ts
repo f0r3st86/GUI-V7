@@ -20,7 +20,8 @@ import {
   validateYearBuilt,
   validatePercentage,
   validateMonthInput,
-  validateYearInput
+  validateYearInput,
+  validateMWLoanNo,
 } from './validation';
 import type { PaymentRecord } from '../types';
 
@@ -80,17 +81,17 @@ describe('validateYear', () => {
 
 describe('isDuplicatePayment', () => {
   const mockPayments: PaymentRecord[] = [
-    { id: 1, loanNo: '7758', year: '2024', month: '10', amount: '750' },
-    { id: 2, loanNo: '7758', year: '2024', month: '9', amount: '750' },
+    { id: 1, loanNo: '000005100377580', year: '2024', month: '10', amount: '750' },
+    { id: 2, loanNo: '000005100377580', year: '2024', month: '9', amount: '750' },
     { id: 3, loanNo: '7759', year: '2024', month: '10', amount: '500' },
   ];
 
   it('should return true for duplicate entry', () => {
-    expect(isDuplicatePayment(mockPayments, '7758', '2024', '10', 99)).toBe(true);
+    expect(isDuplicatePayment(mockPayments, '000005100377580', '2024', '10', 99)).toBe(true);
   });
 
   it('should return false for same record (excludeId)', () => {
-    expect(isDuplicatePayment(mockPayments, '7758', '2024', '10', 1)).toBe(false);
+    expect(isDuplicatePayment(mockPayments, '000005100377580', '2024', '10', 1)).toBe(false);
   });
 
   it('should return false for different loan', () => {
@@ -98,16 +99,16 @@ describe('isDuplicatePayment', () => {
   });
 
   it('should return false for different month', () => {
-    expect(isDuplicatePayment(mockPayments, '7758', '2024', '11', 99)).toBe(false);
+    expect(isDuplicatePayment(mockPayments, '000005100377580', '2024', '11', 99)).toBe(false);
   });
 
   it('should return false for different year', () => {
-    expect(isDuplicatePayment(mockPayments, '7758', '2023', '10', 99)).toBe(false);
+    expect(isDuplicatePayment(mockPayments, '000005100377580', '2023', '10', 99)).toBe(false);
   });
 
   it('should return false for empty year/month', () => {
-    expect(isDuplicatePayment(mockPayments, '7758', '', '10', 99)).toBe(false);
-    expect(isDuplicatePayment(mockPayments, '7758', '2024', '', 99)).toBe(false);
+    expect(isDuplicatePayment(mockPayments, '000005100377580', '', '10', 99)).toBe(false);
+    expect(isDuplicatePayment(mockPayments, '000005100377580', '2024', '', 99)).toBe(false);
   });
 });
 
@@ -452,5 +453,49 @@ describe('validateYearInput', () => {
 
   it('should return false for > 4 characters', () => {
     expect(validateYearInput('20245')).toBe(false);
+  });
+});
+
+describe('validateMWLoanNo', () => {
+  it('accepts 15-char loan numbers with leading zeros', () => {
+    expect(validateMWLoanNo('000005100350710')).toBe(true);
+  });
+
+  it('accepts 13-char loan numbers', () => {
+    expect(validateMWLoanNo('0150024381011')).toBe(true);
+  });
+
+  it('accepts hyphenated loan numbers (production 999999-999 pattern)', () => {
+    expect(validateMWLoanNo('815102-810')).toBe(true);
+  });
+
+  it('accepts short 5-char loan numbers', () => {
+    expect(validateMWLoanNo('35787')).toBe(true);
+  });
+
+  it('rejects numbers shorter than 5 chars', () => {
+    expect(validateMWLoanNo('7758')).toBe(false);
+  });
+
+  it('rejects numbers longer than 15 chars', () => {
+    expect(validateMWLoanNo('0000051003507101')).toBe(false);
+  });
+
+  it('rejects empty values', () => {
+    expect(validateMWLoanNo('')).toBe(false);
+  });
+
+  it('rejects non-numeric characters', () => {
+    expect(validateMWLoanNo('ABC12345')).toBe(false);
+  });
+
+  it('rejects multiple hyphen groups', () => {
+    expect(validateMWLoanNo('12-34-56')).toBe(false);
+  });
+
+  it('preserves leading zeros as a string (never parseInt)', () => {
+    const value = '000005100350710';
+    expect(validateMWLoanNo(value)).toBe(true);
+    expect(value).not.toBe(String(parseInt(value, 10)));
   });
 });

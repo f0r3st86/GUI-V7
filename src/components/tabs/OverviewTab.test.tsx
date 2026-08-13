@@ -88,13 +88,13 @@ describe('OverviewTab', () => {
     it('should show all loans in the relationship', () => {
       render(<OverviewTab />);
       const table = screen.getByRole('table', { name: /loan summary/i });
-      expect(within(table).getByText('2461')).toBeInTheDocument();
-      expect(within(table).getByText('5091')).toBeInTheDocument();
-      expect(within(table).getByText('7855')).toBeInTheDocument();
-      expect(within(table).getByText('3685')).toBeInTheDocument();
-      expect(within(table).getByText('3205')).toBeInTheDocument();
-      expect(within(table).getByText('6826')).toBeInTheDocument();
-      expect(within(table).getByText('7758')).toBeInTheDocument();
+      expect(within(table).getByText('000005100324610')).toBeInTheDocument();
+      expect(within(table).getByText('000005100350910')).toBeInTheDocument();
+      expect(within(table).getByText('000005100378550')).toBeInTheDocument();
+      expect(within(table).getByText('000005100336850')).toBeInTheDocument();
+      expect(within(table).getByText('000005100332050')).toBeInTheDocument();
+      expect(within(table).getByText('000005100368260')).toBeInTheDocument();
+      expect(within(table).getByText('000005100377580')).toBeInTheDocument();
     });
 
     it('should display borrower names', () => {

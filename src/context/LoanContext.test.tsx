@@ -45,7 +45,7 @@ describe('LoanContext', () => {
     it('should provide initial UI state when used within provider', () => {
       const { result } = renderHook(() => useLoan(), { wrapper: createWrapper() });
 
-      expect(result.current.selectedLoan).toBe('7758');
+      expect(result.current.selectedLoan).toBe('000005100377580');
       expect(result.current.activeTab).toBe('Loan');
       expect(result.current.selectedBorrowerId).toBe(1);
       // Collateral selection holds the production key (mwPropertyNo)
@@ -59,17 +59,17 @@ describe('LoanContext', () => {
       const { result } = renderHook(() => useLoan(), { wrapper: createWrapper() });
 
       act(() => {
-        result.current.setSelectedLoan('2461');
+        result.current.setSelectedLoan('000005100324610');
       });
 
-      expect(result.current.selectedLoan).toBe('2461');
+      expect(result.current.selectedLoan).toBe('000005100324610');
     });
 
     it('should derive selectedLoanData from the React Query loans cache', () => {
       const { result } = renderHook(() => useLoan(), { wrapper: createWrapper() });
 
       expect(result.current.selectedLoanData).toBeDefined();
-      expect(result.current.selectedLoanData?.mwLoanNo).toBe('7758');
+      expect(result.current.selectedLoanData?.mwLoanNo).toBe('000005100377580');
     });
 
     it('should update selectedLoanData when selectedLoan changes', () => {
@@ -78,10 +78,10 @@ describe('LoanContext', () => {
       const initialLoanData = result.current.selectedLoanData;
 
       act(() => {
-        result.current.setSelectedLoan('2461');
+        result.current.setSelectedLoan('000005100324610');
       });
 
-      expect(result.current.selectedLoanData?.mwLoanNo).toBe('2461');
+      expect(result.current.selectedLoanData?.mwLoanNo).toBe('000005100324610');
       expect(result.current.selectedLoanData).not.toBe(initialLoanData);
     });
 
@@ -160,12 +160,12 @@ describe('LoanContext', () => {
       });
 
       act(() => {
-        result.current.setSelectedLoan('2461');
+        result.current.setSelectedLoan('000005100324610');
       });
 
       expect(result.current.selectedBorrowerId).toBe(3);
       expect(result.current.selectedCollateralId).toBe(2);
-      expect(result.current.selectedLoan).toBe('2461');
+      expect(result.current.selectedLoan).toBe('000005100324610');
     });
   });
 });

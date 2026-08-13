@@ -17,9 +17,9 @@ describe('Mock API', () => {
     });
 
     it('should get loan by ID', async () => {
-      const loan = await mockLoanApi.getById('7758');
+      const loan = await mockLoanApi.getById('000005100377580');
       expect(loan).toBeDefined();
-      expect(loan?.mwLoanNo).toBe('7758');
+      expect(loan?.mwLoanNo).toBe('000005100377580');
     });
 
     it('should create a loan', async () => {
@@ -43,14 +43,14 @@ describe('Mock API', () => {
     });
 
     it('should update a loan', async () => {
-      const updated = await mockLoanApi.update('7758', { principal: 999999 });
+      const updated = await mockLoanApi.update('000005100377580', { principal: 999999 });
       expect(updated.principal).toBe(999999);
-      expect(updated.mwLoanNo).toBe('7758');
+      expect(updated.mwLoanNo).toBe('000005100377580');
     });
 
     it('should delete a loan', async () => {
-      await mockLoanApi.delete('7758');
-      const loan = await mockLoanApi.getById('7758');
+      await mockLoanApi.delete('000005100377580');
+      const loan = await mockLoanApi.getById('000005100377580');
       expect(loan).toBeUndefined();
     });
   });
