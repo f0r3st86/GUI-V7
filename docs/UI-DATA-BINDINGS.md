@@ -217,8 +217,9 @@ relationship-scoped API calls.
 
 ## Data-shape rules the GUI must honor
 
-1. **MWLoanNo is a 13–15 char string** (`000005100350710`) — never numeric, keep
-   leading zeros. Seed/test data with 4-digit IDs understates field widths.
+1. **MWLoanNo is a string, 5–15 chars** — leading zeros (`000005100350710`)
+   AND embedded hyphens (`999999-999` pattern) both occur in production; never
+   numeric. Seed/test data with 4-digit IDs understates field widths.
 2. **RelatedLoans is a ~11-char truncated name** (`HISPANIC PR`) used as a join key —
    renames break joins (see database analysis doc).
 3. **Rates are decimal fractions** (`0.045` = 4.5%); the GUI stores percent numbers
@@ -226,8 +227,9 @@ relationship-scoped API calls.
 4. **Narratives contain CR literals** (`_x000D_`) — normalize line endings on read.
 5. **`rowguid`** exists on every table (SQL Server replication) — read-only, never sent
    on update.
-6. **Latitude/Longitude already exist on CollateralInfo** — the Report tab map can bind
-   directly; no schema change needed.
+6. **Latitude/Longitude exist on CollateralInfo but are 100% EMPTY** (0/290
+   rows filled) — the columns are ready but the Report tab map needs a
+   geocoding step or manual entry to populate them.
 7. **Scale reality:** ~210 relationships, ~248 loans, ~291 properties across multiple
    `ProjectName` deals in one database — the relationship browser needs a project
    filter when real data connects.
