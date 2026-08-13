@@ -2,6 +2,14 @@
 -- MidwestDD Database Schema
 -- SQL Server CREATE TABLE scripts matching the React GUI types
 --
+-- >>> NOTE: production tblLoan / tblRelationships / CollateralInfo
+-- already exist with DIFFERENT column names, confirmed from real
+-- exports — see docs/UI-DATA-BINDINGS.md. This script is the
+-- greenfield proposal; use it only for tables that do not exist
+-- yet (projections, bid statistics, photos, lookups). The API
+-- layer must translate GUI fields to the REAL columns for the
+-- three confirmed tables.
+--
 -- Connection: DSN=sqlDueDiligence; DATABASE=MidwestDD
 -- Auth: Trusted_Connection (Windows Authentication)
 --

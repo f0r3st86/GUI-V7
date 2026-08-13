@@ -1,6 +1,18 @@
 -- ============================================================
 -- FIELD MAPPING: React Interface <-> SQL Table
 -- Shows exactly how each React/TypeScript field maps to SQL
+--
+-- >>> IMPORTANT: REAL PRODUCTION COLUMN NAMES CONFIRMED <<<
+-- The actual MidwestDD columns for tblLoan (54 cols),
+-- tblRelationships (16), and CollateralInfo (57) were confirmed
+-- from production exports and differ from the proposed names
+-- below (e.g. principal -> PrincipalBalance not Principal,
+-- borrowerName -> BorrowerNm, pmt -> RepayAmt, intRate -> Rate
+-- stored as a decimal fraction).
+-- docs/UI-DATA-BINDINGS.md is the AUTHORITATIVE mapping for
+-- those three tables. The sections below remain the proposal
+-- for tables not yet confirmed from production (borrowers,
+-- comments, payments, projection/bid tables).
 -- ============================================================
 
 -- ============================================================
