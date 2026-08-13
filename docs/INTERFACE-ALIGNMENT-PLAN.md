@@ -116,6 +116,17 @@ lastPmt/lastPdt fields (both bind LastPmtDt); drop `notDue`, `change`, `ahBhd`,
     lookup, flag for data cleanup
 - Type the test factories (`createMockCollateral` etc.) so tests catch drift
 
+## Phase 3.5 — Tasks tab is now fully specified (unblocked 2026-08)
+
+The Architecture workbook now includes the `tblTasks` export (13 cols, 206
+rows) and a wired Task View. The "Coming soon" Tasks tab can be built for
+real: task cards (Task For / Entered By / Date / Comment / Complete +
+CompleteDate) filtered by relationship, ordered by EntryDate, with a
+perpetual empty entry card at the bottom (author's spec note). Add a `tasks`
+mock resource + `useTasks()` hooks keyed by `KeyGenerator`. Note EntryDate
+carries real times (unlike every other date column) and tasks may reference
+a specific `MWLoanNo`.
+
 ## Phase 4 — What to export next (extends the Architecture workbook)
 
 Priority-ordered; each unblocks a GUI surface currently built on guesses:

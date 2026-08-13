@@ -193,12 +193,78 @@ All fields key off the hidden selected `MWPropertyNo` (`$C$41`).
 `loanNo`, `listPrice`, `daysOnMarket`, `appraisedDate`, `ourValueDate`,
 `bpoValue`/`bpoDate` (production home is `tblBPO`), `yearBuilt`.
 
+## tblTasks — 13 columns (production export, 206 rows)
+
+```
+AcctOfficer | EntryDate (datetime, WITH time) | KeyGenerator (int PK, ~166xxx)
+ProjectName | RelatedLoans | MWLoanNo | DueDate | EntryAcctOfficer
+Comment (free text) | Completed (bool) | CompleteDate | New (bool) | rowguid
+```
+
+Tasks are diligence requests/questions tied to a relationship (and optionally a
+loan), assigned between account officers, with completion tracking. This is the
+schema for the GUI's **Tasks tab** (currently a "Coming soon" stub).
+
+## Task View bindings (Tasks tab spec)
+
+- Task list for the open relationship:
+  `FILTER(tblTasks[KeyGenerator], tblTasks[RelatedLoans] = <relationship>)`
+  via a hidden key column ("These should be hidden")
+- Repeating task cards, each bound by `KeyGenerator`:
+
+| UI label | Production column |
+|---|---|
+| Task For | `tblTasks.AcctOfficer` |
+| Entered By | `tblTasks.EntryAcctOfficer` |
+| Date | `tblTasks.EntryDate` |
+| (comment body) | `tblTasks.Comment` |
+| Complete | `tblTasks.Completed` + `CompleteDate` |
+| (relationship ref) | `tblTasks.RelatedLoans` |
+
+- **Author's spec note in the sheet:** "We should always have a new row to
+  enter a new task at the bottom" — the Tasks tab needs a perpetual empty
+  entry card (same pattern as PayHist's empty payment row).
+
+## Strategies View bindings (Strategies tab spec)
+
+| UI element | Production column |
+|---|---|
+| Exit Strategy textarea | `tblRelationships.ExitStrategyOverview` |
+| Exit Code field | `tblRelationships.ExitCode` (11-value lookup) |
+
+## Overview View bindings — confirms the GUI's existing three sections
+
+| UI section | Production column |
+|---|---|
+| Relationship Overview textarea | `tblRelationships.RelationshipOverview` |
+| Collateral Overview textarea | `tblRelationships.CollateralOverview` |
+| Bid Conditions | `tblRelationships.ConditionsDeadlines` |
+
+The current OverviewTab layout matches this view 1:1 — only the persistence
+(localStorage → relationship-scoped API) needs to change.
+
+## Grid flag panel decoded (all View sheets)
+
+The "Check Box / Bk" columns at the right of every relationship loan grid are
+NOT per-loan status — they are a vertical **relationship flag panel**: the
+checkbox column binds one tblRelationships flag per row
+(`InBankruptcy`, `ForeclosureFlag`, `JudgmentFlag`, `LitigationFlag`,
+`LowYieldAsset`), with static labels beside them. This matches the Access
+form's BK/FA/FC/JG/LT + Low Yield Asset checkbox stack and confirms the
+alignment plan's status remodel: the GUI's per-loan Status column should be
+replaced by this relationship-level flag panel.
+
 ## Workbook wiring queries (confirm with author)
 
 1. **Loan View "PmtFrq"** binds `tblLoan.DaysBasis`, not `tblLoan.PmtFrequency` —
    mislabeled UI or intentional?
 2. **Collateral View "MwValue" date** (J33) binds `SellerAppraisalDate` while the
    value binds `CurrentAppraisedValue` — expected pair is `CurrentAppraisalDate`.
+3. **Flag panel label offset** (all View sheets): the `InBankruptcy` checkbox
+   formula sits beside the label "FA", the "BK" label is absent, and
+   `ForbearanceFlag` has no row at all. Expected pairing per the Access form:
+   BK→InBankruptcy, FA→ForbearanceFlag, FC→ForeclosureFlag, JG→JudgmentFlag,
+   LT→LitigationFlag, Low Yield Asset→LowYieldAsset.
 
 ## Overview / Strategies narrative fields — schema home confirmed
 
