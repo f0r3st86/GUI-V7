@@ -1,5 +1,7 @@
 // Custom hook for CollateralTab state management
-// Handles collateral data, debouncing, validation, delete, and loan relationships
+// Production model: collateral keyed by mwPropertyNo, linked to the
+// RELATIONSHIP via relatedLoans (primary) and optionally to one loan
+// via loanNo (secondary). See docs/UI-DATA-BINDINGS.md.
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTheme, useLoan } from '../../../../context';
 import { DEBOUNCE_DELAY } from '../../../../data';
@@ -12,11 +14,9 @@ import {
 import {
   useDebounce,
   useCollateral,
-  useCollateralRelationships,
   useAddCollateral,
   useUpdateCollateral,
   useDeleteCollateral,
-  useUpdateCollateralRelationships,
   useLoans
 } from '../../../../hooks';
 import type { Collateral, DeleteCollateralConfirmation } from '../../../../types';
@@ -26,6 +26,7 @@ export function useCollateralForm(): CollateralFormState | { isLoading: true } |
   const { styles } = useTheme();
   const {
     selectedLoan,
+    currentRelationship,
     selectedCollateralId,
     setSelectedCollateralId
   } = useLoan();
@@ -39,32 +40,37 @@ export function useCollateralForm(): CollateralFormState | { isLoading: true } |
     });
 
   const { data: collateral, isLoading: loadingCollateral } = useCollateral();
-  const { data: collateralLoanRelationships } = useCollateralRelationships();
   const { data: loans, isLoading: loadingLoans } = useLoans();
   const { mutate: addCollateralMutation } = useAddCollateral();
   const { mutate: updateCollateral } = useUpdateCollateral();
   const { mutate: deleteCollateralMutation } = useDeleteCollateral();
-  const { mutate: updateRelationships } = useUpdateCollateralRelationships();
 
-  const collateralList = useMemo(() => collateral || [], [collateral]);
+  // Collateral belongs to the relationship (production linkage rule)
+  const collateralList = useMemo(
+    () => (collateral || []).filter(c => c.relatedLoans === currentRelationship),
+    [collateral, currentRelationship]
+  );
   const selectedCollateralData = useMemo(
-    () => collateralList.find(c => c.id === selectedCollateralId),
+    () => collateralList.find(c => c.mwPropertyNo === selectedCollateralId),
     [collateralList, selectedCollateralId]
   );
-  const sortedLoans = useMemo(() => loans || [], [loans]);
+  // Relationship loans, principal descending (workbook grid contract)
+  const sortedLoans = useMemo(
+    () => (loans || [])
+      .filter(l => l.relatedLoans === currentRelationship)
+      .sort((a, b) => (b.principal || 0) - (a.principal || 0)),
+    [loans, currentRelationship]
+  );
 
+  // Stats for the linkage panel: the linked loan + relationship totals
   const securingLoansStats = useMemo(() => {
-    if (!collateralLoanRelationships) {
-      return { securingCount: 0, totalLoans: 0, totalSecured: 0 };
-    }
-    const relationships = collateralLoanRelationships[selectedCollateralId] || {};
-    const securingCount = Object.values(relationships).filter(Boolean).length;
-    const totalLoans = sortedLoans.length;
-    const totalSecured = sortedLoans
-      .filter(loan => relationships[loan.mwLoanNo])
-      .reduce((sum, loan) => sum + loan.principal, 0);
-    return { securingCount, totalLoans, totalSecured };
-  }, [collateralLoanRelationships, selectedCollateralId, sortedLoans]);
+    const linked = sortedLoans.find(l => l.mwLoanNo === selectedCollateralData?.loanNo);
+    return {
+      securingCount: linked ? 1 : 0,
+      totalLoans: sortedLoans.length,
+      totalSecured: linked ? linked.principal : 0
+    };
+  }, [sortedLoans, selectedCollateralData]);
 
   // Local debounced state
   const [localListPrice, setLocalListPrice] = useState('');
@@ -84,14 +90,14 @@ export function useCollateralForm(): CollateralFormState | { isLoading: true } |
 
   const handleCollateralFieldChange = useCallback((field: keyof Collateral, value: string) => {
     if (selectedCollateralId) {
-      updateCollateral({ id: selectedCollateralId, updates: { [field]: value } });
+      updateCollateral({ mwPropertyNo: selectedCollateralId, updates: { [field]: value } });
     }
   }, [selectedCollateralId, updateCollateral]);
 
   // Initialize local state when collateral changes
   useEffect(() => {
     if (selectedCollateralData) {
-      currentCollateralIdRef.current = selectedCollateralData.id;
+      currentCollateralIdRef.current = selectedCollateralData.mwPropertyNo;
       setLocalListPrice(selectedCollateralData.listPrice || '');
       setLocalAppraisedValue(selectedCollateralData.appraisedValue || '');
       setLocalOurValue(selectedCollateralData.ourValue || '');
@@ -103,7 +109,7 @@ export function useCollateralForm(): CollateralFormState | { isLoading: true } |
   // Sync debounced values
   useEffect(() => {
     if (debouncedListPrice !== undefined && selectedCollateralData &&
-        currentCollateralIdRef.current === selectedCollateralData.id &&
+        currentCollateralIdRef.current === selectedCollateralData.mwPropertyNo &&
         debouncedListPrice !== selectedCollateralData.listPrice) {
       handleCollateralFieldChange('listPrice', debouncedListPrice);
     }
@@ -111,7 +117,7 @@ export function useCollateralForm(): CollateralFormState | { isLoading: true } |
 
   useEffect(() => {
     if (debouncedAppraisedValue !== undefined && selectedCollateralData &&
-        currentCollateralIdRef.current === selectedCollateralData.id &&
+        currentCollateralIdRef.current === selectedCollateralData.mwPropertyNo &&
         debouncedAppraisedValue !== selectedCollateralData.appraisedValue) {
       handleCollateralFieldChange('appraisedValue', debouncedAppraisedValue);
     }
@@ -119,7 +125,7 @@ export function useCollateralForm(): CollateralFormState | { isLoading: true } |
 
   useEffect(() => {
     if (debouncedOurValue !== undefined && selectedCollateralData &&
-        currentCollateralIdRef.current === selectedCollateralData.id &&
+        currentCollateralIdRef.current === selectedCollateralData.mwPropertyNo &&
         debouncedOurValue !== selectedCollateralData.ourValue) {
       handleCollateralFieldChange('ourValue', debouncedOurValue);
     }
@@ -127,7 +133,7 @@ export function useCollateralForm(): CollateralFormState | { isLoading: true } |
 
   useEffect(() => {
     if (debouncedBpoValue !== undefined && selectedCollateralData &&
-        currentCollateralIdRef.current === selectedCollateralData.id &&
+        currentCollateralIdRef.current === selectedCollateralData.mwPropertyNo &&
         debouncedBpoValue !== selectedCollateralData.bpoValue) {
       handleCollateralFieldChange('bpoValue', debouncedBpoValue);
     }
@@ -135,7 +141,7 @@ export function useCollateralForm(): CollateralFormState | { isLoading: true } |
 
   useEffect(() => {
     if (debouncedSqft !== undefined && selectedCollateralData &&
-        currentCollateralIdRef.current === selectedCollateralData.id &&
+        currentCollateralIdRef.current === selectedCollateralData.mwPropertyNo &&
         debouncedSqft !== selectedCollateralData.sqft) {
       handleCollateralFieldChange('sqft', debouncedSqft);
     }
@@ -162,15 +168,10 @@ export function useCollateralForm(): CollateralFormState | { isLoading: true } |
   }, []);
 
   // Action handlers
-  const getNextCollateralId = useCallback(() => {
-    if (collateralList.length === 0) return 1;
-    return Math.max(...collateralList.map(c => c.id)) + 1;
-  }, [collateralList]);
-
   const addNewCollateral = useCallback(() => {
-    const newId = getNextCollateralId();
-    const newCollateral: Collateral = {
-      id: newId, loanNo: selectedLoan, collateralCode: '', description: '',
+    const newCollateral: Omit<Collateral, 'mwPropertyNo'> = {
+      relatedLoans: currentRelationship, loanNo: selectedLoan,
+      collateralCode: '', description: '',
       address1: '', city: '', state: '', zip: '', county: '', parcelId: '',
       taxes: '', delinquentTaxes: '', taxAssessedValue: '', taxMarketValue: '',
       sellerLienPosition: '', sellerLienAmount: '', titleLienPosition: '', titleLienAmount: '',
@@ -179,40 +180,30 @@ export function useCollateralForm(): CollateralFormState | { isLoading: true } |
       sqft: '', acres: '', yearBuilt: '', units: ''
     };
     addCollateralMutation(newCollateral, {
-      onSuccess: () => {
-        const newRelationships = {
-          ...collateralLoanRelationships,
-          [newId]: { [selectedLoan]: true }
-        };
-        updateRelationships(newRelationships);
-        setSelectedCollateralId(newId);
+      onSuccess: (created) => {
+        // Server assigned the key
+        setSelectedCollateralId(created.mwPropertyNo);
       }
     });
-  }, [getNextCollateralId, selectedLoan, addCollateralMutation, collateralLoanRelationships, updateRelationships, setSelectedCollateralId]);
+  }, [currentRelationship, selectedLoan, addCollateralMutation, setSelectedCollateralId]);
 
-  const toggleCollateralLoanRelationship = useCallback((loanNo: string) => {
-    if (!collateralLoanRelationships) return;
-    const updatedRelationships = {
-      ...collateralLoanRelationships,
-      [selectedCollateralId]: {
-        ...(collateralLoanRelationships[selectedCollateralId] || {}),
-        [loanNo]: !(collateralLoanRelationships[selectedCollateralId]?.[loanNo])
-      }
-    };
-    updateRelationships(updatedRelationships);
-  }, [collateralLoanRelationships, selectedCollateralId, updateRelationships]);
+  // Set (or clear) the secondary loan link — production single-loan model
+  const setLinkedLoan = useCallback((loanNo: string) => {
+    if (!selectedCollateralId) return;
+    updateCollateral({ mwPropertyNo: selectedCollateralId, updates: { loanNo } });
+  }, [selectedCollateralId, updateCollateral]);
 
-  const showDeleteConfirmation = useCallback((id: number, description: string) => {
-    setDeleteCollateralConfirmation({ show: true, collateralId: id, collateralDescription: description });
+  const showDeleteConfirmation = useCallback((mwPropertyNo: number, description: string) => {
+    setDeleteCollateralConfirmation({ show: true, collateralId: mwPropertyNo, collateralDescription: description });
   }, [setDeleteCollateralConfirmation]);
 
   const confirmDelete = useCallback(() => {
     if (deleteCollateralConfirmation.collateralId !== null) {
-      const idToDelete = deleteCollateralConfirmation.collateralId;
-      deleteCollateralMutation(idToDelete, {
+      const keyToDelete = deleteCollateralConfirmation.collateralId;
+      deleteCollateralMutation(keyToDelete, {
         onSuccess: () => {
-          const remaining = collateralList.filter(c => c.id !== idToDelete);
-          if (remaining.length > 0) setSelectedCollateralId(remaining[0].id);
+          const remaining = collateralList.filter(c => c.mwPropertyNo !== keyToDelete);
+          if (remaining.length > 0) setSelectedCollateralId(remaining[0].mwPropertyNo);
         }
       });
     }
@@ -238,7 +229,6 @@ export function useCollateralForm(): CollateralFormState | { isLoading: true } |
     selectedLoan,
     selectedCollateralId,
     securingLoansStats,
-    collateralLoanRelationships,
     localListPrice, localAppraisedValue, localOurValue, localBpoValue, localSqft,
     setLocalListPrice, setLocalAppraisedValue, setLocalOurValue, setLocalBpoValue, setLocalSqft,
     deleteConfirmation: deleteCollateralConfirmation,
@@ -250,7 +240,7 @@ export function useCollateralForm(): CollateralFormState | { isLoading: true } |
     showDeleteConfirmation,
     confirmDelete,
     cancelDelete,
-    toggleCollateralLoanRelationship,
+    setLinkedLoan,
     getInputStyle,
   };
 }

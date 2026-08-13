@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTheme } from '../../context';
 import { useLoan } from '../../context';
-import { useLoans, useBorrowers, useCollateral, useCollateralRelationships, useRelationships } from '../../hooks';
+import { useLoans, useBorrowers, useCollateral, useRelationships } from '../../hooks';
 import { maskSsnEin } from '../../utils/formatters';
 
 const STORAGE_KEY = 'gui-v7-overview';
@@ -52,7 +52,6 @@ export const OverviewTab = React.memo(() => {
   const { data: loans = [], isLoading: loansLoading } = useLoans();
   const { data: borrowers = [], isLoading: borrowersLoading } = useBorrowers();
   const { data: allCollateral = [], isLoading: collateralLoading } = useCollateral();
-  const { data: collateralRelationships = {} } = useCollateralRelationships();
   const { data: relationships = [] } = useRelationships();
 
   const isLoading = loansLoading || borrowersLoading || collateralLoading;
@@ -74,15 +73,11 @@ export const OverviewTab = React.memo(() => {
     [borrowers, currentRelationship]
   );
 
-  // Collateral linked to any loan in the relationship
-  const relationshipCollateral = useMemo(() => {
-    const loanNos = new Set(relationshipLoans.map(l => l.mwLoanNo));
-    return allCollateral.filter(c => {
-      const rels = collateralRelationships[c.id];
-      if (!rels) return false;
-      return Object.entries(rels).some(([loanNo, linked]) => linked && loanNos.has(loanNo));
-    });
-  }, [allCollateral, collateralRelationships, relationshipLoans]);
+  // Collateral belongs to the relationship (CollateralInfo.RelatedLoans)
+  const relationshipCollateral = useMemo(
+    () => allCollateral.filter(c => c.relatedLoans === currentRelationship),
+    [allCollateral, currentRelationship]
+  );
 
   // Relationship-level flags — STORED bits from tblRelationships
   // (authoritative; never derived from loan statuses)
@@ -312,7 +307,7 @@ export const OverviewTab = React.memo(() => {
               </thead>
               <tbody>
                 {relationshipCollateral.map(c => (
-                  <tr key={c.id} className={rowBorder}>
+                  <tr key={c.mwPropertyNo} className={rowBorder}>
                     <td className={tdCell}>{c.collateralCode}</td>
                     <td className={tdCell}>{c.description}</td>
                     <td className={tdCell}>{c.city}, {c.state}</td>

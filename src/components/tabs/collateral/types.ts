@@ -7,9 +7,9 @@ export interface CollateralFormState {
   collateralList: Collateral[];
   sortedLoans: Loan[];
   selectedLoan: string;
+  /** Holds the selected collateral's mwPropertyNo */
   selectedCollateralId: number;
   securingLoansStats: { securingCount: number; totalLoans: number; totalSecured: number };
-  collateralLoanRelationships: Record<number, Record<string, boolean>> | undefined;
 
   // Local debounced state
   localListPrice: string;
@@ -34,10 +34,11 @@ export interface CollateralFormState {
   handleCurrencyChange: (field: string, value: string, setter: React.Dispatch<React.SetStateAction<string>>) => void;
   handleIntegerChange: (field: string, value: string, setter: React.Dispatch<React.SetStateAction<string>>) => void;
   addNewCollateral: () => void;
-  showDeleteConfirmation: (id: number, description: string) => void;
+  showDeleteConfirmation: (mwPropertyNo: number, description: string) => void;
   confirmDelete: () => void;
   cancelDelete: () => void;
-  toggleCollateralLoanRelationship: (loanNo: string) => void;
+  /** Set/clear the collateral's secondary loan link (single loanNo) */
+  setLinkedLoan: (loanNo: string) => void;
   getInputStyle: (field: string) => string;
 }
 

@@ -50,10 +50,10 @@ export const CollateralTable: React.FC<CollateralTableProps> = ({
         <tbody>
           {collateralList.map((item) => (
             <tr
-              key={item.id}
-              onClick={() => setSelectedCollateralId(item.id)}
+              key={item.mwPropertyNo}
+              onClick={() => setSelectedCollateralId(item.mwPropertyNo)}
               className={`${styles.borderColor} border-b cursor-pointer transition-colors ${
-                selectedCollateralId === item.id ? styles.activeTabBg : styles.hoverText
+                selectedCollateralId === item.mwPropertyNo ? styles.activeTabBg : styles.hoverText
               }`}
             >
               <td className={`px-2 py-2 ${styles.textPrimary} font-medium`}>{item.description || '(New)'}</td>
@@ -67,7 +67,7 @@ export const CollateralTable: React.FC<CollateralTableProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    showDeleteConfirmation(item.id, item.description);
+                    showDeleteConfirmation(item.mwPropertyNo, item.description);
                   }}
                   className={`${styles.textMuted} ${styles.hoverDanger} transition-colors`}
                   disabled={collateralList.length === 1}

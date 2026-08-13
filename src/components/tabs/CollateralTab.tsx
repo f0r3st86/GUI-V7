@@ -67,12 +67,11 @@ export const CollateralTab = React.memo(() => {
         />
         <CollateralLoansPanel
           styles={styles}
-          selectedLoan={form.selectedLoan}
+          linkedLoanNo={form.selectedCollateral.loanNo}
           selectedCollateralId={form.selectedCollateralId}
           sortedLoans={form.sortedLoans}
-          collateralLoanRelationships={form.collateralLoanRelationships}
           securingLoansStats={form.securingLoansStats}
-          toggleCollateralLoanRelationship={form.toggleCollateralLoanRelationship}
+          setLinkedLoan={form.setLinkedLoan}
         />
       </div>
 

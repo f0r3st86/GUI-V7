@@ -112,7 +112,11 @@ export interface DeleteConfirmation {
 // ==================== COLLATERAL TYPES ====================
 
 export interface Collateral {
-  id: number;
+  /** Production PK (CollateralInfo.MWPropertyNo) — server-owned integer */
+  mwPropertyNo: number;
+  /** Primary linkage: collateral belongs to the RELATIONSHIP (CollateralInfo.RelatedLoans) */
+  relatedLoans: string;
+  /** Secondary linkage: optional specific loan (CollateralInfo.MWLoanNo) */
   loanNo: string;
   collateralCode: string;
   description: string;
@@ -144,12 +148,9 @@ export interface Collateral {
   units: string;
 }
 
-export interface CollateralLoanRelationships {
-  [collateralId: number]: Record<string, boolean>;
-}
-
 export interface DeleteCollateralConfirmation {
   show: boolean;
+  /** Holds the mwPropertyNo of the item pending deletion */
   collateralId: number | null;
   collateralDescription: string;
 }
@@ -385,14 +386,14 @@ export type PhotoType = 'exterior' | 'interior' | 'aerial' | 'street' | 'comp' |
 
 export interface PropertyPhoto {
   id: number;
-  collateralId: number;
+  mwPropertyNo: number;
   url: string;
   caption: string;
   type: PhotoType;
 }
 
 export interface PropertyLocation {
-  collateralId: number;
+  mwPropertyNo: number;
   lat: number;
   lng: number;
   address: string;

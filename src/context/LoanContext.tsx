@@ -20,7 +20,8 @@ export const LoanProvider: React.FC<LoanProviderProps> = ({ children }) => {
   const [selectedLoan, setSelectedLoan] = useState<string>('7758');
   const [activeTab, setActiveTab] = useState<string>('Loan');
   const [selectedBorrowerId, setSelectedBorrowerId] = useState<number>(1);
-  const [selectedCollateralId, setSelectedCollateralId] = useState<number>(1);
+  // Holds the selected collateral's mwPropertyNo (production key)
+  const [selectedCollateralId, setSelectedCollateralId] = useState<number>(400921);
   const [selectedCommentId, setSelectedCommentId] = useState<number>(1);
   const [relationshipBrowserOpen, setRelationshipBrowserOpen] = useState<boolean>(false);
 

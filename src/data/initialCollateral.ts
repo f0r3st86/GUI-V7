@@ -1,9 +1,16 @@
-// Initial collateral data - exact copy from original component
-import type { Collateral, CollateralLoanRelationships } from '../types';
+// Initial collateral data - mirrors production CollateralInfo
+// Keyed by mwPropertyNo (production MWPropertyNo, server-owned int).
+// Primary linkage is relatedLoans (relationship-level); loanNo is the
+// optional secondary link to a specific loan.
+import type { Collateral } from '../types';
+
+// *** SQL CONNECTION POINT ***
+// SELECT * FROM CollateralInfo WHERE RelatedLoans = ?
 
 export const initialCollateral: Collateral[] = [
   {
-    id: 1,
+    mwPropertyNo: 400921,
+    relatedLoans: 'Haskell',
     loanNo: '7758',
     collateralCode: 'Commercial Property',
     description: 'Commercial Building - Restaurant',
@@ -35,7 +42,8 @@ export const initialCollateral: Collateral[] = [
     units: '1'
   },
   {
-    id: 2,
+    mwPropertyNo: 400922,
+    relatedLoans: 'Haskell',
     loanNo: '2461',
     collateralCode: 'Multi-Family',
     description: '12-Unit Apartment Building',
@@ -67,25 +75,3 @@ export const initialCollateral: Collateral[] = [
     units: '12'
   }
 ];
-
-// Collateral to Loan relationships - tracks which loans this collateral secures
-export const initialCollateralLoanRelationships: CollateralLoanRelationships = {
-  1: { // Collateral ID 1
-    '2461': false,
-    '5091': false,
-    '7855': false,
-    '3685': false,
-    '3205': false,
-    '6826': false,
-    '7758': true
-  },
-  2: { // Collateral ID 2
-    '2461': true,
-    '5091': false,
-    '7855': false,
-    '3685': false,
-    '3205': false,
-    '6826': false,
-    '7758': false
-  }
-};

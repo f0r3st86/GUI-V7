@@ -14,7 +14,6 @@ import {
   initialLoans,
   initialBorrowers,
   initialCollateral,
-  initialCollateralLoanRelationships,
   initialComments,
   initialPaymentRecords,
   initialRelationships,
@@ -71,7 +70,6 @@ const createTestQueryClient = () => {
   queryClient.setQueryData(['relationships'], [...initialRelationships]);
   queryClient.setQueryData(['borrowers'], [...initialBorrowers]);
   queryClient.setQueryData(['collateral'], [...initialCollateral]);
-  queryClient.setQueryData(['collateral-relationships'], { ...initialCollateralLoanRelationships });
   queryClient.setQueryData(['comments'], [...initialComments]);
   queryClient.setQueryData(['payments'], [...initialPaymentRecords]);
 

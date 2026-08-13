@@ -4,41 +4,41 @@
 import type { PropertyPhoto, PropertyLocation, ComparableSale } from '../types';
 
 // *** SQL CONNECTION POINT ***
-// Photos: SELECT * FROM tblPropertyPhotos WHERE CollateralID = ?
+// Photos: SELECT * FROM tblPropertyPhotos WHERE MWPropertyNo = ?
 // Comps:  SELECT * FROM tblComparableSales WHERE RelationshipID = ?
-// Locations: SELECT Latitude, Longitude FROM CollateralInfo WHERE CollateralID = ?
+// Locations: SELECT Latitude, Longitude FROM CollateralInfo WHERE MWPropertyNo = ?
 
 // Property photos for each collateral item
 // URL format: In production these would be S3/Azure Blob URLs or local file paths
 // For demo, we use placeholder color blocks rendered by the component
 export const initialPropertyPhotos: PropertyPhoto[] = [
   // Collateral 1: Commercial Building - Restaurant (500 Commercial St)
-  { id: 1, collateralId: 1, url: '', caption: 'Front Exterior - Commercial Building', type: 'exterior' },
-  { id: 2, collateralId: 1, url: '', caption: 'Side View - Parking Area', type: 'exterior' },
-  { id: 3, collateralId: 1, url: '', caption: 'Main Dining Area', type: 'interior' },
-  { id: 4, collateralId: 1, url: '', caption: 'Kitchen / Prep Area', type: 'interior' },
-  { id: 5, collateralId: 1, url: '', caption: 'Street View - Commercial Street', type: 'street' },
-  { id: 6, collateralId: 1, url: '', caption: 'Aerial View - Lot Overview', type: 'aerial' },
+  { id: 1, mwPropertyNo: 400921, url: '', caption: 'Front Exterior - Commercial Building', type: 'exterior' },
+  { id: 2, mwPropertyNo: 400921, url: '', caption: 'Side View - Parking Area', type: 'exterior' },
+  { id: 3, mwPropertyNo: 400921, url: '', caption: 'Main Dining Area', type: 'interior' },
+  { id: 4, mwPropertyNo: 400921, url: '', caption: 'Kitchen / Prep Area', type: 'interior' },
+  { id: 5, mwPropertyNo: 400921, url: '', caption: 'Street View - Commercial Street', type: 'street' },
+  { id: 6, mwPropertyNo: 400921, url: '', caption: 'Aerial View - Lot Overview', type: 'aerial' },
 
   // Collateral 2: 12-Unit Apartment Building (1200 Main St)
-  { id: 7, collateralId: 2, url: '', caption: 'Front Exterior - Apartment Building', type: 'exterior' },
-  { id: 8, collateralId: 2, url: '', caption: 'Rear Exterior - Parking Lot', type: 'exterior' },
-  { id: 9, collateralId: 2, url: '', caption: 'Unit 1A - Living Room', type: 'interior' },
-  { id: 10, collateralId: 2, url: '', caption: 'Unit 1A - Kitchen', type: 'interior' },
-  { id: 11, collateralId: 2, url: '', caption: 'Common Area - Hallway', type: 'interior' },
-  { id: 12, collateralId: 2, url: '', caption: 'Aerial View - Building & Grounds', type: 'aerial' },
+  { id: 7, mwPropertyNo: 400922, url: '', caption: 'Front Exterior - Apartment Building', type: 'exterior' },
+  { id: 8, mwPropertyNo: 400922, url: '', caption: 'Rear Exterior - Parking Lot', type: 'exterior' },
+  { id: 9, mwPropertyNo: 400922, url: '', caption: 'Unit 1A - Living Room', type: 'interior' },
+  { id: 10, mwPropertyNo: 400922, url: '', caption: 'Unit 1A - Kitchen', type: 'interior' },
+  { id: 11, mwPropertyNo: 400922, url: '', caption: 'Common Area - Hallway', type: 'interior' },
+  { id: 12, mwPropertyNo: 400922, url: '', caption: 'Aerial View - Building & Grounds', type: 'aerial' },
 ];
 
 // GPS coordinates for collateral properties (Portland, ME area)
 export const initialPropertyLocations: PropertyLocation[] = [
   {
-    collateralId: 1,
+    mwPropertyNo: 400921,
     lat: 43.6568,
     lng: -70.2531,
     address: '500 Commercial Street, Portland, ME 04101'
   },
   {
-    collateralId: 2,
+    mwPropertyNo: 400922,
     lat: 43.6615,
     lng: -70.2553,
     address: '1200 Main Street, Portland, ME 04102'
@@ -63,8 +63,8 @@ export const initialComparableSales: ComparableSale[] = [
     lat: 43.6558,
     lng: -70.2498,
     photos: [
-      { id: 101, collateralId: 0, url: '', caption: 'Comp 1 - Front', type: 'comp' },
-      { id: 102, collateralId: 0, url: '', caption: 'Comp 1 - Side', type: 'comp' },
+      { id: 101, mwPropertyNo: 0, url: '', caption: 'Comp 1 - Front', type: 'comp' },
+      { id: 102, mwPropertyNo: 0, url: '', caption: 'Comp 1 - Side', type: 'comp' },
     ]
   },
   {
@@ -83,8 +83,8 @@ export const initialComparableSales: ComparableSale[] = [
     lat: 43.6580,
     lng: -70.2545,
     photos: [
-      { id: 103, collateralId: 0, url: '', caption: 'Comp 2 - Front', type: 'comp' },
-      { id: 104, collateralId: 0, url: '', caption: 'Comp 2 - Interior', type: 'comp' },
+      { id: 103, mwPropertyNo: 0, url: '', caption: 'Comp 2 - Front', type: 'comp' },
+      { id: 104, mwPropertyNo: 0, url: '', caption: 'Comp 2 - Interior', type: 'comp' },
     ]
   },
   {
@@ -103,8 +103,8 @@ export const initialComparableSales: ComparableSale[] = [
     lat: 43.6635,
     lng: -70.2680,
     photos: [
-      { id: 105, collateralId: 0, url: '', caption: 'Comp 3 - Exterior', type: 'comp' },
-      { id: 106, collateralId: 0, url: '', caption: 'Comp 3 - Units', type: 'comp' },
+      { id: 105, mwPropertyNo: 0, url: '', caption: 'Comp 3 - Exterior', type: 'comp' },
+      { id: 106, mwPropertyNo: 0, url: '', caption: 'Comp 3 - Units', type: 'comp' },
     ]
   },
   {
@@ -123,7 +123,7 @@ export const initialComparableSales: ComparableSale[] = [
     lat: 43.6650,
     lng: -70.2620,
     photos: [
-      { id: 107, collateralId: 0, url: '', caption: 'Comp 4 - Building', type: 'comp' },
+      { id: 107, mwPropertyNo: 0, url: '', caption: 'Comp 4 - Building', type: 'comp' },
     ]
   },
   {
@@ -142,8 +142,8 @@ export const initialComparableSales: ComparableSale[] = [
     lat: 43.6575,
     lng: -70.2510,
     photos: [
-      { id: 108, collateralId: 0, url: '', caption: 'Comp 5 - Storefront', type: 'comp' },
-      { id: 109, collateralId: 0, url: '', caption: 'Comp 5 - Interior', type: 'comp' },
+      { id: 108, mwPropertyNo: 0, url: '', caption: 'Comp 5 - Storefront', type: 'comp' },
+      { id: 109, mwPropertyNo: 0, url: '', caption: 'Comp 5 - Interior', type: 'comp' },
     ]
   }
 ];

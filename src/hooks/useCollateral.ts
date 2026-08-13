@@ -1,13 +1,15 @@
 // React Query hooks for Collateral operations
+// Keyed by mwPropertyNo (production CollateralInfo.MWPropertyNo).
+// Collateral links to the relationship via relatedLoans (primary) and
+// optionally to a specific loan via loanNo (secondary).
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { collateralApi } from '../api';
-import type { Collateral, CollateralLoanRelationships } from '../types';
+import type { Collateral } from '../types';
 
 // Query keys
 export const collateralKeys = {
   all: ['collateral'] as const,
-  detail: (id: number) => ['collateral', id] as const,
-  relationships: ['collateral-relationships'] as const
+  detail: (mwPropertyNo: number) => ['collateral', mwPropertyNo] as const
 };
 
 // Context types for mutations
@@ -16,7 +18,7 @@ interface AddCollateralContext {
 }
 
 interface UpdateCollateralVariables {
-  id: number;
+  mwPropertyNo: number;
   updates: Partial<Collateral>;
 }
 
@@ -42,49 +44,35 @@ export function useCollateral() {
 }
 
 /**
- * Get single collateral by ID
+ * Get single collateral by production key
  */
-export function useCollateralItem(id: number) {
+export function useCollateralItem(mwPropertyNo: number) {
   return useQuery({
-    queryKey: collateralKeys.detail(id),
-    queryFn: () => collateralApi.getById(id),
-    enabled: !!id
-  });
-}
-
-/**
- * Get collateral-loan relationships
- */
-export function useCollateralRelationships() {
-  return useQuery({
-    queryKey: collateralKeys.relationships,
-    queryFn: () => collateralApi.getRelationships()
+    queryKey: collateralKeys.detail(mwPropertyNo),
+    queryFn: () => collateralApi.getById(mwPropertyNo),
+    enabled: !!mwPropertyNo
   });
 }
 
 // ==================== MUTATIONS ====================
 
 /**
- * Add new collateral
+ * Add new collateral (server assigns mwPropertyNo)
  */
 export function useAddCollateral() {
   const queryClient = useQueryClient();
 
-  return useMutation<Collateral, Error, Collateral, AddCollateralContext>({
-    mutationFn: (collateral: Collateral) => collateralApi.create(collateral),
+  return useMutation<Collateral, Error, Omit<Collateral, 'mwPropertyNo'> & { mwPropertyNo?: number }, AddCollateralContext>({
+    mutationFn: (collateral) => collateralApi.create(collateral),
 
-    onMutate: async (newCollateral: Collateral): Promise<AddCollateralContext> => {
+    onMutate: async (): Promise<AddCollateralContext> => {
       await queryClient.cancelQueries({ queryKey: collateralKeys.all });
       const previousCollateral = queryClient.getQueryData<Collateral[]>(collateralKeys.all);
-
-      if (previousCollateral) {
-        queryClient.setQueryData<Collateral[]>(collateralKeys.all, [...previousCollateral, newCollateral]);
-      }
-
+      // No optimistic insert: the server owns mwPropertyNo, so we wait for it
       return { previousCollateral };
     },
 
-    onError: (_err: Error, _newCollateral: Collateral, context: AddCollateralContext | undefined) => {
+    onError: (_err, _newCollateral, context) => {
       if (context?.previousCollateral) {
         queryClient.setQueryData(collateralKeys.all, context.previousCollateral);
       }
@@ -103,28 +91,28 @@ export function useUpdateCollateral() {
   const queryClient = useQueryClient();
 
   return useMutation<Collateral, Error, UpdateCollateralVariables, UpdateCollateralContext>({
-    mutationFn: ({ id, updates }: UpdateCollateralVariables) =>
-      collateralApi.update(id, updates),
+    mutationFn: ({ mwPropertyNo, updates }: UpdateCollateralVariables) =>
+      collateralApi.update(mwPropertyNo, updates),
 
-    onMutate: async ({ id, updates }: UpdateCollateralVariables): Promise<UpdateCollateralContext> => {
+    onMutate: async ({ mwPropertyNo, updates }: UpdateCollateralVariables): Promise<UpdateCollateralContext> => {
       await queryClient.cancelQueries({ queryKey: collateralKeys.all });
-      await queryClient.cancelQueries({ queryKey: collateralKeys.detail(id) });
+      await queryClient.cancelQueries({ queryKey: collateralKeys.detail(mwPropertyNo) });
 
       const previousCollateral = queryClient.getQueryData<Collateral[]>(collateralKeys.all);
-      const previousItem = queryClient.getQueryData<Collateral>(collateralKeys.detail(id));
+      const previousItem = queryClient.getQueryData<Collateral>(collateralKeys.detail(mwPropertyNo));
 
       if (previousCollateral) {
         queryClient.setQueryData<Collateral[]>(
           collateralKeys.all,
           previousCollateral.map(item =>
-            item.id === id ? { ...item, ...updates } : item
+            item.mwPropertyNo === mwPropertyNo ? { ...item, ...updates } : item
           )
         );
       }
 
       if (previousItem) {
         queryClient.setQueryData(
-          collateralKeys.detail(id),
+          collateralKeys.detail(mwPropertyNo),
           { ...previousItem, ...updates }
         );
       }
@@ -132,18 +120,18 @@ export function useUpdateCollateral() {
       return { previousCollateral, previousItem };
     },
 
-    onError: (_err: Error, { id }: UpdateCollateralVariables, context: UpdateCollateralContext | undefined) => {
+    onError: (_err, { mwPropertyNo }, context) => {
       if (context?.previousCollateral) {
         queryClient.setQueryData(collateralKeys.all, context.previousCollateral);
       }
       if (context?.previousItem) {
-        queryClient.setQueryData(collateralKeys.detail(id), context.previousItem);
+        queryClient.setQueryData(collateralKeys.detail(mwPropertyNo), context.previousItem);
       }
     },
 
-    onSettled: (_data: Collateral | undefined, _error: Error | null, { id }: UpdateCollateralVariables) => {
+    onSettled: (_data, _error, { mwPropertyNo }) => {
       queryClient.invalidateQueries({ queryKey: collateralKeys.all });
-      queryClient.invalidateQueries({ queryKey: collateralKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: collateralKeys.detail(mwPropertyNo) });
     }
   });
 }
@@ -155,23 +143,23 @@ export function useDeleteCollateral() {
   const queryClient = useQueryClient();
 
   return useMutation<void, Error, number, DeleteCollateralContext>({
-    mutationFn: (id: number) => collateralApi.delete(id),
+    mutationFn: (mwPropertyNo: number) => collateralApi.delete(mwPropertyNo),
 
-    onMutate: async (id: number): Promise<DeleteCollateralContext> => {
+    onMutate: async (mwPropertyNo: number): Promise<DeleteCollateralContext> => {
       await queryClient.cancelQueries({ queryKey: collateralKeys.all });
       const previousCollateral = queryClient.getQueryData<Collateral[]>(collateralKeys.all);
 
       if (previousCollateral) {
         queryClient.setQueryData<Collateral[]>(
           collateralKeys.all,
-          previousCollateral.filter(item => item.id !== id)
+          previousCollateral.filter(item => item.mwPropertyNo !== mwPropertyNo)
         );
       }
 
       return { previousCollateral };
     },
 
-    onError: (_err: Error, _id: number, context: DeleteCollateralContext | undefined) => {
+    onError: (_err, _mwPropertyNo, context) => {
       if (context?.previousCollateral) {
         queryClient.setQueryData(collateralKeys.all, context.previousCollateral);
       }
@@ -179,23 +167,6 @@ export function useDeleteCollateral() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: collateralKeys.all });
-      queryClient.invalidateQueries({ queryKey: collateralKeys.relationships });
-    }
-  });
-}
-
-/**
- * Update collateral-loan relationships
- */
-export function useUpdateCollateralRelationships() {
-  const queryClient = useQueryClient();
-
-  return useMutation<void, Error, CollateralLoanRelationships>({
-    mutationFn: (relationships: CollateralLoanRelationships) =>
-      collateralApi.updateRelationships(relationships),
-
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: collateralKeys.relationships });
     }
   });
 }

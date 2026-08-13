@@ -90,28 +90,28 @@ describe('CollateralTab', () => {
   });
 
   describe('Related Loans Section', () => {
-    it('should render Related Loans header', () => {
+    it('should render Linked Loan header', () => {
       render(<CollateralTab />);
 
-      expect(screen.getByText('Related Loans')).toBeInTheDocument();
+      expect(screen.getByText('Linked Loan')).toBeInTheDocument();
     });
 
     it('should show instruction text', () => {
       render(<CollateralTab />);
 
-      expect(screen.getByText('Select which loans this collateral secures:')).toBeInTheDocument();
+      expect(screen.getByText(/Collateral belongs to the relationship/)).toBeInTheDocument();
     });
 
-    it('should show Securing Loans count', () => {
+    it('should offer a relationship-level-only option', () => {
       render(<CollateralTab />);
 
-      expect(screen.getByText('Securing Loans:')).toBeInTheDocument();
+      expect(screen.getByLabelText(/Relationship-level only/)).toBeInTheDocument();
     });
 
-    it('should show Total Secured amount', () => {
+    it('should show the linked loan UPB', () => {
       render(<CollateralTab />);
 
-      expect(screen.getByText('Total Secured:')).toBeInTheDocument();
+      expect(screen.getByText('Linked Loan UPB:')).toBeInTheDocument();
     });
   });
 

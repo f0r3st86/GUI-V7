@@ -19,7 +19,7 @@ import {
 } from 'recharts';
 import { useTheme } from '../../context';
 import { useLoan } from '../../context';
-import { useLoans, useBorrowers, useCollateral, useCollateralRelationships, usePayments } from '../../hooks';
+import { useLoans, useBorrowers, useCollateral, usePayments } from '../../hooks';
 import {
   initialPropertyPhotos,
   initialPropertyLocations,
@@ -296,7 +296,6 @@ export const ReportTab = React.memo(() => {
   const { data: loans = [], isLoading: loansLoading } = useLoans();
   const { data: borrowers = [], isLoading: borrowersLoading } = useBorrowers();
   const { data: allCollateral = [], isLoading: collateralLoading } = useCollateral();
-  const { data: collateralRelationships = {} } = useCollateralRelationships();
   const { data: payments = [] } = usePayments();
 
   const isLoading = loansLoading || borrowersLoading || collateralLoading;
@@ -315,14 +314,10 @@ export const ReportTab = React.memo(() => {
     [borrowers, currentRelationship]
   );
 
-  const relationshipCollateral = useMemo(() => {
-    const loanNos = new Set(relationshipLoans.map(l => l.mwLoanNo));
-    return allCollateral.filter(c => {
-      const rels = collateralRelationships[c.id];
-      if (!rels) return false;
-      return Object.entries(rels).some(([ln, linked]) => linked && loanNos.has(ln));
-    });
-  }, [allCollateral, collateralRelationships, relationshipLoans]);
+  const relationshipCollateral = useMemo(
+    () => allCollateral.filter(c => c.relatedLoans === currentRelationship),
+    [allCollateral, currentRelationship]
+  );
 
   // Aggregates
   const totalUPB = useMemo(() =>
@@ -355,14 +350,11 @@ export const ReportTab = React.memo(() => {
       name: l.mwLoanNo,
       upb: (l.principal || 0) + (l.interest || 0) + (l.escrowBalance || 0) + (l.otherBalance || 0),
       collateral: relationshipCollateral
-        .filter(c => {
-          const rels = collateralRelationships[c.id];
-          return rels && rels[l.mwLoanNo];
-        })
+        .filter(c => c.loanNo === l.mwLoanNo)
         .reduce((s, c) => s + parseNum(c.appraisedValue), 0),
       status: l.status || '',
     })),
-    [relationshipLoans, relationshipCollateral, collateralRelationships]
+    [relationshipLoans, relationshipCollateral]
   );
 
   // Valuation comparison for collateral
@@ -395,7 +387,7 @@ export const ReportTab = React.memo(() => {
   // Map center (average of all property locations)
   const mapCenter = useMemo((): [number, number] => {
     const locs = initialPropertyLocations.filter(loc =>
-      relationshipCollateral.some(c => c.id === loc.collateralId)
+      relationshipCollateral.some(c => c.mwPropertyNo === loc.mwPropertyNo)
     );
     if (locs.length === 0) return [43.66, -70.25]; // Portland, ME default
     const avgLat = locs.reduce((s, l) => s + l.lat, 0) / locs.length;
@@ -405,8 +397,8 @@ export const ReportTab = React.memo(() => {
 
   // Photos for current relationship's collateral
   const collateralPhotos = useMemo(() => {
-    const ids = new Set(relationshipCollateral.map(c => c.id));
-    return initialPropertyPhotos.filter(p => ids.has(p.collateralId));
+    const ids = new Set(relationshipCollateral.map(c => c.mwPropertyNo));
+    return initialPropertyPhotos.filter(p => ids.has(p.mwPropertyNo));
   }, [relationshipCollateral]);
 
   // Print handler
@@ -477,11 +469,11 @@ export const ReportTab = React.memo(() => {
             />
             {/* Subject property markers */}
             {initialPropertyLocations
-              .filter(loc => relationshipCollateral.some(c => c.id === loc.collateralId))
+              .filter(loc => relationshipCollateral.some(c => c.mwPropertyNo === loc.mwPropertyNo))
               .map(loc => {
-                const coll = relationshipCollateral.find(c => c.id === loc.collateralId);
+                const coll = relationshipCollateral.find(c => c.mwPropertyNo === loc.mwPropertyNo);
                 return (
-                  <Marker key={`prop-${loc.collateralId}`} position={[loc.lat, loc.lng]} icon={defaultIcon}>
+                  <Marker key={`prop-${loc.mwPropertyNo}`} position={[loc.lat, loc.lng]} icon={defaultIcon}>
                     <Popup>
                       <div className="text-sm">
                         <p className="font-bold text-blue-700">Subject Property</p>
@@ -523,9 +515,9 @@ export const ReportTab = React.memo(() => {
       {/* ===== PROPERTY PHOTOS ===== */}
       <Section title="Property Photos" styles={styles}>
         {relationshipCollateral.map(c => {
-          const photos = collateralPhotos.filter(p => p.collateralId === c.id);
+          const photos = collateralPhotos.filter(p => p.mwPropertyNo === c.mwPropertyNo);
           return (
-            <div key={c.id} className="mb-4 last:mb-0">
+            <div key={c.mwPropertyNo} className="mb-4 last:mb-0">
               <PhotoGallery
                 photos={photos}
                 title={`${c.description} - ${c.address1}, ${c.city}`}

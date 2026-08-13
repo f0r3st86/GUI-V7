@@ -8,7 +8,6 @@ import type {
   Collateral,
   Comment,
   PaymentRecord,
-  CollateralLoanRelationships,
   LoanRelationship,
   ProjectionSettings,
   ExitSettings,
@@ -18,7 +17,6 @@ import {
   initialLoans,
   initialBorrowers,
   initialCollateral,
-  initialCollateralLoanRelationships,
   initialComments,
   initialPaymentRecords,
   initialRelationships
@@ -41,7 +39,6 @@ let mockBorrowers: Borrower[] = [...initialBorrowers];
 let mockCollateral: Collateral[] = [...initialCollateral];
 let mockComments: Comment[] = [...initialComments];
 let mockPayments: PaymentRecord[] = [...initialPaymentRecords];
-let mockCollateralRelationships: CollateralLoanRelationships = { ...initialCollateralLoanRelationships };
 let mockBorrowerRelationships: Record<number, Record<string, LoanRelationship>> = {};
 
 // Projection and Exit settings storage (per loan)
@@ -249,47 +246,38 @@ export const mockCollateralApi = {
     return [...mockCollateral];
   },
 
-  // Get single collateral
-  getById: async (id: number): Promise<Collateral | undefined> => {
+  // Get single collateral by production key
+  getById: async (mwPropertyNo: number): Promise<Collateral | undefined> => {
     await mockDelay();
-    return mockCollateral.find(c => c.id === id);
+    return mockCollateral.find(c => c.mwPropertyNo === mwPropertyNo);
   },
 
-  // Add collateral
-  create: async (collateral: Collateral): Promise<Collateral> => {
+  // Add collateral — server assigns mwPropertyNo (mock mints next int)
+  create: async (collateral: Omit<Collateral, 'mwPropertyNo'> & { mwPropertyNo?: number }): Promise<Collateral> => {
     await mockDelay();
-    mockCollateral = [...mockCollateral, collateral];
-    return collateral;
+    const nextKey = collateral.mwPropertyNo ??
+      Math.max(400000, ...mockCollateral.map(c => c.mwPropertyNo)) + 1;
+    const created: Collateral = { ...collateral, mwPropertyNo: nextKey };
+    mockCollateral = [...mockCollateral, created];
+    return created;
   },
 
-  // Update collateral
-  update: async (id: number, updates: Partial<Collateral>): Promise<Collateral> => {
+  // Update collateral (key is server-owned: strip from writes)
+  update: async (mwPropertyNo: number, updates: Partial<Collateral>): Promise<Collateral> => {
     await mockDelay();
+    const { mwPropertyNo: _key, ...writable } = updates;
     mockCollateral = mockCollateral.map(c =>
-      c.id === id ? { ...c, ...updates } : c
+      c.mwPropertyNo === mwPropertyNo ? { ...c, ...writable } : c
     );
-    const updated = mockCollateral.find(c => c.id === id);
+    const updated = mockCollateral.find(c => c.mwPropertyNo === mwPropertyNo);
     if (!updated) throw new Error('Collateral not found');
     return updated;
   },
 
   // Delete collateral
-  delete: async (id: number): Promise<void> => {
+  delete: async (mwPropertyNo: number): Promise<void> => {
     await mockDelay();
-    mockCollateral = mockCollateral.filter(c => c.id !== id);
-    delete mockCollateralRelationships[id];
-  },
-
-  // Get relationships
-  getRelationships: async (): Promise<CollateralLoanRelationships> => {
-    await mockDelay();
-    return { ...mockCollateralRelationships };
-  },
-
-  // Update relationships
-  updateRelationships: async (relationships: CollateralLoanRelationships): Promise<void> => {
-    await mockDelay();
-    mockCollateralRelationships = { ...relationships };
+    mockCollateral = mockCollateral.filter(c => c.mwPropertyNo !== mwPropertyNo);
   }
 };
 
@@ -465,7 +453,6 @@ export const resetMockData = () => {
   mockCollateral = [...initialCollateral];
   mockComments = [...initialComments];
   mockPayments = [...initialPaymentRecords];
-  mockCollateralRelationships = { ...initialCollateralLoanRelationships };
   mockBorrowerRelationships = {};
   mockProjectionSettings = {};
   mockExitSettings = {};

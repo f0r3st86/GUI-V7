@@ -8,7 +8,7 @@
 // from vwRelationshipSummary, grouped by RelatedLoans.
 import React, { useState, useMemo } from 'react';
 import { useTheme, useLoan } from '../../context';
-import { useLoans, useBorrowers, useCollateral, useCollateralRelationships, useRelationships } from '../../hooks';
+import { useLoans, useBorrowers, useCollateral, useRelationships } from '../../hooks';
 import type { Relationship } from '../../types';
 
 type SortField = 'name' | 'loans' | 'upb' | 'rate';
@@ -45,7 +45,6 @@ export const RelationshipBrowser: React.FC = () => {
   const { data: loans = [], isLoading: loansLoading } = useLoans();
   const { data: borrowers = [] } = useBorrowers();
   const { data: collateral = [] } = useCollateral();
-  const { data: collateralRelationships = {} } = useCollateralRelationships();
   const { data: relationshipEntities = [] } = useRelationships();
 
   const [search, setSearch] = useState('');
@@ -62,7 +61,6 @@ export const RelationshipBrowser: React.FC = () => {
     });
 
     return Array.from(groups.entries()).map(([name, groupLoans]) => {
-      const loanNos = new Set(groupLoans.map(l => l.mwLoanNo));
       const totalPrincipal = groupLoans.reduce((s, l) => s + (l.principal || 0), 0);
       const totalUPB = groupLoans.reduce(
         (s, l) => s + (l.principal || 0) + (l.interest || 0) + (l.escrowBalance || 0) + (l.otherBalance || 0),
@@ -76,10 +74,7 @@ export const RelationshipBrowser: React.FC = () => {
       const relationshipEntity = relationshipEntities.find(r => r.relatedLoans === name);
       const relationshipBorrowers = borrowers.filter(b => b.relationship === name);
 
-      const collateralCount = collateral.filter(c => {
-        const rels = collateralRelationships[c.id];
-        return rels && Object.entries(rels).some(([ln, linked]) => linked && loanNos.has(ln));
-      }).length;
+      const collateralCount = collateral.filter(c => c.relatedLoans === name).length;
 
       // First loan by loan number gives a stable default selection
       const firstLoanNo = [...groupLoans].sort((a, b) => a.mwLoanNo.localeCompare(b.mwLoanNo))[0].mwLoanNo;
@@ -95,7 +90,7 @@ export const RelationshipBrowser: React.FC = () => {
         firstLoanNo,
       };
     });
-  }, [loans, borrowers, collateral, collateralRelationships, relationshipEntities]);
+  }, [loans, borrowers, collateral, relationshipEntities]);
 
   // Search + sort
   const visibleRelationships = useMemo(() => {

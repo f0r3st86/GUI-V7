@@ -7,7 +7,6 @@ import {
   useLoans,
   usePayments,
   useCollateral,
-  useCollateralRelationships,
   useProjectionSettings,
   useUpdateProjectionSetting,
   useExitSettings,
@@ -57,7 +56,6 @@ export const ProjectionsTab = React.memo(() => {
   const { data: loans, isLoading: loadingLoans } = useLoans();
   const { data: payments, isLoading: loadingPayments } = usePayments();
   const { data: collateral, isLoading: loadingCollateral } = useCollateral();
-  const { data: collateralLoanRelationships } = useCollateralRelationships();
 
   const selectedLoanData = useMemo(
     () => loans?.find(loan => loan.mwLoanNo === selectedLoan),
@@ -75,8 +73,8 @@ export const ProjectionsTab = React.memo(() => {
 
   // Memoize collateral lookup
   const loanCollateral = useMemo(() =>
-    collateralList.find(c => collateralLoanRelationships?.[c.id]?.[selectedLoan]),
-    [collateralList, collateralLoanRelationships, selectedLoan]
+    collateralList.find(c => c.loanNo === selectedLoan),
+    [collateralList, selectedLoan]
   );
 
   // Core calculation logic

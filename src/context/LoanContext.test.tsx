@@ -48,7 +48,8 @@ describe('LoanContext', () => {
       expect(result.current.selectedLoan).toBe('7758');
       expect(result.current.activeTab).toBe('Loan');
       expect(result.current.selectedBorrowerId).toBe(1);
-      expect(result.current.selectedCollateralId).toBe(1);
+      // Collateral selection holds the production key (mwPropertyNo)
+      expect(result.current.selectedCollateralId).toBe(400921);
       expect(result.current.selectedCommentId).toBe(1);
     });
   });
