@@ -35,18 +35,22 @@ Private Const CONNECT As String = _
 Private Const T1 As Long = 1440       ' twips per inch
 Private Const FONT As String = "Segoe UI"
 
-' ---- LOANSYSTEM dark palette (matches the React ThemeContext) -------
-' Precomputed RGB() values (r + g*256 + b*65536) as constants
-Private Const CLR_MAIN As Long = 1775640     ' RGB(24,24,27)    zinc-900 page
-Private Const CLR_HEADER As Long = 723209    ' RGB(9,9,11)      near-black bar
-Private Const CLR_CARD As Long = 2762535     ' RGB(39,39,42)    zinc-800 card
-Private Const CLR_INPUT As Long = 1775640    ' RGB(24,24,27)    input bg
-Private Const CLR_BORDER As Long = 4603711   ' RGB(63,63,70)    zinc-700
-Private Const CLR_TEXT As Long = 16119028    ' RGB(244,244,245) near-white
-Private Const CLR_MUTED As Long = 11182497   ' RGB(161,161,170) zinc-400
-Private Const CLR_GREEN As Long = 8445514    ' RGB(74,222,128)  green-400
-Private Const CLR_RED As Long = 7434744      ' RGB(248,113,113) red-400
-Private Const CLR_BLUE As Long = 15426341    ' RGB(37,99,235)   blue-600
+' ---- LOANSYSTEM dark palette - EXACT values from docs/REACT-UI-SPEC.md
+' (code-extracted from ThemeContext.tsx; value = r + g*256 + b*65536)
+Private Const CLR_MAIN As Long = 0           ' #000000 page (mainBg bg-black)
+Private Const CLR_HEADER As Long = 1775640   ' #18181b header/section (zinc-900)
+Private Const CLR_CARD As Long = 2301984     ' zinc-800/50 blended over zinc-900
+Private Const CLR_INPUT As Long = 1775640    ' #18181b input bg (zinc-900)
+Private Const CLR_READONLY As Long = 4603711 ' #3f3f46 readOnlyBg (zinc-700)
+Private Const CLR_BORDER As Long = 2762535   ' #27272a borderColor (zinc-800)
+Private Const CLR_INBORDER As Long = 5984850 ' #52525b inputBorder (zinc-600)
+Private Const CLR_TEXT As Long = 16777215    ' #ffffff textPrimary
+Private Const CLR_TEXTSEC As Long = 14407121 ' #d1d5db textSecondary (gray-300)
+Private Const CLR_MUTED As Long = 11510684   ' #9ca3af textMuted (gray-400)
+Private Const CLR_GREEN As Long = 8445514    ' #4ade80 textGreen (green-400)
+Private Const CLR_GREEN5 As Long = 6210850   ' #22c55e green-500 (active accent)
+Private Const CLR_RED As Long = 7434744      ' #f87171 textRed (red-400)
+Private Const CLR_YELLOW As Long = 1428730   ' #facc15 textYellow (yellow-400)
 
 ' ---------------------------------------------------------------------
 Public Sub BuildAll()
@@ -375,94 +379,141 @@ Private Sub BuildFrmWorkbench()
     frm.Caption = "LOANSYSTEM"
     frm.HasModule = True
 
-    ' --- Brand bar (React Header) ---
-    Set c = CreateControl(nm, acRectangle, acDetail, "", "", 0, 0, CLng(12.6 * T1), CLng(0.4 * T1))
+    ' --- Brand bar (React Header: zinc-900, LOAN white + SYSTEM green) ---
+    Set c = CreateControl(nm, acRectangle, acDetail, "", "", 0, 0, CLng(12.6 * T1), CLng(0.38 * T1))
     c.BackStyle = 1: c.BackColor = CLR_HEADER: c.BorderStyle = 0: c.SpecialEffect = 0
-    AddThemedLabel frm, "LOAN", 0.15, 0.07, CLR_TEXT, 12, True
-    AddThemedLabel frm, "SYSTEM", 0.72, 0.07, CLR_GREEN, 12, True
+    AddThemedLabel frm, "LOAN", 0.15, 0.06, CLR_TEXT, 12, True
+    AddThemedLabel frm, "SYSTEM", 0.72, 0.06, CLR_GREEN, 12, True
+
+    ' --- Menu bar (React MenuBar: 8 muted items) ---
+    Set c = CreateControl(nm, acRectangle, acDetail, "", "", 0, CLng(0.38 * T1), CLng(12.6 * T1), CLng(0.28 * T1))
+    c.BackStyle = 1: c.BackColor = CLR_HEADER: c.BorderStyle = 0: c.SpecialEffect = 0
+    Dim menus As Variant, mi As Integer, mx As Single
+    menus = Array("File", "Home", "Create", "Import", "Export", "Reports", "Tools", "Admin")
+    mx = 0.15
+    For mi = 0 To UBound(menus)
+        AddThemedLabel frm, CStr(menus(mi)), mx, 0.43, CLR_MUTED, 9
+        mx = mx + 0.62
+    Next mi
 
     ' --- Relationship bar ---
-    AddThemedLabel frm, "Relationship:", 0.15, 0.52, CLR_MUTED, 9
-    DarkBox frm, "RelatedLoans", 1.25, 0.5, 1.5, True
-    AddThemedLabel frm, "Sort", 3#, 0.52, CLR_MUTED, 9
-    DarkBox frm, "SortNo", 3.4, 0.5, 0.5, True
-    AddThemedLabel frm, "Project", 4.1, 0.52, CLR_MUTED, 9
-    DarkBox frm, "ProjectName", 4.7, 0.5, 1.7, True
-    AddThemedLabel frm, "Exit Code", 6.6, 0.52, CLR_MUTED, 9
-    DarkBox frm, "ExitCode", 7.35, 0.5, 1.2
+    AddThemedLabel frm, "Relationship:", 0.15, 0.78, CLR_MUTED, 9
+    DarkBox frm, "RelatedLoans", 1.25, 0.76, 1.5, True
+    AddThemedLabel frm, "Sort", 3#, 0.78, CLR_MUTED, 9
+    DarkBox frm, "SortNo", 3.4, 0.76, 0.5, True
+    AddThemedLabel frm, "Project", 4.1, 0.78, CLR_MUTED, 9
+    DarkBox frm, "ProjectName", 4.7, 0.76, 1.7, True
+    AddThemedLabel frm, "Exit Code", 6.6, 0.78, CLR_MUTED, 9
+    DarkBox frm, "ExitCode", 7.35, 0.76, 1.2
     Set c = CreateControl(nm, acCommandButton, acDetail, "", "", _
-                          CLng(10.7 * T1), CLng(0.48 * T1), CLng(1.75 * T1), CLng(0.28 * T1))
+                          CLng(10.7 * T1), CLng(0.74 * T1), CLng(1.75 * T1), CLng(0.28 * T1))
     c.Name = "btnBrowse": c.Caption = "Browse Relationships"
     On Error Resume Next
-    c.UseTheme = False: c.BackColor = CLR_CARD: c.ForeColor = CLR_TEXT
-    c.BorderColor = CLR_BORDER: c.FontName = FONT: c.FontSize = 8
+    c.UseTheme = False: c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXTSEC
+    c.BorderColor = CLR_INBORDER: c.FontName = FONT: c.FontSize = 8
     On Error GoTo 0
 
     ' --- Pinned loan grid + flag card (React LoanTable + flag panel) ---
-    AddSub frm, "frmLoanGrid", "subLoans", 0.15, 0.9, 10.2, 2#
-    CardRect frm, 10.45, 0.9, 2.05, 2#
-    AddThemedLabel frm, "Relationship Flags", 10.55, 0.98, CLR_MUTED, 8
+    AddSub frm, "frmLoanGrid", "subLoans", 0.15, 1.15, 10.2, 2#
+    CardRect frm, 10.45, 1.15, 2.05, 2#
+    AddThemedLabel frm, "Relationship Flags", 10.55, 1.23, CLR_MUTED, 8
     Dim flags As Variant, caps As Variant, i As Integer, y As Single
     flags = Array("InBankruptcy", "ForeclosureFlag", "LitigationFlag", _
                   "ForbearanceFlag", "JudgmentFlag", "LowYieldAsset")
     caps = Array("Bankruptcy", "Foreclosure", "Litigation", _
                  "Forbearance", "Judgment", "Low Yield Asset")
-    y = 1.25
+    y = 1.5
     For i = 0 To UBound(flags)
         FlagCheck frm, CStr(flags(i)), CStr(caps(i)), 10.6, y
         y = y + 0.26
     Next i
 
-    ' --- Tab strip (React TabNavigation) ---
+    ' --- Tab strip: FULL 13 tabs in the React TABS order ---
     Dim tb As Control, pg As Control
     Set tb = CreateControl(nm, acTabCtl, acDetail, "", "", _
-                           CLng(0.15 * T1), CLng(3.05 * T1), CLng(12.45 * T1), CLng(4.5 * T1))
+                           CLng(0.15 * T1), CLng(3.3 * T1), CLng(12.45 * T1), CLng(4.5 * T1))
     tb.Name = "tabMain"
     On Error Resume Next
     tb.BackStyle = 0
+    tb.Style = 0
     On Error GoTo 0
 
-    ' Tab control ships with 2 pages; add 2 more, then caption all 4
-    Set pg = CreateControl(nm, acPage, acDetail, "tabMain"): pg.Caption = "Overview"
-    Set pg = CreateControl(nm, acPage, acDetail, "tabMain"): pg.Caption = "Strategies"
-    tb.Pages(0).Caption = "Collateral": tb.Pages(0).Name = "pgCollateral"
-    tb.Pages(1).Caption = "Tasks": tb.Pages(1).Name = "pgTasks"
-    tb.Pages(2).Name = "pgOverview"
-    tb.Pages(3).Name = "pgStrategies"
+    ' React TABS order: Loan, Borrower, Collateral, Comment, BPOTitleUCC,
+    ' PayHist, FinStmts, Projections, Strategies, Tasks, Overview,
+    ' Property, Report  (docs/REACT-UI-SPEC.md)
+    Dim tabNames As Variant
+    tabNames = Array("Loan", "Borrower", "Collateral", "Comment", "BPOTitleUCC", _
+                     "PayHist", "FinStmts", "Projections", "Strategies", "Tasks", _
+                     "Overview", "Property", "Report")
+    ' Tab control ships with 2 pages; add the other 11
+    For i = 2 To UBound(tabNames)
+        Set pg = CreateControl(nm, acPage, acDetail, "tabMain")
+    Next i
+    For i = 0 To UBound(tabNames)
+        tb.Pages(i).Caption = tabNames(i)
+        tb.Pages(i).Name = "pg" & tabNames(i)
+    Next i
+
+    Const PY As Single = 3.72          ' content top inside tab body
+    Const PH As Single = 3.9           ' content height
+
+    ' Loan page: editable detail subform (navigate loans with record arrows)
+    Set c = CreateControl(nm, acSubform, acDetail, "pgLoan", "", _
+                          CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
+    c.Name = "subLoanDetail": c.SourceObject = "frmLoanDetail"
+
+    ' Borrower / Comment / PayHist pages: raw table datasheets until the
+    ' production schemas are confirmed (Phase 4 exports)
+    Set c = CreateControl(nm, acSubform, acDetail, "pgBorrower", "", _
+                          CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
+    c.Name = "subBorrowers": c.SourceObject = "Table.tblBorrowers"
+    Set c = CreateControl(nm, acSubform, acDetail, "pgComment", "", _
+                          CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
+    c.Name = "subComments": c.SourceObject = "Table.tblcomments"
+    Set c = CreateControl(nm, acSubform, acDetail, "pgPayHist", "", _
+                          CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
+    c.Name = "subPayHist": c.SourceObject = "Table.tblPayHistory"
 
     ' Collateral page
     Set c = CreateControl(nm, acSubform, acDetail, "pgCollateral", "", _
-                          CLng(0.3 * T1), CLng(3.5 * T1), CLng(12# * T1), CLng(3.8 * T1))
+                          CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
     c.Name = "subCollateral": c.SourceObject = "frmCollateralGrid"
 
     ' Tasks page
     Set c = CreateControl(nm, acSubform, acDetail, "pgTasks", "", _
-                          CLng(0.3 * T1), CLng(3.5 * T1), CLng(12# * T1), CLng(3.8 * T1))
+                          CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
     c.Name = "subTasks": c.SourceObject = "frmTasks"
 
     ' Overview page: the three narratives (bound to tblRelationships)
-    AddPageLabel frm, "pgOverview", "Relationship Overview", 0.3, 3.5
+    AddPageLabel frm, "pgOverview", "Relationship Overview", 0.3, PY
     Set c = CreateControl(nm, acTextBox, acDetail, "pgOverview", "RelationshipOverview", _
-                          CLng(0.3 * T1), CLng(3.75 * T1), CLng(5.9 * T1), CLng(1.5 * T1))
+                          CLng(0.3 * T1), CLng((PY + 0.25) * T1), CLng(5.9 * T1), CLng(1.5 * T1))
     StyleInput c: c.Name = "RelationshipOverview": c.ScrollBars = 2
-    AddPageLabel frm, "pgOverview", "Collateral Overview", 6.4, 3.5
+    AddPageLabel frm, "pgOverview", "Collateral Overview", 6.4, PY
     Set c = CreateControl(nm, acTextBox, acDetail, "pgOverview", "CollateralOverview", _
-                          CLng(6.4 * T1), CLng(3.75 * T1), CLng(5.9 * T1), CLng(1.5 * T1))
+                          CLng(6.4 * T1), CLng((PY + 0.25) * T1), CLng(5.9 * T1), CLng(1.5 * T1))
     StyleInput c: c.Name = "CollateralOverview": c.ScrollBars = 2
-    AddPageLabel frm, "pgOverview", "Bid Conditions", 0.3, 5.45
+    AddPageLabel frm, "pgOverview", "Bid Conditions", 0.3, PY + 1.95
     Set c = CreateControl(nm, acTextBox, acDetail, "pgOverview", "ConditionsDeadlines", _
-                          CLng(0.3 * T1), CLng(5.7 * T1), CLng(12# * T1), CLng(1.2 * T1))
+                          CLng(0.3 * T1), CLng((PY + 2.2) * T1), CLng(12# * T1), CLng(1.2 * T1))
     StyleInput c: c.Name = "ConditionsDeadlines": c.ScrollBars = 2
 
     ' Strategies page
-    AddPageLabel frm, "pgStrategies", "Exit Strategy", 0.3, 3.5
+    AddPageLabel frm, "pgStrategies", "Exit Strategy", 0.3, PY
     Set c = CreateControl(nm, acTextBox, acDetail, "pgStrategies", "ExitStrategyOverview", _
-                          CLng(0.3 * T1), CLng(3.75 * T1), CLng(12# * T1), CLng(2.6 * T1))
+                          CLng(0.3 * T1), CLng((PY + 0.25) * T1), CLng(12# * T1), CLng(2.4 * T1))
     StyleInput c: c.Name = "ExitStrategyOverview": c.ScrollBars = 2
-    AddPageLabel frm, "pgStrategies", "Original Strategy", 0.3, 6.55
+    AddPageLabel frm, "pgStrategies", "Original Strategy", 0.3, PY + 2.8
     Set c = CreateControl(nm, acTextBox, acDetail, "pgStrategies", "Original_Strategy", _
-                          CLng(0.3 * T1), CLng(6.8 * T1), CLng(12# * T1), CLng(0.6 * T1))
+                          CLng(0.3 * T1), CLng((PY + 3.05) * T1), CLng(12# * T1), CLng(0.6 * T1))
     StyleInput c: c.Name = "Original_Strategy": c.ScrollBars = 2
+
+    ' Placeholder pages (mirrors the React "Coming soon" default case)
+    AddPageLabel frm, "pgBPOTitleUCC", "BPOTitleUCC tab content - Coming soon", 4.5, PY + 1.5
+    AddPageLabel frm, "pgFinStmts", "FinStmts tab content - Coming soon", 4.5, PY + 1.5
+    AddPageLabel frm, "pgProjections", "Projections modeling lives in the React app", 4.2, PY + 1.5
+    AddPageLabel frm, "pgProperty", "Property tab content - Coming soon", 4.5, PY + 1.5
+    AddPageLabel frm, "pgReport", "Investor reports live in the React app", 4.3, PY + 1.5
 
     ' Button + subform wiring
     Dim mdl As Module, ln As Long
@@ -476,8 +527,11 @@ Private Sub BuildFrmWorkbench()
     DoCmd.OpenForm "frmWorkbench", acDesign
     Dim f As Form: Set f = Forms("frmWorkbench")
     f!subLoans.LinkMasterFields = "RelatedLoans": f!subLoans.LinkChildFields = "RelatedLoans"
+    f!subLoanDetail.LinkMasterFields = "RelatedLoans": f!subLoanDetail.LinkChildFields = "RelatedLoans"
     f!subCollateral.LinkMasterFields = "RelatedLoans": f!subCollateral.LinkChildFields = "RelatedLoans"
     f!subTasks.LinkMasterFields = "RelatedLoans": f!subTasks.LinkChildFields = "RelatedLoans"
+    ' Borrower/Comment/PayHist datasheets stay unlinked until their
+    ' production schemas are confirmed (see INTERFACE-ALIGNMENT-PLAN Phase 4)
     DoCmd.Close acForm, "frmWorkbench", acSaveYes
 End Sub
 
@@ -579,7 +633,7 @@ Private Sub StyleInput(c As Control)
     c.BackColor = CLR_INPUT
     c.ForeColor = CLR_TEXT
     c.BorderStyle = 1
-    c.BorderColor = CLR_BORDER
+    c.BorderColor = CLR_INBORDER
     c.SpecialEffect = 0
     c.FontName = FONT
     c.FontSize = 9
@@ -626,7 +680,7 @@ Private Sub DarkBox(frm As Form, src As String, xIn As Single, yIn As Single, _
     If Len(fmt) > 0 Then c.Format = fmt
     If lockIt Then
         c.Locked = True
-        c.BackColor = CLR_CARD          ' readOnlyBg
+        c.BackColor = CLR_READONLY      ' readOnlyBg
         c.ForeColor = CLR_MUTED
     End If
 End Sub
@@ -673,7 +727,7 @@ Private Sub CardRect(frm As Form, xIn As Single, yIn As Single, _
     Set c = CreateControl(frm.Name, acRectangle, acDetail, "", "", _
                           CLng(xIn * T1), CLng(yIn * T1), CLng(wIn * T1), CLng(hIn * T1))
     c.BackStyle = 1: c.BackColor = CLR_CARD
-    c.BorderColor = CLR_BORDER: c.BorderStyle = 1: c.SpecialEffect = 0
+    c.BorderColor = CLR_INBORDER: c.BorderStyle = 1: c.SpecialEffect = 0
 End Sub
 
 Private Sub AddSub(frm As Form, srcForm As String, ctlName As String, _
@@ -684,7 +738,7 @@ Private Sub AddSub(frm As Form, srcForm As String, ctlName As String, _
     c.Name = ctlName
     c.SourceObject = srcForm
     On Error Resume Next
-    c.BorderColor = CLR_BORDER
+    c.BorderColor = CLR_INBORDER
     On Error GoTo 0
 End Sub
 
