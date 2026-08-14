@@ -189,10 +189,11 @@ Private Sub BuildFrmLoanGrid()
     GridCol frm, "DueDt", "NxtDue", 10.05, 0.8, False, "mm/dd/yy"
 
     Dim mdl As Module, ln As Long
+    frm!txtMWLoanNo.OnDblClick = "[Event Procedure]"
     Set mdl = frm.Module
-    ln = mdl.CreateEventProc("DblClick", "MWLoanNo")
+    ln = mdl.CreateEventProc("DblClick", "txtMWLoanNo")
     mdl.InsertLines ln + 1, _
-        "    DoCmd.OpenForm ""frmLoanDetail"", , , ""MWLoanNo='"" & Me!MWLoanNo & ""'"""
+        "    DoCmd.OpenForm ""frmLoanDetail"", , , ""MWLoanNo='"" & Me!txtMWLoanNo & ""'"""
     SaveAs nm, "frmLoanGrid"
 End Sub
 
@@ -220,10 +221,11 @@ Private Sub BuildFrmCollateralGrid()
     GridCol frm, "TaxDelinquentAmt", "Dlq Taxes", 8.7, 0.95, True, "$#,##0"
 
     Dim mdl As Module, ln As Long
+    frm!txtMWPropertyNo.OnDblClick = "[Event Procedure]"
     Set mdl = frm.Module
-    ln = mdl.CreateEventProc("DblClick", "MWPropertyNo")
+    ln = mdl.CreateEventProc("DblClick", "txtMWPropertyNo")
     mdl.InsertLines ln + 1, _
-        "    DoCmd.OpenForm ""frmCollateralDetail"", , , ""MWPropertyNo="" & Me!MWPropertyNo"
+        "    DoCmd.OpenForm ""frmCollateralDetail"", , , ""MWPropertyNo="" & Me!txtMWPropertyNo"
     SaveAs nm, "frmCollateralGrid"
 End Sub
 
@@ -464,6 +466,7 @@ Private Sub BuildFrmWorkbench()
 
     ' Button + subform wiring
     Dim mdl As Module, ln As Long
+    frm!btnBrowse.OnClick = "[Event Procedure]"
     Set mdl = frm.Module
     ln = mdl.CreateEventProc("Click", "btnBrowse")
     mdl.InsertLines ln + 1, "    DoCmd.OpenForm ""frmBrowser"""
@@ -522,10 +525,11 @@ Private Sub BuildFrmBrowser()
     StyleCell c: c.Name = "txtFlags": c.ForeColor = CLR_RED: c.FontBold = True
 
     Dim mdl As Module, ln As Long
+    frm!txtRelatedLoans.OnDblClick = "[Event Procedure]"
     Set mdl = frm.Module
-    ln = mdl.CreateEventProc("DblClick", "RelatedLoans")
+    ln = mdl.CreateEventProc("DblClick", "txtRelatedLoans")
     mdl.InsertLines ln + 1, _
-        "    DoCmd.OpenForm ""frmWorkbench"", , , ""RelatedLoans='"" & Me!RelatedLoans & ""'"""
+        "    DoCmd.OpenForm ""frmWorkbench"", , , ""RelatedLoans='"" & Me!txtRelatedLoans & ""'"""
     SaveAs nm, "frmBrowser"
 End Sub
 
