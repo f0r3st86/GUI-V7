@@ -3,7 +3,7 @@ Option Compare Database
 Option Explicit
 
 ' =====================================================================
-' MidwestDDi Access Front-End Builder  (v4 - React-styled dark theme)
+' MidwestDDi Access Front-End Builder  (v6 - production-logic edition)
 '
 ' Builds a linked front-end styled after the LOANSYSTEM React app:
 ' dark zinc backgrounds, green accents, red flag panel, pinned loan
@@ -24,7 +24,8 @@ Option Explicit
 '   1. Blank .accdb on a machine with the sqlDueDiligence DSN
 '   2. Alt+F11 -> File -> Import File -> this .bas
 '   3. Ctrl+G -> type BuildAll -> Enter
-'   4. Open frmBrowser
+'   4. Open frmLogin, pick a project (scopes the whole session,
+'      exactly like the production frmLogin flow)
 ' Re-running BuildAll rebuilds everything.
 ' =====================================================================
 
@@ -56,6 +57,7 @@ Private Const CLR_YELLOW As Long = 1428730   ' #facc15 textYellow (yellow-400)
 Public Sub BuildAll()
     On Error GoTo Fail
     LinkTables
+    EnsureLocalProjectTable
     BuildQueries
     BuildFrmLoanDetail
     BuildFrmCollateralDetail
@@ -64,8 +66,9 @@ Public Sub BuildAll()
     BuildFrmTasks
     BuildFrmWorkbench
     BuildFrmBrowser
+    BuildFrmLogin
     MsgBox "Front-end built successfully." & vbCrLf & vbCrLf & _
-           "Open frmBrowser to start.", vbInformation, "LOANSYSTEM (Access)"
+           "Open frmLogin to start (pick a project).", vbInformation, "LOANSYSTEM (Access)"
     Exit Sub
 Fail:
     MsgBox "Build failed: " & Err.Description, vbCritical, "LOANSYSTEM (Access)"
@@ -79,7 +82,9 @@ Private Sub LinkTables()
     Dim ok As String, bad As String
     tables = Array("tblRelationships", "tblLoan", "CollateralInfo", _
                    "tblTasks", "tblBorrowers", "tblBorrowerLookup", _
-                   "tblcomments", "tblPayHistory")
+                   "tblcomments", "tblPayHistory", "tblProjects", _
+                   "tblBPO", "tblTitle", "z_CCodes", "zExitCodes", _
+                   "vwPayHistorySpread")
     For i = LBound(tables) To UBound(tables)
         DropTableDef db, CStr(tables(i))
         DropTableDef db, "dbo_" & tables(i)
@@ -132,6 +137,31 @@ Fail:
            vbCritical, "TestConnection"
 End Sub
 
+' Local one-row table holding the login-chosen project - mirrors
+' production's zxTblLOCALCurrentProject. Every operational query
+' filters on it. Survives rebuilds (selection persists).
+Private Sub EnsureLocalProjectTable()
+    Dim db As DAO.Database: Set db = CurrentDb
+    Dim td As DAO.TableDef, f As DAO.Field
+    On Error Resume Next
+    Set td = db.TableDefs("xtblLocalCurrentProject")
+    If Err.Number <> 0 Then
+        Err.Clear
+        On Error GoTo 0
+        Set td = db.CreateTableDef("xtblLocalCurrentProject")
+        Set f = td.CreateField("CurrentProject", dbText, 100)
+        td.Fields.Append f
+        db.TableDefs.Append td
+    End If
+    On Error Resume Next
+    If DCount("*", "xtblLocalCurrentProject") = 0 Then
+        db.Execute "INSERT INTO xtblLocalCurrentProject (CurrentProject) " & _
+                   "SELECT TOP 1 ProjectName FROM tblProjects ORDER BY ProjectName"
+    End If
+    Err.Clear
+    On Error GoTo 0
+End Sub
+
 Private Sub DropTableDef(db As DAO.Database, nm As String)
     On Error Resume Next
     db.TableDefs.Delete nm
@@ -142,6 +172,7 @@ End Sub
 ' ================= QUERIES ===========================================
 Private Sub BuildQueries()
     Dim db As DAO.Database: Set db = CurrentDb
+    ' Project-scoped, like every production operational query
     DropQuery db, "qryRelationshipSummary"
     db.CreateQueryDef "qryRelationshipSummary", _
         "SELECT r.ProjectName, r.SortNo, r.RelatedLoans, " & _
@@ -150,10 +181,28 @@ Private Sub BuildQueries()
         "r.ForbearanceFlag, r.JudgmentFlag, r.LowYieldAsset, r.ExitCode " & _
         "FROM tblRelationships AS r LEFT JOIN tblLoan AS l " & _
         "ON r.RelatedLoans = l.RelatedLoans " & _
+        "WHERE r.ProjectName = (SELECT CurrentProject FROM xtblLocalCurrentProject) " & _
         "GROUP BY r.ProjectName, r.SortNo, r.RelatedLoans, r.InBankruptcy, " & _
         "r.ForeclosureFlag, r.LitigationFlag, r.ForbearanceFlag, " & _
         "r.JudgmentFlag, r.LowYieldAsset, r.ExitCode " & _
         "ORDER BY r.ProjectName, r.SortNo;"
+
+    ' Bid liquidation values - production aaaBiddingCollateralValueSummary
+    ' math (flat 0.8 advance rate; production reads per-code rates from
+    ' z_CCodes - swap in a join once its key column is confirmed)
+    Dim rawX As String, adjX As String
+    rawX = "Nz([CurrentAppraisedValue],0)-IIf(Nz([SeniorLienAmount],0)>0,Nz([SeniorLienAmount],0),0)-IIf(Nz([TaxDelinquentAmt],0)>0,Nz([TaxDelinquentAmt],0),0)"
+    adjX = "0.8*Nz([CurrentAppraisedValue],0)-IIf(Nz([SeniorLienAmount],0)>0,Nz([SeniorLienAmount],0),0)-IIf(Nz([TaxDelinquentAmt],0)>0,Nz([TaxDelinquentAmt],0),0)"
+    DropQuery db, "qryBidLiquidationValues"
+    db.CreateQueryDef "qryBidLiquidationValues", _
+        "SELECT c.RelatedLoans, Count(*) AS Properties, " & _
+        "Sum(IIf(" & rawX & ">0," & rawX & ",0)) AS RawLiqVal, " & _
+        "Sum(IIf(" & adjX & ">0," & adjX & ",0)) AS AdjLiqVal, " & _
+        "Sum(Nz(c.CurrentAppraisedValue,0)) AS TotalAppraised, " & _
+        "Sum(Nz(c.TaxDelinquentAmt,0)) AS TotalDelqTaxes " & _
+        "FROM CollateralInfo AS c " & _
+        "WHERE c.ProjectName = (SELECT CurrentProject FROM xtblLocalCurrentProject) " & _
+        "GROUP BY c.RelatedLoans;"
 
     DropQuery db, "qryLoansSorted"
     db.CreateQueryDef "qryLoansSorted", _
@@ -403,7 +452,9 @@ Private Sub BuildFrmWorkbench()
                             CLng(1.25 * T1), CLng(0.76 * T1), CLng(1.5 * T1), CLng(0.24 * T1))
     cbo.Name = "cboRelationship"
     cbo.RowSourceType = "Table/Query"
-    cbo.RowSource = "SELECT RelatedLoans FROM tblRelationships ORDER BY ProjectName, SortNo;"
+    cbo.RowSource = "SELECT RelatedLoans FROM tblRelationships " & _
+        "WHERE ProjectName = (SELECT CurrentProject FROM xtblLocalCurrentProject) " & _
+        "ORDER BY SortNo;"
     cbo.LimitToList = True
     On Error Resume Next
     cbo.BackColor = CLR_INPUT: cbo.ForeColor = CLR_TEXT
@@ -482,9 +533,10 @@ Private Sub BuildFrmWorkbench()
     Set c = CreateControl(nm, acSubform, acDetail, "pgComment", "", _
                           CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
     c.Name = "subComments": c.SourceObject = "Table.tblcomments"
+    ' Production's server-side year x 12 payment pivot
     Set c = CreateControl(nm, acSubform, acDetail, "pgPayHist", "", _
                           CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
-    c.Name = "subPayHist": c.SourceObject = "Table.tblPayHistory"
+    c.Name = "subPayHist": c.SourceObject = "Table.vwPayHistorySpread"
 
     ' Collateral page
     Set c = CreateControl(nm, acSubform, acDetail, "pgCollateral", "", _
@@ -537,8 +589,18 @@ Private Sub BuildFrmWorkbench()
                           CLng(0.3 * T1), CLng((PY + 3.05) * T1), CLng(12# * T1), CLng(0.6 * T1))
     StyleInput c: c.Name = "Original_Strategy": c.ScrollBars = 2
 
+    ' BPOTitleUCC page: real BPO orders (workflow states from tblBPO)
+    ' + title orders below, per the production qryAdminBPO-* family
+    AddPageLabel frm, "pgBPOTitleUCC", "BPO Orders (status workflow)", 0.3, PY
+    Set c = CreateControl(nm, acSubform, acDetail, "pgBPOTitleUCC", "", _
+                          CLng(0.3 * T1), CLng((PY + 0.24) * T1), CLng(12# * T1), CLng(1.7 * T1))
+    c.Name = "subBPO": c.SourceObject = "Table.tblBPO"
+    AddPageLabel frm, "pgBPOTitleUCC", "Title Orders", 0.3, PY + 2.05
+    Set c = CreateControl(nm, acSubform, acDetail, "pgBPOTitleUCC", "", _
+                          CLng(0.3 * T1), CLng((PY + 2.29) * T1), CLng(12# * T1), CLng(1.55 * T1))
+    c.Name = "subTitle": c.SourceObject = "Table.tblTitle"
+
     ' Placeholder pages (mirrors the React "Coming soon" default case)
-    AddPageLabel frm, "pgBPOTitleUCC", "BPOTitleUCC tab content - Coming soon", 4.5, PY + 1.5
     AddPageLabel frm, "pgFinStmts", "FinStmts tab content - Coming soon", 4.5, PY + 1.5
     AddPageLabel frm, "pgProjections", "Projections modeling lives in the React app", 4.2, PY + 1.5
     AddPageLabel frm, "pgProperty", "Property tab content - Coming soon", 4.5, PY + 1.5
@@ -622,6 +684,7 @@ Private Sub BuildFrmWorkbench()
     f!subLoanDetail.LinkMasterFields = "RelatedLoans": f!subLoanDetail.LinkChildFields = "RelatedLoans"
     f!subCollateral.LinkMasterFields = "RelatedLoans": f!subCollateral.LinkChildFields = "RelatedLoans"
     f!subTasks.LinkMasterFields = "RelatedLoans": f!subTasks.LinkChildFields = "RelatedLoans"
+    f!subBPO.LinkMasterFields = "RelatedLoans": f!subBPO.LinkChildFields = "RelatedLoans"
     ' Borrower/Comment/PayHist datasheets stay unlinked until their
     ' production schemas are confirmed (see INTERFACE-ALIGNMENT-PLAN Phase 4)
     DoCmd.Close acForm, "frmWorkbench", acSaveYes
@@ -645,6 +708,21 @@ Private Sub BuildFrmBrowser()
     Set t = CreateControl(nm, acLabel, acHeader, "", "", CLng(0.15 * T1), CLng(0.05 * T1), CLng(3 * T1), CLng(0.25 * T1))
     t.Caption = "Relationships": t.ForeColor = CLR_TEXT: t.FontName = FONT
     t.FontSize = 12: t.FontBold = True
+    ' Current project indicator + switch (login-time scoping, per production)
+    Dim tp As Control
+    Set tp = CreateControl(nm, acTextBox, acHeader, "", _
+        "=DLookUp(""CurrentProject"",""xtblLocalCurrentProject"")", _
+        CLng(3.4 * T1), CLng(0.07 * T1), CLng(2.2 * T1), CLng(0.22 * T1))
+    tp.Name = "txtProject": tp.BackStyle = 0: tp.BorderStyle = 0
+    tp.ForeColor = CLR_GREEN: tp.FontName = FONT: tp.FontSize = 9
+    tp.Locked = True: tp.TabStop = False
+    Set tp = CreateControl(nm, acCommandButton, acHeader, "", "", _
+        CLng(5.8 * T1), CLng(0.05 * T1), CLng(1.3 * T1), CLng(0.26 * T1))
+    tp.Name = "btnProject": tp.Caption = "Switch Project"
+    On Error Resume Next
+    tp.UseTheme = False: tp.BackColor = CLR_INPUT: tp.ForeColor = CLR_TEXTSEC
+    tp.BorderColor = CLR_INBORDER: tp.FontName = FONT: tp.FontSize = 8
+    On Error GoTo 0
     AddHeadLabel frm, "Project", 0.15, 1.6, False, 0.32
     AddHeadLabel frm, "Sort", 1.85, 0.45, False, 0.32
     AddHeadLabel frm, "Relationship", 2.4, 1.5, False, 0.32
@@ -676,7 +754,63 @@ Private Sub BuildFrmBrowser()
     ln = mdl.CreateEventProc("DblClick", "txtRelatedLoans")
     mdl.InsertLines ln + 1, _
         "    DoCmd.OpenForm ""frmWorkbench"", , , ""RelatedLoans='"" & Me!txtRelatedLoans & ""'"""
+    frm!btnProject.OnClick = "[Event Procedure]"
+    ln = mdl.CreateEventProc("Click", "btnProject")
+    mdl.InsertLines ln + 1, "    DoCmd.OpenForm ""frmLogin"""
     SaveAs nm, "frmBrowser"
+End Sub
+
+' ================= FORM: LOGIN (project selection) ===================
+' Mirrors production frmLogin: choose the project, which scopes every
+' query in the session via xtblLocalCurrentProject.
+Private Sub BuildFrmLogin()
+    Dim frm As Form, nm As String, c As Control
+    DropIfExists "frmLogin", acForm
+    Set frm = CreateForm
+    nm = frm.Name
+    frm.Section(acDetail).BackColor = CLR_MAIN
+    frm.RecordSelectors = False
+    frm.NavigationButtons = False
+    frm.Caption = "LOANSYSTEM - Select Project"
+    frm.PopUp = True
+    frm.HasModule = True
+
+    AddThemedLabel frm, "LOAN", 0.4, 0.3, CLR_TEXT, 14, True
+    AddThemedLabel frm, "SYSTEM", 1.15, 0.3, CLR_GREEN, 14, True
+    AddThemedLabel frm, "Project", 0.4, 0.85, CLR_MUTED, 9
+    Set c = CreateControl(nm, acComboBox, acDetail, "", "", _
+                          CLng(0.4 * T1), CLng(1.1 * T1), CLng(2.6 * T1), CLng(0.26 * T1))
+    c.Name = "cboProject"
+    c.RowSourceType = "Table/Query"
+    c.RowSource = "SELECT ProjectName FROM tblProjects ORDER BY ProjectName;"
+    c.LimitToList = True
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT
+    c.BorderColor = CLR_INBORDER: c.FontName = FONT: c.FontSize = 10
+    c.DefaultValue = "=DLookUp(""CurrentProject"",""xtblLocalCurrentProject"")"
+    On Error GoTo 0
+
+    Set c = CreateControl(nm, acCommandButton, acDetail, "", "", _
+                          CLng(0.4 * T1), CLng(1.6 * T1), CLng(1.2 * T1), CLng(0.3 * T1))
+    c.Name = "btnOpen": c.Caption = "Open"
+    On Error Resume Next
+    c.UseTheme = False: c.BackColor = CLR_GREEN5: c.ForeColor = CLR_TEXT
+    c.FontName = FONT: c.FontSize = 9
+    On Error GoTo 0
+
+    Dim mdl As Module, ln As Long, code As String
+    frm!btnOpen.OnClick = "[Event Procedure]"
+    Set mdl = frm.Module
+    ln = mdl.CreateEventProc("Click", "btnOpen")
+    code = "    If IsNull(Me!cboProject) Then Exit Sub" & vbCrLf
+    code = code & "    CurrentDb.Execute ""DELETE FROM xtblLocalCurrentProject""" & vbCrLf
+    code = code & "    CurrentDb.Execute ""INSERT INTO xtblLocalCurrentProject (CurrentProject) VALUES ('"" & Replace(Me!cboProject, ""'"", ""''"") & ""')""" & vbCrLf
+    code = code & "    DoCmd.OpenForm ""frmBrowser""" & vbCrLf
+    code = code & "    On Error Resume Next" & vbCrLf
+    code = code & "    Forms(""frmBrowser"").Requery" & vbCrLf
+    code = code & "    DoCmd.Close acForm, Me.Name"
+    mdl.InsertLines ln + 1, code
+    SaveAs nm, "frmLogin"
 End Sub
 
 ' ================= THEME HELPERS =====================================
