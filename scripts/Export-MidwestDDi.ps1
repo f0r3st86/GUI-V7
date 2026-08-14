@@ -51,7 +51,30 @@ $outDir = Join-Path ([Environment]::GetFolderPath('Desktop')) "MidwestDDi-export
 New-Item -ItemType Directory -Path $outDir | Out-Null
 
 $conn = New-Object System.Data.Odbc.OdbcConnection("DSN=$Dsn;DATABASE=$Database")
-$conn.Open()
+try {
+  $conn.Open()
+} catch {
+  $msg = $_.Exception.Message
+  if ($msg -match 'Data source name not found' -and [Environment]::Is64BitProcess) {
+    # The DSN likely lives in the 32-bit ODBC registry (Access is often
+    # 32-bit). Relaunch this script under 32-bit PowerShell, which sees it.
+    Write-Host 'DSN not visible to 64-bit PowerShell - retrying in 32-bit...'
+    $ps32 = "$env:WINDIR\SysWOW64\WindowsPowerShell\v1.0\powershell.exe"
+    & $ps32 -ExecutionPolicy Bypass -File $PSCommandPath
+    exit $LASTEXITCODE
+  }
+  Write-Error @"
+Could not connect: $msg
+
+Checklist:
+  1. Are you on the office network or VPN?
+  2. Does Access open the linked tables on THIS machine right now?
+     (If Access works, the DSN and your permissions are fine.)
+  3. Check the DSN name: Start > 'ODBC Data Sources' (try BOTH the
+     64-bit and 32-bit apps) > System DSN tab > look for '$Dsn'.
+"@
+  exit 1
+}
 Write-Host "Connected to $Database via DSN $Dsn"
 
 function Export-Query {
