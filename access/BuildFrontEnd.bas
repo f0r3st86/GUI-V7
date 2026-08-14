@@ -3,72 +3,70 @@ Option Compare Database
 Option Explicit
 
 ' =====================================================================
-' MidwestDDi Access Front-End Builder
+' MidwestDDi Access Front-End Builder  (v4 - React-styled dark theme)
 '
-' Builds a complete linked front-end for the MidwestDDi database:
-'   - Links the core SQL tables via the sqlDueDiligence DSN
-'   - frmBrowser        relationship browser (sorted by project + SortNo,
-'                       aggregate UPB, double-click to open workbench)
-'   - frmWorkbench      relationship workbench: flag checkboxes, loan and
-'                       collateral lists, tasks, narrative sections
-'   - frmLoanList       read-only loan grid (principal descending)
-'   - frmLoanDetail     editable loan detail panel (workbook layout)
-'   - frmCollateralList read-only collateral grid
-'   - frmCollateralDetail  editable collateral detail panel
-'   - frmTasks          task cards with a perpetual new-entry row
+' Builds a linked front-end styled after the LOANSYSTEM React app:
+' dark zinc backgrounds, green accents, red flag panel, pinned loan
+' grid, and a tab strip (Loan / Collateral / Tasks / Overview /
+' Strategies) below it.
 '
-' Editability follows the Architecture workbook's yellow-cell rules:
-' grids are read-only, detail panels and flags are editable, keys are
-' locked.
+'   frmBrowser           dark relationship browser (dbl-click to open)
+'   frmWorkbench         header bar + relationship bar + pinned loan
+'                        grid + flag card + tab control
+'   frmLoanGrid          dark continuous loan grid, Total in green,
+'                        dbl-click loan no -> frmLoanDetail
+'   frmLoanDetail        dark editable loan panel (popup)
+'   frmCollateralGrid    dark continuous collateral grid
+'   frmCollateralDetail  dark editable collateral panel (popup)
+'   frmTasks             dark task cards + perpetual new-entry row
 '
-' HOW TO USE
-'   1. Create a new blank database (.accdb) on a machine that has the
-'      sqlDueDiligence DSN (same machine where the production Access
-'      front-end works).
-'   2. Enable content when prompted (macros must be allowed).
-'   3. Alt+F11 -> File -> Import File -> pick this .bas file
-'      (or Insert -> Module and paste the contents).
-'   4. Press Ctrl+G to open the Immediate window, type:  BuildAll
-'      and press Enter.
-'   5. Close the VBA editor. Open frmBrowser. Done.
-'
-' The build is idempotent: run BuildAll again to rebuild everything
-' (existing links/queries/forms with the same names are replaced).
+' HOW TO USE (same as before)
+'   1. Blank .accdb on a machine with the sqlDueDiligence DSN
+'   2. Alt+F11 -> File -> Import File -> this .bas
+'   3. Ctrl+G -> type BuildAll -> Enter
+'   4. Open frmBrowser
+' Re-running BuildAll rebuilds everything.
 ' =====================================================================
 
-' Matches the production app's linked-table connection string exactly —
-' TrustServerCertificate=Yes is required when the server uses a
-' self-signed certificate (omitting it makes every link fail).
 Private Const CONNECT As String = _
     "ODBC;DSN=sqlDueDiligence;DATABASE=MidwestDDi;Trusted_Connection=Yes;" & _
     "APP=Microsoft Office;Encrypt=Optional;TrustServerCertificate=Yes"
 
-' Twips: 1440 per inch
-Private Const T1 As Long = 1440
+Private Const T1 As Long = 1440       ' twips per inch
+Private Const FONT As String = "Segoe UI"
+
+' ---- LOANSYSTEM dark palette (matches the React ThemeContext) -------
+Private Function CLR_MAIN() As Long:   CLR_MAIN = RGB(24, 24, 27):    End Function ' zinc-900 page
+Private Function CLR_HEADER() As Long: CLR_HEADER = RGB(9, 9, 11):    End Function ' near-black bar
+Private Function CLR_CARD() As Long:   CLR_CARD = RGB(39, 39, 42):    End Function ' zinc-800 card
+Private Function CLR_INPUT() As Long:  CLR_INPUT = RGB(24, 24, 27):   End Function ' input bg
+Private Function CLR_BORDER() As Long: CLR_BORDER = RGB(63, 63, 70):  End Function ' zinc-700
+Private Function CLR_TEXT() As Long:   CLR_TEXT = RGB(244, 244, 245): End Function ' near-white
+Private Function CLR_MUTED() As Long:  CLR_MUTED = RGB(161, 161, 170) End Function ' zinc-400
+Private Function CLR_GREEN() As Long:  CLR_GREEN = RGB(74, 222, 128): End Function ' green-400
+Private Function CLR_RED() As Long:    CLR_RED = RGB(248, 113, 113):  End Function ' red-400
+Private Function CLR_BLUE() As Long:   CLR_BLUE = RGB(37, 99, 235):   End Function ' blue-600
 
 ' ---------------------------------------------------------------------
 Public Sub BuildAll()
     On Error GoTo Fail
     LinkTables
     BuildQueries
-    BuildFrmLoanList
     BuildFrmLoanDetail
-    BuildFrmCollateralList
     BuildFrmCollateralDetail
+    BuildFrmLoanGrid
+    BuildFrmCollateralGrid
     BuildFrmTasks
     BuildFrmWorkbench
     BuildFrmBrowser
     MsgBox "Front-end built successfully." & vbCrLf & vbCrLf & _
-           "Open frmBrowser to start.", vbInformation, "MidwestDDi Front-End"
+           "Open frmBrowser to start.", vbInformation, "LOANSYSTEM (Access)"
     Exit Sub
 Fail:
-    MsgBox "Build failed: " & Err.Description, vbCritical, "MidwestDDi Front-End"
+    MsgBox "Build failed: " & Err.Description, vbCritical, "LOANSYSTEM (Access)"
 End Sub
 
-' ================= TABLE LINKS =======================================
-' Uses DAO CreateTableDef instead of DoCmd.TransferDatabase because
-' TransferDatabase ignores the destination name for ODBC links and
-' stamps them 'dbo_tblLoan' - DAO names the link exactly as told.
+' ================= TABLE LINKS (DAO - exact names) ===================
 Private Sub LinkTables()
     Dim db As DAO.Database: Set db = CurrentDb
     Dim tables As Variant, i As Integer
@@ -78,17 +76,14 @@ Private Sub LinkTables()
                    "tblTasks", "tblBorrowers", "tblBorrowerLookup", _
                    "tblcomments", "tblPayHistory")
     For i = LBound(tables) To UBound(tables)
-        ' Clean up both naming variants from earlier attempts
         DropTableDef db, CStr(tables(i))
         DropTableDef db, "dbo_" & tables(i)
-
         On Error Resume Next
         Set td = db.CreateTableDef(CStr(tables(i)))
         td.Connect = CONNECT
         td.SourceTableName = "dbo." & tables(i)
         db.TableDefs.Append td
         If Err.Number <> 0 Then
-            ' Retry without the schema prefix
             Err.Clear
             Set td = db.CreateTableDef(CStr(tables(i)))
             td.Connect = CONNECT
@@ -104,26 +99,14 @@ Private Sub LinkTables()
         On Error GoTo 0
     Next i
     db.TableDefs.Refresh
-
     If Len(bad) > 0 Then
         MsgBox "Some tables failed to link:" & bad & vbCrLf & vbCrLf & _
-               "Linked OK:" & ok & vbCrLf & vbCrLf & _
-               "Run TestConnection (Ctrl+G, type TestConnection) for the " & _
-               "exact ODBC error.", vbExclamation, "Link results"
+               "Linked OK:" & ok, vbExclamation, "Link results"
         If Len(ok) = 0 Then Err.Raise vbObjectError + 1, , _
-            "No tables linked - check the connection (run TestConnection)."
+            "No tables linked - run TestConnection for the exact ODBC error."
     End If
 End Sub
 
-Private Sub DropTableDef(db As DAO.Database, nm As String)
-    On Error Resume Next
-    db.TableDefs.Delete nm
-    Err.Clear
-    On Error GoTo 0
-End Sub
-
-' Diagnose the ODBC connection: run this from the Immediate window
-' (Ctrl+G, type TestConnection) and send the message shown.
 Public Sub TestConnection()
     Dim db As DAO.Database, qd As DAO.QueryDef, rs As DAO.Recordset
     On Error GoTo Fail
@@ -140,20 +123,20 @@ Public Sub TestConnection()
     rs.Close
     Exit Sub
 Fail:
-    MsgBox "Connection FAILED:" & vbCrLf & vbCrLf & Err.Description & vbCrLf & vbCrLf & _
-           "Common fixes:" & vbCrLf & _
-           "1. Confirm you are on the network / VPN." & vbCrLf & _
-           "2. Open the production Access app on this machine - if its " & _
-           "linked tables open, the DSN works and the name matches." & vbCrLf & _
-           "3. Check the DSN name in Start > ODBC Data Sources (both " & _
-           "64-bit and 32-bit apps): is it exactly 'sqlDueDiligence'?", _
+    MsgBox "Connection FAILED:" & vbCrLf & vbCrLf & Err.Description, _
            vbCritical, "TestConnection"
+End Sub
+
+Private Sub DropTableDef(db As DAO.Database, nm As String)
+    On Error Resume Next
+    db.TableDefs.Delete nm
+    Err.Clear
+    On Error GoTo 0
 End Sub
 
 ' ================= QUERIES ===========================================
 Private Sub BuildQueries()
     Dim db As DAO.Database: Set db = CurrentDb
-
     DropQuery db, "qryRelationshipSummary"
     db.CreateQueryDef "qryRelationshipSummary", _
         "SELECT r.ProjectName, r.SortNo, r.RelatedLoans, " & _
@@ -170,373 +153,522 @@ Private Sub BuildQueries()
     DropQuery db, "qryLoansSorted"
     db.CreateQueryDef "qryLoansSorted", _
         "SELECT MWLoanNo, RelatedLoans, BorrowerNm, OrigPrincipalBalance, " & _
-        "PrincipalBalance, InterestBalance, Rate, RepayAmt, DueDt, " & _
-        "LastPmtDt, OrgNoteDate, CurrentMaturityDate " & _
+        "PrincipalBalance, InterestBalance, Rate, RepayAmt, DueDt, LastPmtDt " & _
         "FROM tblLoan ORDER BY PrincipalBalance DESC;"
-
     db.QueryDefs.Refresh
 End Sub
 
-' ================= FORM: LOAN LIST (read-only grid) ==================
-Private Sub BuildFrmLoanList()
-    Dim frm As Form, nm As String
-    DropIfExists "frmLoanList", acForm
-    Set frm = CreateForm
+' ================= FORM: LOAN GRID (dark continuous) =================
+Private Sub BuildFrmLoanGrid()
+    Dim frm As Form, nm As String, c As Control
+    DropIfExists "frmLoanGrid", acForm
+    Set frm = NewDarkForm("qryLoansSorted", 1)   ' continuous
     nm = frm.Name
-    frm.RecordSource = "qryLoansSorted"
-    frm.DefaultView = 2               ' datasheet
-    frm.AllowEdits = False            ' grid = read-only summary
-    frm.AllowAdditions = False
-    frm.AllowDeletions = False
+    frm.AllowEdits = False: frm.AllowAdditions = False: frm.AllowDeletions = False
     frm.HasModule = True
+    EnsureHeader frm
+    frm.Section(acHeader).BackColor = CLR_CARD
+    frm.Section(acHeader).Height = 0.24 * T1
+    frm.Section(acDetail).Height = 0.26 * T1
 
-    AddCol frm, "MWLoanNo", "Loan No", 1.4
-    AddCol frm, "RelatedLoans", "Related", 1
-    AddCol frm, "BorrowerNm", "Borrower", 2
-    AddCol frm, "OrigPrincipalBalance", "Orig Balance", 1
-    AddCol frm, "PrincipalBalance", "UPB", 1
-    AddCol frm, "InterestBalance", "Interest", 1
-    AddCol frm, "Rate", "Rate", 0.6
-    AddCol frm, "RepayAmt", "PMT", 0.8
-    AddCol frm, "DueDt", "NxtDue", 0.8
-    AddCol frm, "LastPmtDt", "LastPmt", 0.8
-    AddCol frm, "OrgNoteDate", "OrigDt", 0.8
-    AddCol frm, "CurrentMaturityDate", "MatDt", 0.8
+    ' Header labels + row cells (dark grid like LoanTable.tsx)
+    GridCol frm, "MWLoanNo", "Loan No", 0.1, 1.5, False
+    GridCol frm, "BorrowerNm", "Borrower", 1.7, 2.2, False
+    GridCol frm, "OrigPrincipalBalance", "Orig Balance", 4#, 1.05, True, "$#,##0"
+    GridCol frm, "PrincipalBalance", "Principal", 5.15, 1.05, True, "$#,##0"
+    GridCol frm, "InterestBalance", "Interest", 6.3, 0.95, True, "$#,##0"
+    ' calculated Total in green (React: styles.textGreen)
+    AddHeadLabel frm, "Total", 7.35, 0.95, True
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+        "=[PrincipalBalance]+[InterestBalance]", CLng(7.35 * T1), 0, CLng(0.95 * T1), CLng(0.22 * T1))
+    StyleCell c: c.Name = "txtTotal": c.ForeColor = CLR_GREEN
+    c.Format = "$#,##0": c.TextAlign = 3
+    GridCol frm, "Rate", "Rate", 8.4, 0.6, True, "0.00%"
+    GridCol frm, "RepayAmt", "PMT", 9.1, 0.85, True, "$#,##0"
+    GridCol frm, "DueDt", "NxtDue", 10.05, 0.8, False, "mm/dd/yy"
 
-    ' Double-click a loan number opens the editable detail panel
     Dim mdl As Module, ln As Long
     Set mdl = frm.Module
     ln = mdl.CreateEventProc("DblClick", "MWLoanNo")
     mdl.InsertLines ln + 1, _
         "    DoCmd.OpenForm ""frmLoanDetail"", , , ""MWLoanNo='"" & Me!MWLoanNo & ""'"""
-
-    SaveAs nm, "frmLoanList"
+    SaveAs nm, "frmLoanGrid"
 End Sub
 
-' ================= FORM: LOAN DETAIL (editable panel) ================
-Private Sub BuildFrmLoanDetail()
+' ================= FORM: COLLATERAL GRID =============================
+Private Sub BuildFrmCollateralGrid()
     Dim frm As Form, nm As String
-    DropIfExists "frmLoanDetail", acForm
-    Set frm = CreateForm
+    DropIfExists "frmCollateralGrid", acForm
+    Set frm = NewDarkForm("CollateralInfo", 1)
     nm = frm.Name
-    frm.RecordSource = "tblLoan"
-    frm.Caption = "Loan Detail"
-    frm.DefaultView = 0               ' single form
-
-    ' Column 1: identity (key locked) + borrower block
-    Dim y As Single: y = 0.2
-    AddBoxL frm, "MWLoanNo", "MW Loan #", 0.2, y, 1.9, True: y = y + 0.45
-    AddBoxL frm, "BorrowerNm", "Borrower", 0.2, y, 1.9: y = y + 0.45
-    AddBoxL frm, "RelatedLoans", "Related", 0.2, y, 1.9: y = y + 0.45
-    AddBoxL frm, "Pool", "Pool", 0.2, y, 1.9: y = y + 0.45
-    AddBoxL frm, "consumerloan", "Consumer Loan", 0.2, y, 0.4: y = y + 0.45
-    AddBoxL frm, "BorrowerAddress", "Address", 0.2, y, 1.9: y = y + 0.45
-    AddBoxL frm, "BorrowerAddress2", "Address 2", 0.2, y, 1.9: y = y + 0.45
-    AddBoxL frm, "CityNm", "City", 0.2, y, 1.1
-    AddBox frm, "StCd", 2.5, y, 0.5
-    AddBox frm, "ZipCd", 3.05, y, 0.75: y = y + 0.45
-    AddBoxL frm, "LastImport", "Last Import", 0.2, y, 1.9
-
-    ' Column 2: balances
-    y = 0.2
-    AddBoxL frm, "OrigPrincipalBalance", "Orig Bal", 4.1, y, 1.4: y = y + 0.45
-    AddBoxL frm, "PrincipalBalance", "Prin Bal", 4.1, y, 1.4: y = y + 0.45
-    AddBoxL frm, "InterestBalance", "Int Bal", 4.1, y, 1.4: y = y + 0.45
-    AddBoxL frm, "EscrowBalance", "Esc Bal", 4.1, y, 1.4: y = y + 0.45
-    AddBoxL frm, "OtherBalances", "Oth Bal", 4.1, y, 1.4: y = y + 0.45
-    AddBoxL frm, "PayoffBalance", "Payoff", 4.1, y, 1.4: y = y + 0.45
-    AddBoxL frm, "RepayAmt", "Pmt Amt", 4.1, y, 1.4: y = y + 0.45
-    AddBoxL frm, "EscrowPmt", "Esc Pmt", 4.1, y, 1.4
-
-    ' Column 3: dates + rates
-    y = 0.2
-    AddBoxL frm, "OrgNoteDate", "Orig Dt", 7.1, y, 1.2: y = y + 0.45
-    AddBoxL frm, "InterestAccrualDate", "Iacc Dt", 7.1, y, 1.2: y = y + 0.45
-    AddBoxL frm, "DueDt", "Due Dt", 7.1, y, 1.2: y = y + 0.45
-    AddBoxL frm, "LastPmtDt", "Last PDt", 7.1, y, 1.2: y = y + 0.45
-    AddBoxL frm, "CurrentMaturityDate", "Mat Dt", 7.1, y, 1.2: y = y + 0.45
-    AddBoxL frm, "Rate", "Rate", 7.1, y, 1.2: y = y + 0.45
-    AddBoxL frm, "DefaultRate", "Def Rate", 7.1, y, 1.2: y = y + 0.45
-    AddBoxL frm, "nextchangedt", "Ch Dt", 7.1, y, 1.2
-
-    ' Column 4: rate structure
-    y = 0.2
-    AddBoxL frm, "RateType", "R Type", 10#, y, 1.2: y = y + 0.45
-    AddBoxL frm, "index", "Index", 10#, y, 1.2: y = y + 0.45
-    AddBoxL frm, "margin", "Margin", 10#, y, 1.2: y = y + 0.45
-    AddBoxL frm, "floor", "Floor", 10#, y, 1.2: y = y + 0.45
-    AddBoxL frm, "ceiling", "Ceiling", 10#, y, 1.2: y = y + 0.45
-    AddBoxL frm, "changefreq", "Ch Frq", 10#, y, 1.2: y = y + 0.45
-    AddBoxL frm, "AssetType", "Asset Type", 10#, y, 1.2: y = y + 0.45
-    AddBoxL frm, "[Unfunded Commitment]", "Unfunded", 10#, y, 1.2
-
-    SaveAs nm, "frmLoanDetail"
-End Sub
-
-' ================= FORM: COLLATERAL LIST =============================
-Private Sub BuildFrmCollateralList()
-    Dim frm As Form, nm As String
-    DropIfExists "frmCollateralList", acForm
-    Set frm = CreateForm
-    nm = frm.Name
-    frm.RecordSource = "CollateralInfo"
-    frm.DefaultView = 2
-    frm.AllowEdits = False
-    frm.AllowAdditions = False
-    frm.AllowDeletions = False
+    frm.AllowEdits = False: frm.AllowAdditions = False: frm.AllowDeletions = False
     frm.HasModule = True
+    EnsureHeader frm
+    frm.Section(acHeader).BackColor = CLR_CARD
+    frm.Section(acHeader).Height = 0.24 * T1
+    frm.Section(acDetail).Height = 0.26 * T1
 
-    AddCol frm, "Priority", "Pri", 0.5
-    AddCol frm, "MWPropertyNo", "Property No", 1
-    AddCol frm, "RelatedLoans", "Related", 1
-    AddCol frm, "MWCollateralCode", "Code", 1.2
-    AddCol frm, "Description", "Description", 1.6
-    AddCol frm, "Address", "Address", 1.6
-    AddCol frm, "City", "City", 1
-    AddCol frm, "State", "St", 0.4
-    AddCol frm, "SellerAppraisedValue", "Seller Value", 1
-    AddCol frm, "CurrentAppraisedValue", "MW Value", 1
+    GridCol frm, "Priority", "Pri", 0.1, 0.4, False
+    GridCol frm, "MWPropertyNo", "Prop No", 0.6, 0.8, False
+    GridCol frm, "MWCollateralCode", "Code", 1.5, 1.2, False
+    GridCol frm, "Description", "Description", 2.8, 1.9, False
+    GridCol frm, "City", "City", 4.8, 1#, False
+    GridCol frm, "State", "St", 5.9, 0.4, False
+    GridCol frm, "SellerAppraisedValue", "SellerValue", 6.4, 1.05, True, "$#,##0"
+    GridCol frm, "CurrentAppraisedValue", "MwValue", 7.55, 1.05, True, "$#,##0"
+    GridCol frm, "TaxDelinquentAmt", "Dlq Taxes", 8.7, 0.95, True, "$#,##0"
 
     Dim mdl As Module, ln As Long
     Set mdl = frm.Module
     ln = mdl.CreateEventProc("DblClick", "MWPropertyNo")
     mdl.InsertLines ln + 1, _
         "    DoCmd.OpenForm ""frmCollateralDetail"", , , ""MWPropertyNo="" & Me!MWPropertyNo"
+    SaveAs nm, "frmCollateralGrid"
+End Sub
 
-    SaveAs nm, "frmCollateralList"
+' ================= FORM: TASKS (dark cards) ==========================
+Private Sub BuildFrmTasks()
+    Dim frm As Form, nm As String, c As Control
+    DropIfExists "frmTasks", acForm
+    Set frm = NewDarkForm("SELECT * FROM tblTasks ORDER BY EntryDate DESC", 1)
+    nm = frm.Name
+    frm.AllowAdditions = True
+    frm.Section(acDetail).Height = 1# * T1
+    frm.Section(acDetail).BackColor = CLR_CARD
+
+    DarkBoxL frm, "AcctOfficer", "Task For", 0.15, 0.12, 1#
+    DarkBoxL frm, "EntryAcctOfficer", "Entered By", 2.7, 0.12, 1#
+    DarkBoxL frm, "EntryDate", "Date", 5.3, 0.12, 1.05
+    DarkBoxL frm, "Completed", "Complete", 7.7, 0.12, 0.3
+    DarkBoxL frm, "CompleteDate", "Done", 8.9, 0.12, 0.95
+    Set c = CreateControl(nm, acTextBox, acDetail, "", "Comment", _
+                          CLng(0.15 * T1), CLng(0.5 * T1), CLng(9.7 * T1), CLng(0.42 * T1))
+    StyleInput c: c.Name = "Comment": c.ScrollBars = 2
+    frm!EntryDate.DefaultValue = "=Now()"
+    'frm!KeyGenerator.DefaultValue = "=DMax(""KeyGenerator"",""tblTasks"")+1"  ' if not IDENTITY
+    SaveAs nm, "frmTasks"
+End Sub
+
+' ================= FORM: LOAN DETAIL (dark popup) ====================
+Private Sub BuildFrmLoanDetail()
+    Dim frm As Form, nm As String
+    DropIfExists "frmLoanDetail", acForm
+    Set frm = NewDarkForm("tblLoan", 0)
+    nm = frm.Name
+    frm.Caption = "Loan Detail"
+    frm.PopUp = True
+    CardRect frm, 0.1, 0.1, 3.5, 4.6      ' identity card
+    CardRect frm, 3.7, 0.1, 2.9, 4.6      ' balances card
+    CardRect frm, 6.7, 0.1, 2.9, 4.6      ' dates/rates card
+    CardRect frm, 9.7, 0.1, 2.7, 4.6      ' rate structure card
+
+    Dim y As Single: y = 0.25
+    DarkBoxL frm, "MWLoanNo", "MW Loan #", 0.2, y, 1.9, True: y = y + 0.42
+    DarkBoxL frm, "BorrowerNm", "Borrower", 0.2, y, 1.9: y = y + 0.42
+    DarkBoxL frm, "RelatedLoans", "Relationship", 0.2, y, 1.9: y = y + 0.42
+    DarkBoxL frm, "Pool", "Pool", 0.2, y, 1.9: y = y + 0.42
+    DarkBoxL frm, "consumerloan", "Consumer Loan", 0.2, y, 0.3: y = y + 0.42
+    DarkBoxL frm, "BorrowerAddress", "Address 1", 0.2, y, 1.9: y = y + 0.42
+    DarkBoxL frm, "BorrowerAddress2", "Address 2", 0.2, y, 1.9: y = y + 0.42
+    DarkBoxL frm, "CityNm", "City", 0.2, y, 1.9: y = y + 0.42
+    DarkBoxL frm, "StCd", "State", 0.2, y, 0.6
+    DarkBoxL frm, "ZipCd", "Zip", 1.9, y, 0.85: y = y + 0.42
+    DarkBoxL frm, "LastImport", "Last Import", 0.2, y, 1.9
+
+    y = 0.25
+    DarkBoxL frm, "OrigPrincipalBalance", "Orig Balance", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "PrincipalBalance", "Principal", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "InterestBalance", "Interest", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "EscrowBalance", "Escrow", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "OtherBalances", "Other", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "PayoffBalance", "Payoff", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "RepayAmt", "Payment", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "EscrowPmt", "Escrow Pmt", 3.8, y, 1.35, False, "$#,##0"
+
+    y = 0.25
+    DarkBoxL frm, "OrgNoteDate", "Orig Dt", 6.8, y, 1.25, False, "mm/dd/yy": y = y + 0.42
+    DarkBoxL frm, "InterestAccrualDate", "Acc Dt", 6.8, y, 1.25, False, "mm/dd/yy": y = y + 0.42
+    DarkBoxL frm, "DueDt", "Due Dt", 6.8, y, 1.25, False, "mm/dd/yy": y = y + 0.42
+    DarkBoxL frm, "LastPmtDt", "Last PMT", 6.8, y, 1.25, False, "mm/dd/yy": y = y + 0.42
+    DarkBoxL frm, "CurrentMaturityDate", "Mat Dt", 6.8, y, 1.25, False, "mm/dd/yy": y = y + 0.42
+    DarkBoxL frm, "Rate", "Int Rate", 6.8, y, 1.25, False, "0.00%": y = y + 0.42
+    DarkBoxL frm, "DefaultRate", "Default Rate", 6.8, y, 1.25, False, "0.00%": y = y + 0.42
+    DarkBoxL frm, "nextchangedt", "Change Dt", 6.8, y, 1.25, False, "mm/dd/yy"
+
+    y = 0.25
+    DarkBoxL frm, "RateType", "Rate Type", 9.8, y, 1.25: y = y + 0.42
+    DarkBoxL frm, "index", "Index", 9.8, y, 1.25: y = y + 0.42
+    DarkBoxL frm, "margin", "Margin", 9.8, y, 1.25, False, "0.00%": y = y + 0.42
+    DarkBoxL frm, "floor", "Floor", 9.8, y, 1.25, False, "0.00%": y = y + 0.42
+    DarkBoxL frm, "ceiling", "Ceiling", 9.8, y, 1.25, False, "0.00%": y = y + 0.42
+    DarkBoxL frm, "changefreq", "Change Freq", 9.8, y, 1.25: y = y + 0.42
+    DarkBoxL frm, "AssetType", "Asset Type", 9.8, y, 1.25: y = y + 0.42
+    DarkBoxL frm, "[Unfunded Commitment]", "Unfunded", 9.8, y, 1.25
+
+    SaveAs nm, "frmLoanDetail"
 End Sub
 
 ' ================= FORM: COLLATERAL DETAIL ===========================
 Private Sub BuildFrmCollateralDetail()
-    Dim frm As Form, nm As String
+    Dim frm As Form, nm As String, c As Control
     DropIfExists "frmCollateralDetail", acForm
-    Set frm = CreateForm
+    Set frm = NewDarkForm("CollateralInfo", 0)
     nm = frm.Name
-    frm.RecordSource = "CollateralInfo"
     frm.Caption = "Collateral Detail"
-    frm.DefaultView = 0
+    frm.PopUp = True
+    CardRect frm, 0.1, 0.1, 3.6, 5#
+    CardRect frm, 3.8, 0.1, 3.1, 5#
+    CardRect frm, 7#, 0.1, 3.2, 5#
 
-    Dim y As Single: y = 0.2
-    AddBoxL frm, "MWPropertyNo", "Property No", 0.2, y, 1.6, True: y = y + 0.45
-    AddBoxL frm, "MWCollateralCode", "Code", 0.2, y, 1.6: y = y + 0.45
-    AddBoxL frm, "Description", "Description", 0.2, y, 1.6: y = y + 0.45
-    AddBoxL frm, "OwnerName", "Owner", 0.2, y, 1.6: y = y + 0.45
-    AddBoxL frm, "Address", "Address", 0.2, y, 1.6: y = y + 0.45
-    AddBoxL frm, "City", "City", 0.2, y, 1#
-    AddBox frm, "State", 2.3, y, 0.5
-    AddBox frm, "Zip", 2.85, y, 0.75: y = y + 0.45
-    AddBoxL frm, "County", "County", 0.2, y, 1.6: y = y + 0.45
-    AddBoxL frm, "TaxParcelIDNO", "Parcel Id", 0.2, y, 1.6: y = y + 0.45
-    AddBoxL frm, "Latitude", "Latitude", 0.2, y, 1.6: y = y + 0.45
-    AddBoxL frm, "Longitude", "Longitude", 0.2, y, 1.6
+    Dim y As Single: y = 0.25
+    DarkBoxL frm, "MWPropertyNo", "Property No", 0.2, y, 1.7, True: y = y + 0.42
+    DarkBoxL frm, "MWCollateralCode", "Code", 0.2, y, 1.7: y = y + 0.42
+    DarkBoxL frm, "Description", "Description", 0.2, y, 1.7: y = y + 0.42
+    DarkBoxL frm, "OwnerName", "Owner", 0.2, y, 1.7: y = y + 0.42
+    DarkBoxL frm, "Address", "Address", 0.2, y, 1.7: y = y + 0.42
+    DarkBoxL frm, "City", "City", 0.2, y, 1.7: y = y + 0.42
+    DarkBoxL frm, "State", "State", 0.2, y, 0.6
+    DarkBoxL frm, "Zip", "Zip", 1.8, y, 0.9: y = y + 0.42
+    DarkBoxL frm, "County", "County", 0.2, y, 1.7: y = y + 0.42
+    DarkBoxL frm, "TaxParcelIDNO", "Parcel Id", 0.2, y, 1.7: y = y + 0.42
+    DarkBoxL frm, "Latitude", "Latitude", 0.2, y, 1.7: y = y + 0.42
+    DarkBoxL frm, "Longitude", "Longitude", 0.2, y, 1.7
 
-    y = 0.2
-    AddBoxL frm, "LienPosition", "Seller Lien", 4.2, y, 1.2: y = y + 0.45
-    AddBoxL frm, "SeniorLienAmount", "Sr Lien Amt", 4.2, y, 1.2: y = y + 0.45
-    AddBoxL frm, "MWTitleLienPosition", "MW Lien", 4.2, y, 1.2: y = y + 0.45
-    AddBoxL frm, "MWTitleSrLienAmt", "MW Sr Lien", 4.2, y, 1.2: y = y + 0.45
-    AddBoxL frm, "TaxAnnualAmt", "Tax / Yr", 4.2, y, 1.2: y = y + 0.45
-    AddBoxL frm, "TaxDelinquentAmt", "Delq Amt", 4.2, y, 1.2: y = y + 0.45
-    AddBoxL frm, "TaxAssessedValue", "TAV", 4.2, y, 1.2: y = y + 0.45
-    AddBoxL frm, "TaxMarketValue", "TMV", 4.2, y, 1.2
+    y = 0.25
+    DarkBoxL frm, "LienPosition", "Seller Lien", 3.9, y, 1.3: y = y + 0.42
+    DarkBoxL frm, "SeniorLienAmount", "Sr Lien Amt", 3.9, y, 1.3, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "MWTitleLienPosition", "MW Lien", 3.9, y, 1.3: y = y + 0.42
+    DarkBoxL frm, "MWTitleSrLienAmt", "MW Sr Lien", 3.9, y, 1.3, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "TaxAnnualAmt", "Taxes / Yr", 3.9, y, 1.3, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "TaxDelinquentAmt", "Delq Amt", 3.9, y, 1.3, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "TaxAssessedValue", "TAV", 3.9, y, 1.3, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "TaxMarketValue", "TMV", 3.9, y, 1.3, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "TaxStatementDate", "Stmt Date", 3.9, y, 1.3, False, "mm/dd/yy"
 
-    y = 0.2
-    AddBoxL frm, "SQFT", "SF", 7.2, y, 1.2: y = y + 0.45
-    AddBoxL frm, "NumUnits", "Units", 7.2, y, 1.2: y = y + 0.45
-    AddBoxL frm, "Acreage", "Acres", 7.2, y, 1.2: y = y + 0.45
-    AddBoxL frm, "CurrentAppraisedValue", "MW Value", 7.2, y, 1.2: y = y + 0.45
-    AddBoxL frm, "SellerAppraisedValue", "Seller Val", 7.2, y, 1.2: y = y + 0.45
-    AddBoxL frm, "PossibleEnvironmental", "Environmental", 7.2, y, 0.4: y = y + 0.45
-    AddBoxL frm, "IsFloodZone", "Flood Zone", 7.2, y, 0.4: y = y + 0.45
-    AddBoxL frm, "RealEstateGroup", "Group", 7.2, y, 1.2: y = y + 0.45
-    AddBoxL frm, "TaxWebCard", "Tax Card", 7.2, y, 1.2
+    y = 0.25
+    DarkBoxL frm, "SQFT", "Sq Ft", 7.1, y, 1.3, False, "#,##0": y = y + 0.42
+    DarkBoxL frm, "NumUnits", "Units", 7.1, y, 1.3: y = y + 0.42
+    DarkBoxL frm, "Acreage", "Acres", 7.1, y, 1.3: y = y + 0.42
+    DarkBoxL frm, "CurrentAppraisedValue", "MW Value", 7.1, y, 1.3, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "SellerAppraisedValue", "Seller Value", 7.1, y, 1.3, False, "$#,##0": y = y + 0.42
+    DarkBoxL frm, "PossibleEnvironmental", "Environmental", 7.1, y, 0.3: y = y + 0.42
+    DarkBoxL frm, "IsFloodZone", "Flood Zone", 7.1, y, 0.3: y = y + 0.42
+    DarkBoxL frm, "RealEstateGroup", "Group", 7.1, y, 1.3: y = y + 0.42
+    DarkBoxL frm, "TaxWebCard", "Tax Card", 7.1, y, 1.3
 
-    Dim c As Control
+    AddThemedLabel frm, "Prop Detail", 0.2, 5.25, CLR_MUTED, 8
     Set c = CreateControl(nm, acTextBox, acDetail, "", "PropertyComment", _
-                          CLng(0.2 * T1), CLng(5.4 * T1), CLng(8.2 * T1), CLng(1.2 * T1))
-    c.Name = "PropertyComment": c.ScrollBars = 2
-    AddLabel frm, "Prop Detail", 0.2, 5.15
-
+                          CLng(0.2 * T1), CLng(5.5 * T1), CLng(9.9 * T1), CLng(1# * T1))
+    StyleInput c: c.Name = "PropertyComment": c.ScrollBars = 2
     SaveAs nm, "frmCollateralDetail"
-End Sub
-
-' ================= FORM: TASKS =======================================
-Private Sub BuildFrmTasks()
-    Dim frm As Form, nm As String
-    DropIfExists "frmTasks", acForm
-    Set frm = CreateForm
-    nm = frm.Name
-    frm.RecordSource = "SELECT * FROM tblTasks ORDER BY EntryDate DESC"
-    frm.DefaultView = 1               ' continuous - cards
-    frm.AllowAdditions = True         ' perpetual new-entry row (spec note)
-
-    Dim y As Single: y = 0.15
-    AddBoxL frm, "AcctOfficer", "Task For", 0.2, y, 1#
-    AddBoxL frm, "EntryAcctOfficer", "Entered By", 3#, y, 1#
-    AddBoxL frm, "EntryDate", "Date", 5.8, y, 1.1
-    AddBoxL frm, "Completed", "Complete", 8.2, y, 0.4
-    AddBoxL frm, "CompleteDate", "Done", 9.4, y, 1#
-    y = y + 0.5
-    Dim c As Control
-    Set c = CreateControl(nm, acTextBox, acDetail, "", "Comment", _
-                          CLng(0.2 * T1), CLng(y * T1), CLng(10.2 * T1), CLng(0.7 * T1))
-    c.Name = "Comment": c.ScrollBars = 2
-
-    ' EntryDate defaults to now for new tasks.
-    ' NOTE: if tblTasks.KeyGenerator is NOT an IDENTITY column, uncomment
-    ' the DefaultValue line so new rows mint the next key client-side.
-    frm!EntryDate.DefaultValue = "=Now()"
-    'frm!KeyGenerator.DefaultValue = "=DMax(""KeyGenerator"",""tblTasks"")+1"
-
-    SaveAs nm, "frmTasks"
 End Sub
 
 ' ================= FORM: WORKBENCH ===================================
 Private Sub BuildFrmWorkbench()
-    Dim frm As Form, nm As String
+    Dim frm As Form, nm As String, c As Control
     DropIfExists "frmWorkbench", acForm
-    Set frm = CreateForm
+    Set frm = NewDarkForm("tblRelationships", 0)
     nm = frm.Name
-    frm.RecordSource = "tblRelationships"
-    frm.Caption = "Relationship Workbench"
-    frm.DefaultView = 0
+    frm.Caption = "LOANSYSTEM"
     frm.HasModule = True
 
-    ' Header: relationship identity (key + sort locked)
-    AddBoxL frm, "RelatedLoans", "Relationship", 0.2, 0.2, 1.6, True
-    AddBoxL frm, "SortNo", "Sort", 4#, 0.2, 0.5, True
-    AddBoxL frm, "ProjectName", "Project", 5.8, 0.2, 1.8, True
-    AddBoxL frm, "ExitCode", "Exit Code", 9.2, 0.2, 1.3
+    ' --- Brand bar (React Header) ---
+    Set c = CreateControl(nm, acRectangle, acDetail, "", "", 0, 0, CLng(12.6 * T1), CLng(0.4 * T1))
+    c.BackStyle = 1: c.BackColor = CLR_HEADER: c.BorderStyle = 0: c.SpecialEffect = 0
+    AddThemedLabel frm, "LOAN", 0.15, 0.07, CLR_TEXT, 12, True
+    AddThemedLabel frm, "SYSTEM", 0.72, 0.07, CLR_GREEN, 12, True
 
-    ' Flag panel (editable from any view - yellow-cell rule)
-    Dim flags As Variant, i As Integer, y As Single
+    ' --- Relationship bar ---
+    AddThemedLabel frm, "Relationship:", 0.15, 0.52, CLR_MUTED, 9
+    DarkBox frm, "RelatedLoans", 1.25, 0.5, 1.5, True
+    AddThemedLabel frm, "Sort", 3#, 0.52, CLR_MUTED, 9
+    DarkBox frm, "SortNo", 3.4, 0.5, 0.5, True
+    AddThemedLabel frm, "Project", 4.1, 0.52, CLR_MUTED, 9
+    DarkBox frm, "ProjectName", 4.7, 0.5, 1.7, True
+    AddThemedLabel frm, "Exit Code", 6.6, 0.52, CLR_MUTED, 9
+    DarkBox frm, "ExitCode", 7.35, 0.5, 1.2
+    Set c = CreateControl(nm, acCommandButton, acDetail, "", "", _
+                          CLng(10.7 * T1), CLng(0.48 * T1), CLng(1.75 * T1), CLng(0.28 * T1))
+    c.Name = "btnBrowse": c.Caption = "Browse Relationships"
+    On Error Resume Next
+    c.UseTheme = False: c.BackColor = CLR_CARD: c.ForeColor = CLR_TEXT
+    c.BorderColor = CLR_BORDER: c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
+
+    ' --- Pinned loan grid + flag card (React LoanTable + flag panel) ---
+    AddSub frm, "frmLoanGrid", "subLoans", 0.15, 0.9, 10.2, 2#
+    CardRect frm, 10.45, 0.9, 2.05, 2#
+    AddThemedLabel frm, "Relationship Flags", 10.55, 0.98, CLR_MUTED, 8
+    Dim flags As Variant, caps As Variant, i As Integer, y As Single
     flags = Array("InBankruptcy", "ForeclosureFlag", "LitigationFlag", _
                   "ForbearanceFlag", "JudgmentFlag", "LowYieldAsset")
-    y = 0.8
+    caps = Array("Bankruptcy", "Foreclosure", "Litigation", _
+                 "Forbearance", "Judgment", "Low Yield Asset")
+    y = 1.25
     For i = 0 To UBound(flags)
-        AddBoxL frm, CStr(flags(i)), CStr(flags(i)), 11.3, y, 0.3
-        y = y + 0.35
+        FlagCheck frm, CStr(flags(i)), CStr(caps(i)), 10.6, y
+        y = y + 0.26
     Next i
 
-    ' Loan grid subform (read-only, principal descending)
-    AddSub frm, "frmLoanList", "subLoans", 0.2, 0.8, 10.8, 2.2
-    AddLabel frm, "Loans (double-click a loan number for detail)", 0.2, 0.6
+    ' --- Tab strip (React TabNavigation) ---
+    Dim tb As Control, pg As Control
+    Set tb = CreateControl(nm, acTabCtl, acDetail, "", "", _
+                           CLng(0.15 * T1), CLng(3.05 * T1), CLng(12.45 * T1), CLng(4.5 * T1))
+    tb.Name = "tabMain"
+    On Error Resume Next
+    tb.BackStyle = 0
+    On Error GoTo 0
 
-    ' Collateral subform
-    AddSub frm, "frmCollateralList", "subCollateral", 0.2, 3.35, 10.8, 1.6
-    AddLabel frm, "Collateral (double-click a property number for detail)", 0.2, 3.15
+    ' Tab control ships with 2 pages; add 2 more, then caption all 4
+    Set pg = CreateControl(nm, acPage, acDetail, "tabMain"): pg.Caption = "Overview"
+    Set pg = CreateControl(nm, acPage, acDetail, "tabMain"): pg.Caption = "Strategies"
+    tb.Pages(0).Caption = "Collateral": tb.Pages(0).Name = "pgCollateral"
+    tb.Pages(1).Caption = "Tasks": tb.Pages(1).Name = "pgTasks"
+    tb.Pages(2).Name = "pgOverview"
+    tb.Pages(3).Name = "pgStrategies"
 
-    ' Tasks subform
-    AddSub frm, "frmTasks", "subTasks", 0.2, 5.25, 10.8, 1.8
-    AddLabel frm, "Tasks (bottom row adds a new task)", 0.2, 5.05
+    ' Collateral page
+    Set c = CreateControl(nm, acSubform, acDetail, "pgCollateral", "", _
+                          CLng(0.3 * T1), CLng(3.5 * T1), CLng(12# * T1), CLng(3.8 * T1))
+    c.Name = "subCollateral": c.SourceObject = "frmCollateralGrid"
 
-    ' Narrative sections (Overview + Strategies fields, bound direct)
-    Dim c As Control
-    AddLabel frm, "Relationship Overview", 0.2, 7.25
-    Set c = CreateControl(nm, acTextBox, acDetail, "", "RelationshipOverview", _
-                          CLng(0.2 * T1), CLng(7.5 * T1), CLng(5.3 * T1), CLng(1.4 * T1))
-    c.Name = "RelationshipOverview": c.ScrollBars = 2
+    ' Tasks page
+    Set c = CreateControl(nm, acSubform, acDetail, "pgTasks", "", _
+                          CLng(0.3 * T1), CLng(3.5 * T1), CLng(12# * T1), CLng(3.8 * T1))
+    c.Name = "subTasks": c.SourceObject = "frmTasks"
 
-    AddLabel frm, "Collateral Overview", 5.7, 7.25
-    Set c = CreateControl(nm, acTextBox, acDetail, "", "CollateralOverview", _
-                          CLng(5.7 * T1), CLng(7.5 * T1), CLng(5.3 * T1), CLng(1.4 * T1))
-    c.Name = "CollateralOverview": c.ScrollBars = 2
+    ' Overview page: the three narratives (bound to tblRelationships)
+    AddPageLabel frm, "pgOverview", "Relationship Overview", 0.3, 3.5
+    Set c = CreateControl(nm, acTextBox, acDetail, "pgOverview", "RelationshipOverview", _
+                          CLng(0.3 * T1), CLng(3.75 * T1), CLng(5.9 * T1), CLng(1.5 * T1))
+    StyleInput c: c.Name = "RelationshipOverview": c.ScrollBars = 2
+    AddPageLabel frm, "pgOverview", "Collateral Overview", 6.4, 3.5
+    Set c = CreateControl(nm, acTextBox, acDetail, "pgOverview", "CollateralOverview", _
+                          CLng(6.4 * T1), CLng(3.75 * T1), CLng(5.9 * T1), CLng(1.5 * T1))
+    StyleInput c: c.Name = "CollateralOverview": c.ScrollBars = 2
+    AddPageLabel frm, "pgOverview", "Bid Conditions", 0.3, 5.45
+    Set c = CreateControl(nm, acTextBox, acDetail, "pgOverview", "ConditionsDeadlines", _
+                          CLng(0.3 * T1), CLng(5.7 * T1), CLng(12# * T1), CLng(1.2 * T1))
+    StyleInput c: c.Name = "ConditionsDeadlines": c.ScrollBars = 2
 
-    AddLabel frm, "Exit Strategy", 0.2, 9.05
-    Set c = CreateControl(nm, acTextBox, acDetail, "", "ExitStrategyOverview", _
-                          CLng(0.2 * T1), CLng(9.3 * T1), CLng(5.3 * T1), CLng(1.2 * T1))
-    c.Name = "ExitStrategyOverview": c.ScrollBars = 2
+    ' Strategies page
+    AddPageLabel frm, "pgStrategies", "Exit Strategy", 0.3, 3.5
+    Set c = CreateControl(nm, acTextBox, acDetail, "pgStrategies", "ExitStrategyOverview", _
+                          CLng(0.3 * T1), CLng(3.75 * T1), CLng(12# * T1), CLng(2.6 * T1))
+    StyleInput c: c.Name = "ExitStrategyOverview": c.ScrollBars = 2
+    AddPageLabel frm, "pgStrategies", "Original Strategy", 0.3, 6.55
+    Set c = CreateControl(nm, acTextBox, acDetail, "pgStrategies", "Original_Strategy", _
+                          CLng(0.3 * T1), CLng(6.8 * T1), CLng(12# * T1), CLng(0.6 * T1))
+    StyleInput c: c.Name = "Original_Strategy": c.ScrollBars = 2
 
-    AddLabel frm, "Bid Conditions / Deadlines", 5.7, 9.05
-    Set c = CreateControl(nm, acTextBox, acDetail, "", "ConditionsDeadlines", _
-                          CLng(5.7 * T1), CLng(9.3 * T1), CLng(5.3 * T1), CLng(1.2 * T1))
-    c.Name = "ConditionsDeadlines": c.ScrollBars = 2
+    ' Button + subform wiring
+    Dim mdl As Module, ln As Long
+    Set mdl = frm.Module
+    ln = mdl.CreateEventProc("Click", "btnBrowse")
+    mdl.InsertLines ln + 1, "    DoCmd.OpenForm ""frmBrowser"""
 
     SaveAs nm, "frmWorkbench"
 
-    ' Wire subform links after save (SourceObject must exist)
     DoCmd.OpenForm "frmWorkbench", acDesign
     Dim f As Form: Set f = Forms("frmWorkbench")
-    LinkSub f, "subLoans"
-    LinkSub f, "subCollateral"
-    LinkSub f, "subTasks"
+    f!subLoans.LinkMasterFields = "RelatedLoans": f!subLoans.LinkChildFields = "RelatedLoans"
+    f!subCollateral.LinkMasterFields = "RelatedLoans": f!subCollateral.LinkChildFields = "RelatedLoans"
+    f!subTasks.LinkMasterFields = "RelatedLoans": f!subTasks.LinkChildFields = "RelatedLoans"
     DoCmd.Close acForm, "frmWorkbench", acSaveYes
 End Sub
 
 ' ================= FORM: BROWSER =====================================
 Private Sub BuildFrmBrowser()
-    Dim frm As Form, nm As String
+    Dim frm As Form, nm As String, c As Control
     DropIfExists "frmBrowser", acForm
-    Set frm = CreateForm
+    Set frm = NewDarkForm("qryRelationshipSummary", 1)
     nm = frm.Name
-    frm.RecordSource = "qryRelationshipSummary"
     frm.Caption = "Relationships"
-    frm.DefaultView = 2
-    frm.AllowEdits = False
-    frm.AllowAdditions = False
-    frm.AllowDeletions = False
+    frm.AllowEdits = False: frm.AllowAdditions = False: frm.AllowDeletions = False
     frm.HasModule = True
+    EnsureHeader frm
+    frm.Section(acHeader).BackColor = CLR_HEADER
+    frm.Section(acHeader).Height = 0.55 * T1
+    frm.Section(acDetail).Height = 0.28 * T1
 
-    AddCol frm, "ProjectName", "Project", 1.6
-    AddCol frm, "SortNo", "Sort", 0.5
-    AddCol frm, "RelatedLoans", "Relationship", 1.4
-    AddCol frm, "LoanCount", "Loans", 0.6
-    AddCol frm, "TotalUPB", "Total UPB", 1.1
-    AddCol frm, "ExitCode", "Exit Code", 1.1
-    AddCol frm, "InBankruptcy", "BK", 0.4
-    AddCol frm, "ForeclosureFlag", "FC", 0.4
-    AddCol frm, "LitigationFlag", "LT", 0.4
-    AddCol frm, "ForbearanceFlag", "FA", 0.4
-    AddCol frm, "JudgmentFlag", "JG", 0.4
-    AddCol frm, "LowYieldAsset", "LYA", 0.4
+    Dim t As Control
+    Set t = CreateControl(nm, acLabel, acHeader, "", "", CLng(0.15 * T1), CLng(0.05 * T1), CLng(3 * T1), CLng(0.25 * T1))
+    t.Caption = "Relationships": t.ForeColor = CLR_TEXT: t.FontName = FONT
+    t.FontSize = 12: t.FontBold = True
+    AddHeadLabel frm, "Project", 0.15, 1.6, False, 0.32
+    AddHeadLabel frm, "Sort", 1.85, 0.45, False, 0.32
+    AddHeadLabel frm, "Relationship", 2.4, 1.5, False, 0.32
+    AddHeadLabel frm, "Loans", 4#, 0.55, True, 0.32
+    AddHeadLabel frm, "Total UPB", 4.65, 1.15, True, 0.32
+    AddHeadLabel frm, "Exit Code", 5.9, 1.15, False, 0.32
+    AddHeadLabel frm, "Flags", 7.15, 2#, False, 0.32
+
+    GridCell frm, "ProjectName", 0.15, 1.6
+    GridCell frm, "SortNo", 1.85, 0.45
+    Dim rel As Control
+    Set rel = GridCell(frm, "RelatedLoans", 2.4, 1.5)
+    rel.ForeColor = CLR_GREEN
+    GridCell frm, "LoanCount", 4#, 0.55, True
+    GridCell frm, "TotalUPB", 4.65, 1.15, True, "$#,##0"
+    GridCell frm, "ExitCode", 5.9, 1.15
+
+    ' Flag badges: compact initials in red (React badge row)
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+        "=IIf([InBankruptcy],""BK "","""") & IIf([ForeclosureFlag],""FC "","""") & " & _
+        "IIf([LitigationFlag],""LT "","""") & IIf([ForbearanceFlag],""FA "","""") & " & _
+        "IIf([JudgmentFlag],""JG "","""") & IIf([LowYieldAsset],""LYA"","""")", _
+        CLng(7.15 * T1), 0, CLng(2# * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtFlags": c.ForeColor = CLR_RED: c.FontBold = True
 
     Dim mdl As Module, ln As Long
     Set mdl = frm.Module
     ln = mdl.CreateEventProc("DblClick", "RelatedLoans")
     mdl.InsertLines ln + 1, _
         "    DoCmd.OpenForm ""frmWorkbench"", , , ""RelatedLoans='"" & Me!RelatedLoans & ""'"""
-
     SaveAs nm, "frmBrowser"
 End Sub
 
-' ================= HELPERS ===========================================
-Private Sub AddCol(frm As Form, src As String, cap As String, wIn As Single)
-    ' Datasheet column: bound textbox; caption becomes the column header
-    Dim c As Control
-    Set c = CreateControl(frm.Name, acTextBox, acDetail, "", src, 0, 0, _
-                          CLng(wIn * T1), CLng(0.25 * T1))
-    c.Name = Replace(Replace(src, "[", ""), "]", "")
-    AttachLabel frm, c, cap
+' ================= THEME HELPERS =====================================
+Private Function NewDarkForm(recordSource As String, viewMode As Integer) As Form
+    Dim frm As Form
+    Set frm = CreateForm
+    frm.RecordSource = recordSource
+    frm.DefaultView = viewMode          ' 0 single, 1 continuous, 2 datasheet
+    frm.Section(acDetail).BackColor = CLR_MAIN
+    frm.RecordSelectors = False
+    frm.NavigationButtons = (viewMode = 0)
+    frm.DividingLines = False
+    On Error Resume Next
+    frm.ScrollBars = 2
+    On Error GoTo 0
+    Set NewDarkForm = frm
+End Function
+
+Private Sub EnsureHeader(frm As Form)
+    ' Toggle header/footer on (CreateForm gives detail-only)
+    On Error Resume Next
+    If Not frm.Section(acHeader).Visible Then frm.Section(acHeader).Visible = True
+    If Err.Number <> 0 Then
+        Err.Clear
+        DoCmd.RunCommand acCmdFormHdrFtr
+    End If
+    frm.Section(acFooter).Height = 0
+    Err.Clear
+    On Error GoTo 0
 End Sub
 
-Private Sub AddBox(frm As Form, src As String, xIn As Single, yIn As Single, _
-                   wIn As Single, Optional lockIt As Boolean = False)
+Private Sub StyleCell(c As Control)
+    ' Read-only grid cell look
+    c.BackStyle = 0                     ' transparent over dark detail
+    c.BorderStyle = 0
+    c.ForeColor = CLR_TEXT
+    c.FontName = FONT
+    c.FontSize = 8
+    c.Locked = True
+    c.TabStop = False
+End Sub
+
+Private Sub StyleInput(c As Control)
+    ' Editable input look (dark input with border, like React inputs)
+    c.BackStyle = 1
+    c.BackColor = CLR_INPUT
+    c.ForeColor = CLR_TEXT
+    c.BorderStyle = 1
+    c.BorderColor = CLR_BORDER
+    c.SpecialEffect = 0
+    c.FontName = FONT
+    c.FontSize = 9
+End Sub
+
+Private Function GridCell(frm As Form, src As String, xIn As Single, wIn As Single, _
+                          Optional rightAlign As Boolean = False, _
+                          Optional fmt As String = "") As Control
     Dim c As Control
     Set c = CreateControl(frm.Name, acTextBox, acDetail, "", src, _
-                          CLng(xIn * T1), CLng(yIn * T1), CLng(wIn * T1), CLng(0.25 * T1))
+                          CLng(xIn * T1), 0, CLng(wIn * T1), CLng(0.24 * T1))
+    StyleCell c
+    c.Name = "txt" & Replace(Replace(src, "[", ""), "]", "")
+    If rightAlign Then c.TextAlign = 3
+    If Len(fmt) > 0 Then c.Format = fmt
+    Set GridCell = c
+End Function
+
+Private Sub GridCol(frm As Form, src As String, cap As String, xIn As Single, _
+                    wIn As Single, rightAlign As Boolean, Optional fmt As String = "")
+    AddHeadLabel frm, cap, xIn, wIn, rightAlign
+    Dim c As Control
+    Set c = GridCell(frm, src, xIn, wIn, rightAlign, fmt)
+    If src = "MWLoanNo" Or src = "MWPropertyNo" Then c.Locked = True
+End Sub
+
+Private Sub AddHeadLabel(frm As Form, cap As String, xIn As Single, wIn As Single, _
+                         rightAlign As Boolean, Optional yIn As Single = 0.02)
+    Dim c As Control
+    Set c = CreateControl(frm.Name, acLabel, acHeader, "", "", _
+                          CLng(xIn * T1), CLng(yIn * T1), CLng(wIn * T1), CLng(0.2 * T1))
+    c.Caption = cap: c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
+    If rightAlign Then c.TextAlign = 3
+End Sub
+
+Private Sub DarkBox(frm As Form, src As String, xIn As Single, yIn As Single, _
+                    wIn As Single, Optional lockIt As Boolean = False, _
+                    Optional fmt As String = "")
+    Dim c As Control
+    Set c = CreateControl(frm.Name, acTextBox, acDetail, "", src, _
+                          CLng(xIn * T1), CLng(yIn * T1), CLng(wIn * T1), CLng(0.24 * T1))
+    StyleInput c
     c.Name = Replace(Replace(src, "[", ""), "]", "")
-    If lockIt Then c.Locked = True: c.BackColor = RGB(235, 235, 235)
+    If Len(fmt) > 0 Then c.Format = fmt
+    If lockIt Then
+        c.Locked = True
+        c.BackColor = CLR_CARD          ' readOnlyBg
+        c.ForeColor = CLR_MUTED
+    End If
 End Sub
 
-Private Sub AddBoxL(frm As Form, src As String, cap As String, xIn As Single, _
-                    yIn As Single, wIn As Single, Optional lockIt As Boolean = False)
-    AddLabel frm, cap, xIn, yIn - 0.02, 1.15
-    AddBox frm, src, xIn + 1.2, yIn, wIn, lockIt
+Private Sub DarkBoxL(frm As Form, src As String, cap As String, xIn As Single, _
+                     yIn As Single, wIn As Single, Optional lockIt As Boolean = False, _
+                     Optional fmt As String = "")
+    AddThemedLabel frm, cap, xIn, yIn + 0.01, CLR_MUTED, 8
+    DarkBox frm, src, xIn + 1.15, yIn, wIn, lockIt, fmt
 End Sub
 
-Private Sub AddLabel(frm As Form, cap As String, xIn As Single, yIn As Single, _
-                     Optional wIn As Single = 3)
+Private Sub AddThemedLabel(frm As Form, cap As String, xIn As Single, yIn As Single, _
+                           clr As Long, Optional sz As Integer = 9, _
+                           Optional bold As Boolean = False)
     Dim c As Control
     Set c = CreateControl(frm.Name, acLabel, acDetail, "", "", _
-                          CLng(xIn * T1), CLng(yIn * T1), CLng(wIn * T1), CLng(0.22 * T1))
-    c.Caption = cap
+                          CLng(xIn * T1), CLng(yIn * T1), CLng(1.7 * T1), CLng(0.22 * T1))
+    c.Caption = cap: c.ForeColor = clr: c.FontName = FONT: c.FontSize = sz
+    c.FontBold = bold
 End Sub
 
-Private Sub AttachLabel(frm As Form, ctl As Control, cap As String)
-    Dim lbl As Control
-    Set lbl = CreateControl(frm.Name, acLabel, acDetail, ctl.Name, "", 0, 0, _
-                            CLng(1 * T1), CLng(0.22 * T1))
-    lbl.Caption = cap
+Private Sub AddPageLabel(frm As Form, pageName As String, cap As String, _
+                         xIn As Single, yIn As Single)
+    Dim c As Control
+    Set c = CreateControl(frm.Name, acLabel, acDetail, pageName, "", _
+                          CLng(xIn * T1), CLng(yIn * T1), CLng(3 * T1), CLng(0.22 * T1))
+    c.Caption = cap: c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
+End Sub
+
+Private Sub FlagCheck(frm As Form, src As String, cap As String, _
+                      xIn As Single, yIn As Single)
+    Dim c As Control, lbl As Control
+    Set c = CreateControl(frm.Name, acCheckBox, acDetail, "", src, _
+                          CLng(xIn * T1), CLng(yIn * T1), CLng(0.22 * T1), CLng(0.2 * T1))
+    c.Name = src
+    Set lbl = CreateControl(frm.Name, acLabel, acDetail, "", "", _
+                            CLng((xIn + 0.28) * T1), CLng(yIn * T1), CLng(1.5 * T1), CLng(0.2 * T1))
+    lbl.Caption = cap: lbl.ForeColor = CLR_RED: lbl.FontName = FONT: lbl.FontSize = 8
+End Sub
+
+Private Sub CardRect(frm As Form, xIn As Single, yIn As Single, _
+                     wIn As Single, hIn As Single)
+    Dim c As Control
+    Set c = CreateControl(frm.Name, acRectangle, acDetail, "", "", _
+                          CLng(xIn * T1), CLng(yIn * T1), CLng(wIn * T1), CLng(hIn * T1))
+    c.BackStyle = 1: c.BackColor = CLR_CARD
+    c.BorderColor = CLR_BORDER: c.BorderStyle = 1: c.SpecialEffect = 0
 End Sub
 
 Private Sub AddSub(frm As Form, srcForm As String, ctlName As String, _
@@ -546,11 +678,9 @@ Private Sub AddSub(frm As Form, srcForm As String, ctlName As String, _
                           CLng(xIn * T1), CLng(yIn * T1), CLng(wIn * T1), CLng(hIn * T1))
     c.Name = ctlName
     c.SourceObject = srcForm
-End Sub
-
-Private Sub LinkSub(f As Form, ctlName As String)
-    f(ctlName).LinkMasterFields = "RelatedLoans"
-    f(ctlName).LinkChildFields = "RelatedLoans"
+    On Error Resume Next
+    c.BorderColor = CLR_BORDER
+    On Error GoTo 0
 End Sub
 
 Private Sub SaveAs(tempName As String, finalName As String)
