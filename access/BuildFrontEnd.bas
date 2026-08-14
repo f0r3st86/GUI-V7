@@ -496,19 +496,36 @@ Private Sub BuildFrmWorkbench()
                           CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
     c.Name = "subTasks": c.SourceObject = "frmTasks"
 
-    ' Overview page: the three narratives (bound to tblRelationships)
-    AddPageLabel frm, "pgOverview", "Relationship Overview", 0.3, PY
+    ' Overview page: three stacked full-width narratives (React layout).
+    ' Boxes AUTO-GROW as lines are entered (OvLayout in the form module);
+    ' labels are named so the layout code can reflow them.
+    Dim lbl As Control
+    Set lbl = CreateControl(nm, acLabel, acDetail, "pgOverview", "", _
+                            CLng(0.3 * T1), CLng(PY * T1), CLng(3 * T1), CLng(0.22 * T1))
+    lbl.Caption = "Relationship Overview": lbl.Name = "lblRelOv"
+    lbl.ForeColor = CLR_MUTED: lbl.FontName = FONT: lbl.FontSize = 8
     Set c = CreateControl(nm, acTextBox, acDetail, "pgOverview", "RelationshipOverview", _
-                          CLng(0.3 * T1), CLng((PY + 0.25) * T1), CLng(5.9 * T1), CLng(1.5 * T1))
-    StyleInput c: c.Name = "RelationshipOverview": c.ScrollBars = 2
-    AddPageLabel frm, "pgOverview", "Collateral Overview", 6.4, PY
+                          CLng(0.3 * T1), CLng((PY + 0.24) * T1), CLng(12# * T1), CLng(0.75 * T1))
+    StyleInput c: c.Name = "RelationshipOverview": c.ScrollBars = 0
+    c.EnterKeyBehavior = True
+
+    Set lbl = CreateControl(nm, acLabel, acDetail, "pgOverview", "", _
+                            CLng(0.3 * T1), CLng((PY + 1.1) * T1), CLng(3 * T1), CLng(0.22 * T1))
+    lbl.Caption = "Collateral Overview": lbl.Name = "lblCollOv"
+    lbl.ForeColor = CLR_MUTED: lbl.FontName = FONT: lbl.FontSize = 8
     Set c = CreateControl(nm, acTextBox, acDetail, "pgOverview", "CollateralOverview", _
-                          CLng(6.4 * T1), CLng((PY + 0.25) * T1), CLng(5.9 * T1), CLng(1.5 * T1))
-    StyleInput c: c.Name = "CollateralOverview": c.ScrollBars = 2
-    AddPageLabel frm, "pgOverview", "Bid Conditions", 0.3, PY + 1.95
+                          CLng(0.3 * T1), CLng((PY + 1.34) * T1), CLng(12# * T1), CLng(0.75 * T1))
+    StyleInput c: c.Name = "CollateralOverview": c.ScrollBars = 0
+    c.EnterKeyBehavior = True
+
+    Set lbl = CreateControl(nm, acLabel, acDetail, "pgOverview", "", _
+                            CLng(0.3 * T1), CLng((PY + 2.2) * T1), CLng(3 * T1), CLng(0.22 * T1))
+    lbl.Caption = "Bid Conditions": lbl.Name = "lblBid"
+    lbl.ForeColor = CLR_MUTED: lbl.FontName = FONT: lbl.FontSize = 8
     Set c = CreateControl(nm, acTextBox, acDetail, "pgOverview", "ConditionsDeadlines", _
-                          CLng(0.3 * T1), CLng((PY + 2.2) * T1), CLng(12# * T1), CLng(1.2 * T1))
-    StyleInput c: c.Name = "ConditionsDeadlines": c.ScrollBars = 2
+                          CLng(0.3 * T1), CLng((PY + 2.44) * T1), CLng(12# * T1), CLng(0.75 * T1))
+    StyleInput c: c.Name = "ConditionsDeadlines": c.ScrollBars = 0
+    c.EnterKeyBehavior = True
 
     ' Strategies page
     AddPageLabel frm, "pgStrategies", "Exit Strategy", 0.3, PY
@@ -539,7 +556,61 @@ Private Sub BuildFrmWorkbench()
     mdl.InsertLines ln + 1, _
         "    Me.Recordset.FindFirst ""RelatedLoans='"" & Replace(Me!cboRelationship, ""'"", ""''"") & ""'"""
     ln = mdl.CreateEventProc("Current", "Form")
-    mdl.InsertLines ln + 1, "    Me!cboRelationship = Me!RelatedLoans"
+    mdl.InsertLines ln + 1, "    Me!cboRelationship = Me!RelatedLoans" & vbCrLf & "    OvLayout"
+    ln = mdl.CreateEventProc("Change", "RelationshipOverview")
+    mdl.InsertLines ln + 1, "    OvLayout"
+    ln = mdl.CreateEventProc("Change", "CollateralOverview")
+    mdl.InsertLines ln + 1, "    OvLayout"
+    ln = mdl.CreateEventProc("Change", "ConditionsDeadlines")
+    mdl.InsertLines ln + 1, "    OvLayout"
+    ' Set the change-event properties so the procs fire
+    frm!RelationshipOverview.OnChange = "[Event Procedure]"
+    frm!CollateralOverview.OnChange = "[Event Procedure]"
+    frm!ConditionsDeadlines.OnChange = "[Event Procedure]"
+
+    ' Inject the auto-grow layout helpers at the end of the form module
+    Dim code As String
+    code = "" & _
+        "Private Function OvGrow(s As String) As Long" & vbCrLf & _
+        "    ' Estimate rendered lines: hard returns + word-wrap at ~95 chars" & vbCrLf & _
+        "    Dim lines As Long, p As Variant" & vbCrLf & _
+        "    lines = 0" & vbCrLf & _
+        "    For Each p In Split(s, Chr(13) & Chr(10))" & vbCrLf & _
+        "        lines = lines + 1 + Int(Len(p) / 95)" & vbCrLf & _
+        "    Next" & vbCrLf & _
+        "    If lines < 3 Then lines = 3" & vbCrLf & _
+        "    OvGrow = lines * 235 + 150   ' twips per line + padding" & vbCrLf & _
+        "End Function" & vbCrLf & vbCrLf & _
+        "Public Sub OvLayout()" & vbCrLf & _
+        "    ' Grow each Overview box to its content and reflow the stack." & vbCrLf & _
+        "    ' Later boxes keep a minimum height; growth is clamped to the" & vbCrLf & _
+        "    ' tab page bottom (tab pages cannot scroll)." & vbCrLf & _
+        "    Const TOPY As Long = 5357      ' first label top (PY in twips)" & vbCrLf & _
+        "    Const BOTY As Long = 11000     ' tab page bottom limit" & vbCrLf & _
+        "    Const MINH As Long = 792       ' minimum box height" & vbCrLf & _
+        "    Const LBLH As Long = 340       ' label band height" & vbCrLf & _
+        "    Dim boxes As Variant, lbls As Variant" & vbCrLf & _
+        "    Dim i As Integer, y As Long, want As Long, maxA As Long, s As String" & vbCrLf & _
+        "    boxes = Array(""RelationshipOverview"", ""CollateralOverview"", ""ConditionsDeadlines"")" & vbCrLf & _
+        "    lbls = Array(""lblRelOv"", ""lblCollOv"", ""lblBid"")" & vbCrLf & _
+        "    y = TOPY" & vbCrLf & _
+        "    On Error Resume Next   ' layout must never break typing" & vbCrLf & _
+        "    For i = 0 To 2" & vbCrLf & _
+        "        s = """"" & vbCrLf & _
+        "        Err.Clear" & vbCrLf & _
+        "        s = Me(boxes(i)).Text          ' available while focused" & vbCrLf & _
+        "        If Err.Number <> 0 Then Err.Clear: s = Nz(Me(boxes(i)).Value, """")" & vbCrLf & _
+        "        want = OvGrow(s)" & vbCrLf & _
+        "        maxA = BOTY - y - (2 - i) * (MINH + LBLH) - LBLH" & vbCrLf & _
+        "        If want > maxA Then want = maxA" & vbCrLf & _
+        "        If want < MINH Then want = MINH" & vbCrLf & _
+        "        Me(lbls(i)).Top = y" & vbCrLf & _
+        "        Me(boxes(i)).Top = y + LBLH - 20" & vbCrLf & _
+        "        Me(boxes(i)).Height = want" & vbCrLf & _
+        "        y = y + LBLH + want + 120" & vbCrLf & _
+        "    Next i" & vbCrLf & _
+        "End Sub"
+    mdl.InsertLines mdl.CountOfLines + 1, code
 
     SaveAs nm, "frmWorkbench"
 
