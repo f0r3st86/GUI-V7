@@ -569,47 +569,49 @@ Private Sub BuildFrmWorkbench()
     frm!ConditionsDeadlines.OnChange = "[Event Procedure]"
 
     ' Inject the auto-grow layout helpers at the end of the form module
+    ' Inject auto-grow helpers (one statement per line - VBA caps
+    ' line continuations at ~24 per statement)
     Dim code As String
-    code = "" & _
-        "Private Function OvGrow(s As String) As Long" & vbCrLf & _
-        "    ' Estimate rendered lines: hard returns + word-wrap at ~95 chars" & vbCrLf & _
-        "    Dim lines As Long, p As Variant" & vbCrLf & _
-        "    lines = 0" & vbCrLf & _
-        "    For Each p In Split(s, Chr(13) & Chr(10))" & vbCrLf & _
-        "        lines = lines + 1 + Int(Len(p) / 95)" & vbCrLf & _
-        "    Next" & vbCrLf & _
-        "    If lines < 3 Then lines = 3" & vbCrLf & _
-        "    OvGrow = lines * 235 + 150   ' twips per line + padding" & vbCrLf & _
-        "End Function" & vbCrLf & vbCrLf & _
-        "Public Sub OvLayout()" & vbCrLf & _
-        "    ' Grow each Overview box to its content and reflow the stack." & vbCrLf & _
-        "    ' Later boxes keep a minimum height; growth is clamped to the" & vbCrLf & _
-        "    ' tab page bottom (tab pages cannot scroll)." & vbCrLf & _
-        "    Const TOPY As Long = 5357      ' first label top (PY in twips)" & vbCrLf & _
-        "    Const BOTY As Long = 11000     ' tab page bottom limit" & vbCrLf & _
-        "    Const MINH As Long = 792       ' minimum box height" & vbCrLf & _
-        "    Const LBLH As Long = 340       ' label band height" & vbCrLf & _
-        "    Dim boxes As Variant, lbls As Variant" & vbCrLf & _
-        "    Dim i As Integer, y As Long, want As Long, maxA As Long, s As String" & vbCrLf & _
-        "    boxes = Array(""RelationshipOverview"", ""CollateralOverview"", ""ConditionsDeadlines"")" & vbCrLf & _
-        "    lbls = Array(""lblRelOv"", ""lblCollOv"", ""lblBid"")" & vbCrLf & _
-        "    y = TOPY" & vbCrLf & _
-        "    On Error Resume Next   ' layout must never break typing" & vbCrLf & _
-        "    For i = 0 To 2" & vbCrLf & _
-        "        s = """"" & vbCrLf & _
-        "        Err.Clear" & vbCrLf & _
-        "        s = Me(boxes(i)).Text          ' available while focused" & vbCrLf & _
-        "        If Err.Number <> 0 Then Err.Clear: s = Nz(Me(boxes(i)).Value, """")" & vbCrLf & _
-        "        want = OvGrow(s)" & vbCrLf & _
-        "        maxA = BOTY - y - (2 - i) * (MINH + LBLH) - LBLH" & vbCrLf & _
-        "        If want > maxA Then want = maxA" & vbCrLf & _
-        "        If want < MINH Then want = MINH" & vbCrLf & _
-        "        Me(lbls(i)).Top = y" & vbCrLf & _
-        "        Me(boxes(i)).Top = y + LBLH - 20" & vbCrLf & _
-        "        Me(boxes(i)).Height = want" & vbCrLf & _
-        "        y = y + LBLH + want + 120" & vbCrLf & _
-        "    Next i" & vbCrLf & _
-        "End Sub"
+    code = ""
+    code = code & "Private Function OvGrow(s As String) As Long" & vbCrLf
+    code = code & "    ' Estimate rendered lines: hard returns + word-wrap at ~95 chars" & vbCrLf
+    code = code & "    Dim lines As Long, p As Variant" & vbCrLf
+    code = code & "    lines = 0" & vbCrLf
+    code = code & "    For Each p In Split(s, Chr(13) & Chr(10))" & vbCrLf
+    code = code & "        lines = lines + 1 + Int(Len(p) / 95)" & vbCrLf
+    code = code & "    Next" & vbCrLf
+    code = code & "    If lines < 3 Then lines = 3" & vbCrLf
+    code = code & "    OvGrow = lines * 235 + 150   ' twips per line + padding" & vbCrLf
+    code = code & "End Function" & vbCrLf
+    code = code & "" & vbCrLf
+    code = code & "Public Sub OvLayout()" & vbCrLf
+    code = code & "    ' Grow each Overview box to its content and reflow the stack." & vbCrLf
+    code = code & "    ' Growth is clamped to the tab page bottom (pages cannot scroll)." & vbCrLf
+    code = code & "    Const TOPY As Long = 5357" & vbCrLf
+    code = code & "    Const BOTY As Long = 11000" & vbCrLf
+    code = code & "    Const MINH As Long = 792" & vbCrLf
+    code = code & "    Const LBLH As Long = 340" & vbCrLf
+    code = code & "    Dim boxes As Variant, lbls As Variant" & vbCrLf
+    code = code & "    Dim i As Integer, y As Long, want As Long, maxA As Long, s As String" & vbCrLf
+    code = code & "    boxes = Array(""RelationshipOverview"", ""CollateralOverview"", ""ConditionsDeadlines"")" & vbCrLf
+    code = code & "    lbls = Array(""lblRelOv"", ""lblCollOv"", ""lblBid"")" & vbCrLf
+    code = code & "    y = TOPY" & vbCrLf
+    code = code & "    On Error Resume Next   ' layout must never break typing" & vbCrLf
+    code = code & "    For i = 0 To 2" & vbCrLf
+    code = code & "        s = """"" & vbCrLf
+    code = code & "        Err.Clear" & vbCrLf
+    code = code & "        s = Me(boxes(i)).Text          ' available while focused" & vbCrLf
+    code = code & "        If Err.Number <> 0 Then Err.Clear: s = Nz(Me(boxes(i)).Value, """")" & vbCrLf
+    code = code & "        want = OvGrow(s)" & vbCrLf
+    code = code & "        maxA = BOTY - y - (2 - i) * (MINH + LBLH) - LBLH" & vbCrLf
+    code = code & "        If want > maxA Then want = maxA" & vbCrLf
+    code = code & "        If want < MINH Then want = MINH" & vbCrLf
+    code = code & "        Me(lbls(i)).Top = y" & vbCrLf
+    code = code & "        Me(boxes(i)).Top = y + LBLH - 20" & vbCrLf
+    code = code & "        Me(boxes(i)).Height = want" & vbCrLf
+    code = code & "        y = y + LBLH + want + 120" & vbCrLf
+    code = code & "    Next i" & vbCrLf
+    code = code & "End Sub" & vbCrLf
     mdl.InsertLines mdl.CountOfLines + 1, code
 
     SaveAs nm, "frmWorkbench"
