@@ -36,16 +36,17 @@ Private Const T1 As Long = 1440       ' twips per inch
 Private Const FONT As String = "Segoe UI"
 
 ' ---- LOANSYSTEM dark palette (matches the React ThemeContext) -------
-Private Function CLR_MAIN() As Long:   CLR_MAIN = RGB(24, 24, 27):    End Function ' zinc-900 page
-Private Function CLR_HEADER() As Long: CLR_HEADER = RGB(9, 9, 11):    End Function ' near-black bar
-Private Function CLR_CARD() As Long:   CLR_CARD = RGB(39, 39, 42):    End Function ' zinc-800 card
-Private Function CLR_INPUT() As Long:  CLR_INPUT = RGB(24, 24, 27):   End Function ' input bg
-Private Function CLR_BORDER() As Long: CLR_BORDER = RGB(63, 63, 70):  End Function ' zinc-700
-Private Function CLR_TEXT() As Long:   CLR_TEXT = RGB(244, 244, 245): End Function ' near-white
-Private Function CLR_MUTED() As Long:  CLR_MUTED = RGB(161, 161, 170) End Function ' zinc-400
-Private Function CLR_GREEN() As Long:  CLR_GREEN = RGB(74, 222, 128): End Function ' green-400
-Private Function CLR_RED() As Long:    CLR_RED = RGB(248, 113, 113):  End Function ' red-400
-Private Function CLR_BLUE() As Long:   CLR_BLUE = RGB(37, 99, 235):   End Function ' blue-600
+' Precomputed RGB() values (r + g*256 + b*65536) as constants
+Private Const CLR_MAIN As Long = 1775640     ' RGB(24,24,27)    zinc-900 page
+Private Const CLR_HEADER As Long = 723209    ' RGB(9,9,11)      near-black bar
+Private Const CLR_CARD As Long = 2762535     ' RGB(39,39,42)    zinc-800 card
+Private Const CLR_INPUT As Long = 1775640    ' RGB(24,24,27)    input bg
+Private Const CLR_BORDER As Long = 4603711   ' RGB(63,63,70)    zinc-700
+Private Const CLR_TEXT As Long = 16119028    ' RGB(244,244,245) near-white
+Private Const CLR_MUTED As Long = 11182497   ' RGB(161,161,170) zinc-400
+Private Const CLR_GREEN As Long = 8445514    ' RGB(74,222,128)  green-400
+Private Const CLR_RED As Long = 7434744      ' RGB(248,113,113) red-400
+Private Const CLR_BLUE As Long = 15426341    ' RGB(37,99,235)   blue-600
 
 ' ---------------------------------------------------------------------
 Public Sub BuildAll()
