@@ -107,3 +107,40 @@ The React trailing-payment analytics should replicate this exact window.
 3. **Auth exists in production** (`ztblLogins` + frmLogin + per-project
    scoping) — the React auth design should mirror: login → pick project →
    session scoped to project
+
+## Forms: what is and isn't recoverable (2026-08 deep pass)
+
+**Recoverable — and extracted:**
+1. **Every form's data layer**: the `~sq_c<form>~sq_c<control>` query family
+   IS the control inventory — each bound subform/list/combo per form with
+   its full record-source SQL (e.g. frmLoanView contains cLstRelatedLoans,
+   cfrmLoanDetail, cfrmOverview, cfrmPayHistSub, cfrmObligorSub2,
+   cFrmCommentsSub, cfrmTasks, cLstCollateral, clstDocuments, clstFinancial,
+   cCommentFilter, cRelatedLoanLookup…)
+2. **Control-source expressions** (UTF-16 strings; `docs/accde-form-expressions.txt`,
+   123 formulas), including:
+   - The Property tab valuation grid: value scenarios Appraisal/BPO/
+     As-Is-PF/As-Stabilized-PF/H1-H3, each with NOI = (EGI + OtherInc) − OpEx,
+     value = Round((NOI / CapRate)/10000)*10000, per-unit and per-SF derivations
+   - FinStmts formulas: 1040 personal income rollup, PFS net worth,
+     business balance-sheet net, adjusted-EBITDA-style cash flow
+     (Revenue − COGS − OperExp + OthExp + D&A + Interest + Tax [+Extraordinary])
+   - Weighted-average maturity: Σ(MaturityDate×Principal)/Σ(Principal)
+   - Borrower age: (Date() − DOB)/365
+3. **Captions/labels** (Consumer Loan, Task For, Ah/Bhd, …)
+
+**Two architectural discoveries from the expressions:**
+- **Relationship-level comments convention**: the comment header reads
+  `IIf([MWLoanNo]=[RelatedLoans], "Relationship Level Comments…", "Loan
+  Level Comments…")` — a comment row whose MWLoanNo EQUALS the relationship
+  name is a relationship-level comment. The React Comment tab should adopt
+  this convention.
+- **Optimistic concurrency exists**: embedded UPDATE statements carry an
+  `upsize_ts` rowversion column in their WHERE clauses — the SQL tables
+  have rowversion timestamps and Access uses them for conflict detection.
+  The future API gets its optimistic-locking mechanism for free.
+
+**Not recoverable:** pixel layout/geometry (binary, undocumented),
+event VBA (compiled), and **Ah/Bhd's formula specifically** — its caption
+exists but no bound expression does, confirming it is computed in stripped
+VBA. Recover empirically from observed values.

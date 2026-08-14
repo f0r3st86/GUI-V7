@@ -1,0 +1,123 @@
+="Page " & [Page] & " of " & [Pages]
+=(Date()-[DOB])/365
+=(Nz([txtEGIoV_Appr],0)+Nz([txtOthInc_Appr],0))-Nz([txtOpEx_Appr],0)
+=(Nz([txtEGIoV_AsIsPF],0)+Nz([txtOthInc_AsIsPF],0))-Nz([txtOpEx_AsIsPF],0)
+=(Nz([txtEGIoV_AsStblPF],0)+Nz([txtOthInc_AsStblPF],0))-Nz([txtOpEx_AsStblPF],0)
+=(Nz([txtEGIoV_BPO],0)+Nz([txtOthInc_BPO],0))-Nz([txtOpEx_BPO],0)
+=(Nz([txtEGIoV_H1],0)+Nz([txtOthInc_H1],0))-Nz([txtOpEx_H1],0)
+=(Nz([txtEGIoV_H2],0)+Nz([txtOth
+=(Nz([txtEGIoV_H3],0)+Nz([txtOthInc_H3],0))-Nz([txtOpEx_H3],0)
+=([1040WageSalaryTips]+[1040ScheduleBIncomeDiv]+[1040ScheduleCIncomeSelf]+[1040ScheduleDIncomeGain]+[1040ScheduleEIncomeSCorp]+[1040ScheduleFIncomeFarm]+[1040OtherIncome])-[1040TotalAdjustments]
+=([1040WageSalaryTips]+[1040ScheduleBIncomeDiv]+[1040ScheduleCIncomeSelf]+[1040ScheduleEIncomeSCorp]+[1040ScheduleFIncomeFarm]+[1040OtherIncome])-[1040TotalAdjustments]
+=([Cash]+[AR]+[Inventory]+[NoteRec]+[OtherCA]+[REO]+[Improvements]-[ImprvAccDepr]+[FFandE]-[accDeprFFE]+[OtherAssets]-[AccDeprOthFixed]+[AssetOtherAmt1]+[AssetOtherAmt2])-([AP]+[AccrExp]+[NotePay]+[CurrLTD]+[OthCurrLiab]+[LTDebt]+[LiabOtherAmt1]+[LiabOtherAmt2]+[Equity])
+=([PFSCash]+[PFSMktSecurity]+[PFSRetirement]+[PFSCVLifeIns]+[PFSNoteRec]+[PFSBusinessEq]+[PFSValueSFR]+[PFSValueOthRe]+[PFSValueAuto]+[PFSValuePPHH]+[PFSOther])-([PFSCredCard]+[PFSNotePay]+[PFSREMgtSFR]+[PFSREMgtOther]+[PFSOtherLiab])
+=([Revenue]-[COGS]-[OperExp]+[OthExp])+([Depreciation]+[Amortization]+[Interest]+[IncomeTx])
+=([Revenue]-[COGS]-[OperExp]+[OthExp])+([Depreciation]+[Amortization]+[Interest]+[IncomeTx]+[Extraordinary])
+=Count([MWLoanNo])
+=Date()
+=False
+=Format(Sum(([CurrentMaturityDate]*[PrincipalBalance]))/Sum(IIf([CurrentMaturityDate] Is Null,0,[PrincipalBalance])),"mm/dd/yy")
+=Format([CurrentMaturityDate],"mm/dd/yy")
+=Forms!frmDueDiligenceReports.txtReportDate
+=HrA
+=IIf((IsNull([txtAdjVal_Appr]) Or Nz([NumUnits],0)=0),Null,[txtAdjVal_Appr]/[NumUnits])
+=IIf((IsNull([txtAdjVal_Appr]) Or Nz([SQFT],0)=0),Null,[txtAdjVal_Appr]/[SQFT])
+=IIf((IsNull([txtAdjVal_AsIsPF]) Or Nz([NumUnits],0)=0),Null,[txtAdjVal_AsIsPF]/[NumUnits])
+=IIf((IsNull([txtAdjVal_AsIsPF]) Or Nz([SQFT
+=IIf((IsNull([txtAdjVal_AsStblPF]) Or Nz([NumUnits],0)=0),Null,[txtAdjVal_AsStblPF]/[NumUnits])
+=IIf((IsNull([txtAdjVal_AsStblPF]) Or Nz([SQFT],0)=0),Null,[txtAdjVal_AsStblPF]/[SQFT])
+=IIf((IsNull([txtAdjVal_BPO]) Or Nz([NumUnits],0)=0),Null,[txtAdjVal_BPO]/[NumUnits])
+=IIf((IsNull([txtAdjVal_BPO]) Or Nz([SQFT],0)=0),Null,[txtAdjVal_BPO]/[SQFT])
+=IIf((IsNull([txtAdjVal_H1]) Or Nz([NumUnits],0)=0),Null,[txtAdjVal_H1]/[NumUnits])
+=IIf((IsNull([txtAdjVal_H1]) Or Nz([SQFT],0)=0),Null,[txtAdjVal_H1]/[SQFT])
+=IIf((IsNull([txtAdjVal_H2]) Or Nz([NumUnits],0)=0),Null,[txtAdjVal_H2]/[NumUnits])
+=IIf((IsNull([txtAdjVal_H2]) Or Nz([SQFT],0)=0),Null,[txtAdjVal_H2]/[SQFT])
+=IIf((IsNull([txtAdjVal_H3]) Or Nz([NumUnits],0)=0),Null,[txtAdjVal_H3]/[NumUnits])
+=IIf((IsNull([txtAdjVal_H3]) Or Nz([SQFT],0)=0),Null,[txtAdjVal_H3]/[SQFT])
+=IIf(IsNull([txtCapRt_Appr]),Null,Round(([txtNOI_Appr]/[txtCapRt_Appr])/10000,0)*10000)
+=IIf(IsNull([txtCapRt_AsIsPF]),Null,Round(([txtNOI_AsIsPF]/[txtCapRt_AsIsPF])/10000,0)*10000)
+=IIf(IsNull([txtCapRt_AsStblPF]),Null,Round(([txtNOI_AsStblPF]/[txtCapRt_AsStblPF])/10000,0)*10000)
+=IIf(IsNull([txtCapRt_BPO]),Null,Round(([txtNOI_BPO]/[txtCapRt_BPO])/10000,0)*10000)
+=IIf(IsNull([txtCapRt_H1]),Null,Round(([txtNOI_H1]/[txtCapRt_H1])/10000,0)*10000)
+=IIf(IsNull([txtCapRt_H2]),Null,Round(([txtNOI_H2]/[txtCapRt_H2])/10000,0)*10000)
+=IIf(IsNull([txtCapRt_H3]),Null,Round(([txtNOI_H3]/[txtCapRt_H3])/10000,0)*10000)
+=IIf(IsNull([txtVal_Appr]),Null,Round(([txtVal_Appr]-Nz([txtAdjs_Appr],0))/10000,0)*10000)
+=IIf(IsNull([txtVal_AsIsPF]),Null,Round(([txtVal_AsIsPF]-Nz([txtAdjs_AsIsPF],0))/10000,0)*10000)
+=IIf(IsNull([txtVal_AsStblPF]),Null,Round(([txtVal_AsStblPF]-Nz([txtAdjs_AsStblPF],0))/10000,0)*10000)
+=IIf(IsNull([txtVal_BPO]),Null,Round(([txtVal_BPO]-Nz([txtAdjs_BPO],0))/10000,0)*10000)
+=IIf(IsNull([txtVal_H1]),Null,Round(([txtVal_H1]-Nz([txtAdjs_H1],0))/10000,0)*10000)
+=IIf(IsNull([txtVal_H2]),Null,Round(([txtVal_H2]-Nz([txtAdjs_H2],0))/10000,0)*10000)
+=IIf(IsNull([txtVal_H3]),Null,Round(([txtVal_H3]-Nz([txtAdjs_H3],0))/10000,0)*10000)
+=IIf([MWLoanNo]=[RelatedLoans],"Relationship Level Comments - " & [RelatedLoans],"Loan Level Comments - " & [MWLoanNo])
+=IIf([Type]="2BPO",1,Null)
+=L)qOL
+=M`!J
+=Mid5
+=Now
+=Now()
+=Nz([txtProTax_Appr],0)+Nz([txtIns_Appr],0)+Nz([txtUtil_Appr],0)+Nz([txtMaint_Appr],0)+Nz([txtMgmt_Appr],0)+Nz([txtRes_Appr],0)+Nz([txtOth_Appr],0)
+=Nz([txtProTax_AsIsPF],0)+Nz([txtIns_AsIsPF],0)+Nz([txtUtil_AsIsPF],0)+Nz([txtMaint_AsIsPF],0)+Nz([txtMgmt_AsIsPF],0)+Nz([txtRes_AsIsPF],0)+Nz([txtOth_AsIsPF],0)
+=Nz([txtProTax_AsStblPF],0)+Nz([txtIns_AsStblPF],0)+Nz([txtUtil_AsStblPF],0)+Nz([txtMaint_AsStblPF],0)+Nz([txtMgmt_AsStblPF],0)+Nz([txtRes_AsStblPF],0)+Nz([txtOth_AsStblPF],0)
+=Nz([txtProTax_BPO],0)+Nz([txtIns_BPO],0)+Nz([txtUtil_BPO],0)+Nz([txtMaint_BPO],0)+Nz([txtMgmt_BPO],0)+Nz([txtRes_BPO],0)+Nz([txtOth_BPO],0)
+=Nz([txtProTax_H1],0)+Nz([txtIns_H1],0)+Nz([txtUtil_H1],0)+Nz([txtMaint_H1],0)+Nz([txtMgmt_H1],0)+Nz([txtRes_H1],0)+Nz([txtOth_H1],0)
+=Nz([txtProTax_H2],0)+Nz([txtIns_H2],0)+Nz([txtUtil_H2],0)+Nz([txtMaint_H2],0)+Nz([txtMgmt_H2],0)+Nz([txtRes_H2],0)+Nz([txtOth_H2],0)
+=Nz([txtProTax_H3],0)+Nz([txtIns_H3],0)+Nz([txtUtil_H3],0)+Nz([txtMaint_H3],0)+Nz([txtMgmt_H3],0)+Nz([txtRes_H3],0)+Nz([txtOth_H3],0)
+=Sum(
+=Sum(([DueDt]*[PrincipalBalance]))/Sum(IIf([DueDt] Is Null,0,[PrincipalBalance]))
+=Sum(([LastPmtDt]*[PrincipalBalance]))/Sum(IIf([LastPmtDt] Is Null,0,[PrincipalBalance]))
+=Sum(([OrgNoteDate]*[PrincipalBalance]))/Sum(IIf([OrgNoteDate] Is Null,0,[PrincipalBalance]))
+=Sum([DefaultRate]*[PrincipalBalance])/Sum([PrincipalBalance])
+=Sum([InterestBalance])
+=Sum([OrigPrincipalBalance])
+=Sum([PrincipalBalance])
+=Sum([Rate]*[PrincipalBalance])/Sum([PrincipalBalance])
+=Sum([amtpd])
+=TwK
+=[1040
+=[1040WageSalaryTips]+[1040ScheduleBIncomeDiv]+[1040ScheduleCIncomeSelf]+[1040ScheduleDIncomeGain]+[1040ScheduleEIncomeSCorp]+[1040ScheduleFIncomeFarm]+[1040OtherIncome]
+=[AP]+[AccrExp]+[NotePay]+[CurrLTD]+[OthCurrLiab]
+=[AP]+[AccrExp]+[NotePay]+[CurrLTD]+[OthCurrLiab]+[LTDebt]+[LiabOtherAmt1]+[LiabOtherAmt2]
+=[AP]+[AccrExp]+[NotePay]+[CurrLTD]+[OthCurrLiab]+[LTDebt]+[LiabOtherAmt1]+[LiabOtherAmt2]+[Equity]
+=[Cash]+[AR]+[Inventory]+[NoteRec]+[
+=[Cash]+[AR]+[Inventory]+[NoteRec]+[OtherCA]
+=[CurrLTD]+[NotePay]+[LTDebt]
+=[Forms]![frmLoanView]![LoanNo]
+=[Forms]![frmLoanView]![MWLoanNo]
+=[Forms]![frmLoanView]![ProjectName]
+=[Forms]![frmLoanView]![RelatedLoans]
+=[Forms]![frmLoanView]![txtCurrentProject]
+=[Forms]![frmMain]![txtCurrentProject]
+=[List1List]/[List1BldgSize]
+=[List1List]/[List1LandAc]
+=[List1List]/[List1Units]
+=[List2List]/[List2BldgSize]
+=[List2List]/[List2LandAc]
+=[List2List]/[List2Units]
+=[List3List]/[List3BldgSize]
+=[List3List]/[List3LandAc]
+=[List3List]/[List3Units]
+=[PFSCash]+[PFSMktSecurity]+[PFSRetirement]+[PFSCVLifeIns]+[PFSNoteRec]+[PFSBusinessEq]+[PFSValueSFR]+[PFSValueOthRe]+[PFSValueAuto]+[PFSValuePPHH]+[PFSOther]
+=[PFSCredCard]+[PFSNotePay]+[PFSREMgtSFR]+[PFSREMgtOther]+[PFSOtherLiab]
+=[PriorBankruptcy]
+=[RelatedLoans] & CStr([Priority])
+=[Revenue]-[COGS]-[OperExp]
+=[Revenue]-[COGS]-[OperExp]+[OthExp]
+=[Sale1Sale]/[Sale1BldgSize]
+=[Sale1Sale]/[Sale1LandAc]
+=[Sale1Sale]/[Sale1Units]
+=[Sale2Sale]/[Sale2BldgSize]
+=[Sale2Sale]/[Sale2LandAc]
+=[Sale2Sale]/[Sale2Units]
+=[Sale3Sale]/[Sale3BldgSize]
+=[Sale3Sale]/[Sale3LandAc]
+=[Sale3Sale]/[Sale3Units]
+=[SubjSalePrice]/[SubjBldgArea]
+=[SubjSalePrice]/[SubjLandArea]
+=[SubjSalePrice]/[SubjUnits]
+=[m1]+[m2]+[m3]+[m
+=[sm1]+[sm2]+[sm3]+[sm4]+[sm5]+[sm6]+[sm7]+[sm8]+[sm9]+[sm10]+[sm11]+[sm12]
+=fA?
+=hT+
+=k$;"
+=monthsbetween([duedt],[currentmaturitydate])-amortizedmaturity([repayamt],[principalbalance],[rate])
+=mzf
