@@ -598,7 +598,7 @@ Private Function NewDarkForm(recordSource As String, viewMode As Integer) As For
     frm.NavigationButtons = (viewMode = 0)
     frm.DividingLines = False
     On Error Resume Next
-    frm.ScrollBars = 2
+    frm.ScrollBars = 3          ' both - form scrolls when larger than window
     On Error GoTo 0
     Set NewDarkForm = frm
 End Function
