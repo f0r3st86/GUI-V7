@@ -336,6 +336,41 @@ GUI implication: `sortNo` is server-computed and read-only; the app needs a
 "recompute sort order" action (per project: rank by aggregate principal
 descending), not a SortNo input.
 
+## Production form reference (photo of frmLoanView, 2026-08)
+
+Observed from the live "Midwest Due Diligence Database" Access app:
+
+**Chrome:** light-themed. Top bar: relationship COMBO selector (dropdown,
+top-left), `Sort [n]` box, `Relationship Report` button, `Main Menu`
+button. Relationship navigation is combo-driven (the React browse-screen
+is an intentional redesign of the Main Menu pattern).
+
+**Production tab order (12 tabs):**
+`Loan | Collateral | Obligor | Comment | BPOTitleUCC | PayHist | FinStmts |
+Projections | Strategies | Tasks | Overview | Property`
+Divergences from the React TABS order: production puts **Collateral 2nd**
+and names the borrower tab **"Obligor"** (React: Borrower 2nd, Collateral
+3rd); production has **no Report tab** (Report is a React addition).
+
+**Flag stack order (right of grid):** BK, FA, FC, JG, LT, then Low Yield
+Asset below — all six present, confirming the workbook's missing
+ForbearanceFlag binding is a workbook wiring bug (query #3), not a
+production behavior.
+
+**Confirmed data presentation:**
+- Rates shown as percent from stored fractions: detail `Rate 11.2500%`,
+  `DefR 14.2500%`, `FL 3.75%`, `CL 30.00%`, margin `4.50%`; grid shows
+  the same values without the % suffix (11.25 / 14.25)
+- `PmtFrq` displays the raw value `1` (matches profiling)
+- `Mat Dt 01/01/99` — the 1999 sentinel date visible in live use
+- `Index` = combo (value 'Prime'), `RType` = combo ('Variable')
+
+**New finding — `Ah/Bhd` is a computed numeric** (shown `-654`): an
+ahead/behind amount calculated by the form, not a stored tblLoan column.
+The GUI's `ahBhd: '#Typed'` string field mismodels this; treat as a
+calculated display (likely payment-schedule variance) — confirm formula
+with the author.
+
 ## Workbook wiring queries (confirm with author)
 
 1. **Loan View "PmtFrq"** binds `tblLoan.DaysBasis`, not `tblLoan.PmtFrequency` —
