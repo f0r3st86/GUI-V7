@@ -45,9 +45,10 @@ export const US_STATES: USState[] = [
   { code: 'DC', name: 'Washington DC' }
 ];
 
-// Tab names
+// Tab names - matches the production frmLoanView tab order exactly
+// (Collateral 2nd, borrower tab named 'Obligor'); Report is our addition
 export const TABS = [
-  'Loan', 'Borrower', 'Collateral', 'Comment', 'BPOTitleUCC',
+  'Loan', 'Collateral', 'Obligor', 'Comment', 'BPOTitleUCC',
   'PayHist', 'FinStmts', 'Projections', 'Strategies', 'Tasks',
   'Overview', 'Property', 'Report'
 ];

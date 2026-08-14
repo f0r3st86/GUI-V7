@@ -56,7 +56,8 @@ const TabContent: React.FC = () => {
           <LoanTab />
         </ErrorBoundary>
       );
-    case 'Borrower':
+    case 'Obligor':
+      // Production naming: the borrower tab is labeled 'Obligor'
       return (
         <ErrorBoundary>
           <BorrowerTab />

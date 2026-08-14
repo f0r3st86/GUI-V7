@@ -396,9 +396,19 @@ Private Sub BuildFrmWorkbench()
         mx = mx + 0.62
     Next mi
 
-    ' --- Relationship bar ---
+    ' --- Relationship bar (combo navigation like production frmLoanView) ---
     AddThemedLabel frm, "Relationship:", 0.15, 0.78, CLR_MUTED, 9
-    DarkBox frm, "RelatedLoans", 1.25, 0.76, 1.5, True
+    Dim cbo As Control
+    Set cbo = CreateControl(nm, acComboBox, acDetail, "", "", _
+                            CLng(1.25 * T1), CLng(0.76 * T1), CLng(1.5 * T1), CLng(0.24 * T1))
+    cbo.Name = "cboRelationship"
+    cbo.RowSourceType = "Table/Query"
+    cbo.RowSource = "SELECT RelatedLoans FROM tblRelationships ORDER BY ProjectName, SortNo;"
+    cbo.LimitToList = True
+    On Error Resume Next
+    cbo.BackColor = CLR_INPUT: cbo.ForeColor = CLR_TEXT
+    cbo.BorderColor = CLR_INBORDER: cbo.FontName = FONT: cbo.FontSize = 9
+    On Error GoTo 0
     AddThemedLabel frm, "Sort", 3#, 0.78, CLR_MUTED, 9
     DarkBox frm, "SortNo", 3.4, 0.76, 0.5, True
     AddThemedLabel frm, "Project", 4.1, 0.78, CLR_MUTED, 9
@@ -442,7 +452,9 @@ Private Sub BuildFrmWorkbench()
     ' PayHist, FinStmts, Projections, Strategies, Tasks, Overview,
     ' Property, Report  (docs/REACT-UI-SPEC.md)
     Dim tabNames As Variant
-    tabNames = Array("Loan", "Borrower", "Collateral", "Comment", "BPOTitleUCC", _
+    ' Production frmLoanView order (Collateral 2nd, 'Obligor' naming);
+    ' Report is the React app's addition, kept last
+    tabNames = Array("Loan", "Collateral", "Obligor", "Comment", "BPOTitleUCC", _
                      "PayHist", "FinStmts", "Projections", "Strategies", "Tasks", _
                      "Overview", "Property", "Report")
     ' Tab control ships with 2 pages; add the other 11
@@ -464,7 +476,7 @@ Private Sub BuildFrmWorkbench()
 
     ' Borrower / Comment / PayHist pages: raw table datasheets until the
     ' production schemas are confirmed (Phase 4 exports)
-    Set c = CreateControl(nm, acSubform, acDetail, "pgBorrower", "", _
+    Set c = CreateControl(nm, acSubform, acDetail, "pgObligor", "", _
                           CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
     c.Name = "subBorrowers": c.SourceObject = "Table.tblBorrowers"
     Set c = CreateControl(nm, acSubform, acDetail, "pgComment", "", _
@@ -515,12 +527,20 @@ Private Sub BuildFrmWorkbench()
     AddPageLabel frm, "pgProperty", "Property tab content - Coming soon", 4.5, PY + 1.5
     AddPageLabel frm, "pgReport", "Investor reports live in the React app", 4.3, PY + 1.5
 
-    ' Button + subform wiring
+    ' Button + combo + subform wiring
     Dim mdl As Module, ln As Long
     frm!btnBrowse.OnClick = "[Event Procedure]"
+    frm!cboRelationship.OnUpdated = ""
+    frm!cboRelationship.AfterUpdate = "[Event Procedure]"
+    frm.OnCurrent = "[Event Procedure]"
     Set mdl = frm.Module
     ln = mdl.CreateEventProc("Click", "btnBrowse")
     mdl.InsertLines ln + 1, "    DoCmd.OpenForm ""frmBrowser"""
+    ln = mdl.CreateEventProc("AfterUpdate", "cboRelationship")
+    mdl.InsertLines ln + 1, _
+        "    Me.Recordset.FindFirst ""RelatedLoans='"" & Replace(Me!cboRelationship, ""'"", ""''"") & ""'"""
+    ln = mdl.CreateEventProc("Current", "Form")
+    mdl.InsertLines ln + 1, "    Me!cboRelationship = Me!RelatedLoans"
 
     SaveAs nm, "frmWorkbench"
 

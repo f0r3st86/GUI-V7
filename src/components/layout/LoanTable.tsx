@@ -34,8 +34,27 @@ export const LoanTable: React.FC = () => {
     [loans, currentRelationship]
   );
 
+  // Combo options: relationships ordered by project then SortNo
+  // (production frmLoanView navigation model)
+  const sortedRelationships = React.useMemo(
+    () => [...relationships].sort((a, b) =>
+      a.projectName.localeCompare(b.projectName) ||
+      ((a.sortNo ?? 999999) - (b.sortNo ?? 999999))
+    ),
+    [relationships]
+  );
+
   const handleLoanClick = (loan: Loan) => {
     setSelectedLoan(loan.mwLoanNo);
+  };
+
+  // Switching relationships selects its largest loan (principal desc),
+  // which drives currentRelationship and every downstream view
+  const handleRelationshipChange = (relatedLoans: string) => {
+    const first = (loans || [])
+      .filter(l => l.relatedLoans === relatedLoans)
+      .sort((a, b) => (b.principal || 0) - (a.principal || 0))[0];
+    if (first) setSelectedLoan(first.mwLoanNo);
   };
 
   const handleFlagToggle = (flagKey: typeof RELATIONSHIP_FLAGS[number]['key']) => {
@@ -57,12 +76,25 @@ export const LoanTable: React.FC = () => {
 
   return (
     <div className={`${styles.headerBg} ${styles.borderColor} border-b`}>
-      {/* Relationship Label */}
+      {/* Relationship bar - combo selector matching production frmLoanView */}
       <div className="px-4 py-2 flex items-center justify-between">
         <div className="flex items-center">
-          <span className={`text-sm font-medium ${styles.textPrimary}`}>
-            Relationship: {currentRelationship || 'None'}
-          </span>
+          <label htmlFor="relationship-select" className={`text-sm font-medium ${styles.textPrimary} mr-2`}>
+            Relationship:
+          </label>
+          <select
+            id="relationship-select"
+            value={currentRelationship}
+            onChange={(e) => handleRelationshipChange(e.target.value)}
+            aria-label="Select relationship"
+            className={`${styles.inputBg} ${styles.inputBorder} border rounded px-2 py-1 text-sm ${styles.textPrimary} focus:outline-none ${styles.focusBorder}`}
+          >
+            {sortedRelationships.map(r => (
+              <option key={r.relatedLoans} value={r.relatedLoans}>
+                {r.relatedLoans}
+              </option>
+            ))}
+          </select>
           <span className={`ml-3 text-xs ${styles.textMuted}`}>
             ({relationshipLoans.length} loans)
           </span>

@@ -111,10 +111,10 @@ describe('LoanContext', () => {
       const { result } = renderHook(() => useLoan(), { wrapper: createWrapper() });
 
       act(() => {
-        result.current.setActiveTab('Borrower');
+        result.current.setActiveTab('Obligor');
       });
 
-      expect(result.current.activeTab).toBe('Borrower');
+      expect(result.current.activeTab).toBe('Obligor');
     });
   });
 
