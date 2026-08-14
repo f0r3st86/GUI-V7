@@ -1,6 +1,6 @@
 # Interface ↔ Database Alignment Plan
 
-What must change in the GUI so it works against the real MidwestDD database.
+What must change in the GUI so it works against the real MidwestDDi database.
 Produced from a six-way audit of every interface surface against the confirmed
 production schema (Architecture workbook exports: tblLoan 54 cols × 247 rows,
 tblRelationships 16 × 209, CollateralInfo 57 × 290) and column-level profiling

@@ -1,12 +1,12 @@
-# MidwestDD Database Analysis
+# MidwestDDi Database Analysis
 
-**Database:** MidwestDD (SQL Server)
+**Database:** MidwestDDi (SQL Server)
 **Access path:** Microsoft Access front-end → ODBC DSN `sqlDueDiligence` → SQL Server
 **Authentication:** Windows (Trusted_Connection=Yes)
 **Connection string:**
 ```
 DSN=sqlDueDiligence;Description=sqlDueDiligence;Trusted_Connection=Yes;
-APP=Microsoft Office;DATABASE=MidwestDD;Encrypt=Optional;TrustServerCertificate=Yes;
+APP=Microsoft Office;DATABASE=MidwestDDi;Encrypt=Optional;TrustServerCertificate=Yes;
 ```
 
 ---

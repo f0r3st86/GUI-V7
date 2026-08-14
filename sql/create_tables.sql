@@ -1,5 +1,5 @@
 -- ============================================================
--- MidwestDD Database Schema
+-- MidwestDDi Database Schema
 -- SQL Server CREATE TABLE scripts matching the React GUI types
 --
 -- >>> NOTE: production tblLoan / tblRelationships / CollateralInfo
@@ -10,14 +10,14 @@
 -- layer must translate GUI fields to the REAL columns for the
 -- three confirmed tables.
 --
--- Connection: DSN=sqlDueDiligence; DATABASE=MidwestDD
+-- Connection: DSN=sqlDueDiligence; DATABASE=MidwestDDi
 -- Auth: Trusted_Connection (Windows Authentication)
 --
 -- Run this script in SQL Server Management Studio or
--- any tool connected to MidwestDD to create the tables.
+-- any tool connected to MidwestDDi to create the tables.
 -- ============================================================
 
-USE MidwestDD;
+USE MidwestDDi;
 GO
 
 -- ============================================================
@@ -659,7 +659,7 @@ CREATE NONCLUSTERED INDEX IX_tblBidStats_LoanNo ON tblBidStatistics(MWLoanNo);
 GO
 
 PRINT '============================================================';
-PRINT 'MidwestDD schema created successfully.';
+PRINT 'MidwestDDi schema created successfully.';
 PRINT '';
 PRINT 'Tables created:';
 PRINT '  Core:    tblRelationships, tblLoan, tblBorrowers, CollateralInfo';

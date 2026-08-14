@@ -3,7 +3,7 @@
 -- Shows exactly how each React/TypeScript field maps to SQL
 --
 -- >>> IMPORTANT: REAL PRODUCTION COLUMN NAMES CONFIRMED <<<
--- The actual MidwestDD columns for tblLoan (54 cols),
+-- The actual MidwestDDi columns for tblLoan (54 cols),
 -- tblRelationships (16), and CollateralInfo (57) were confirmed
 -- from production exports and differ from the proposed names
 -- below (e.g. principal -> PrincipalBalance not Principal,

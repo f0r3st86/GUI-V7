@@ -2,8 +2,43 @@
 
 **Source of truth:** `Architecture.xlsx` workbook (maintained outside the repo — contains
 production data). Its View sheets wire every UI field to a production column via
-`XLOOKUP` formulas against real MidwestDD table exports. This document captures that
+`XLOOKUP` formulas against real MidwestDDi table exports. This document captures that
 mapping structurally, with no data.
+
+## Data pipeline (from the workbook's Power Query, extracted 2026-08)
+
+The tbl sheets are **live Power Query pulls**, not pasted copies. The M source
+(recovered from the workbook's DataMashup part) shows each table sheet is:
+
+```
+Odbc.DataSource("dsn=sqlDueDiligence")
+  → Database "MidwestDDi" → Schema "dbo" → Table (full, unfiltered)
+```
+
+Implications:
+1. **The database is `MidwestDDi`** (not "MidwestDD" as earlier read from a
+   screenshot) — corrected throughout these docs and the SQL files.
+2. **The exports are faithful 1:1 snapshots** — no Power Query filters,
+   renames, or transformations. Every column name and value we extracted is
+   the raw production shape.
+3. **The workbook is a refreshable export rig**: Data → Refresh All re-pulls
+   all four tables live. Adding the next export (tblBorrowers etc.) is one
+   pasted query per table in the Power Query Advanced Editor:
+
+```m
+shared tblBorrowers = let
+    Source = Odbc.DataSource("dsn=sqlDueDiligence", [HierarchicalNavigation=true]),
+    MidwestDDi_Database = Source{[Name="MidwestDDi",Kind="Database"]}[Data],
+    dbo_Schema = MidwestDDi_Database{[Name="dbo",Kind="Schema"]}[Data],
+    tblBorrowers_Table = dbo_Schema{[Name="tblBorrowers",Kind="Table"]}[Data]
+in
+    tblBorrowers_Table;
+```
+   (Repeat with `tblBorrowerLookup`, `tblPayHistory`, `tblProjections`,
+   `tblSSBid`, `tblcomments`, `tblBPO` — then "Load To… Table" on a new sheet.)
+4. The same navigator can enumerate ALL tables/views: a query on the `dbo`
+   schema node lists every object — a zero-SQL way to get the full 78-object
+   inventory with column counts.
 
 ## Real production schemas (from table exports)
 
