@@ -66,22 +66,34 @@ Fail:
 End Sub
 
 ' ================= TABLE LINKS =======================================
+' Uses DAO CreateTableDef instead of DoCmd.TransferDatabase because
+' TransferDatabase ignores the destination name for ODBC links and
+' stamps them 'dbo_tblLoan' - DAO names the link exactly as told.
 Private Sub LinkTables()
+    Dim db As DAO.Database: Set db = CurrentDb
     Dim tables As Variant, i As Integer
+    Dim td As DAO.TableDef
     Dim ok As String, bad As String
     tables = Array("tblRelationships", "tblLoan", "CollateralInfo", _
                    "tblTasks", "tblBorrowers", "tblBorrowerLookup", _
                    "tblcomments", "tblPayHistory")
     For i = LBound(tables) To UBound(tables)
-        DropIfExists tables(i), acTable
+        ' Clean up both naming variants from earlier attempts
+        DropTableDef db, CStr(tables(i))
+        DropTableDef db, "dbo_" & tables(i)
+
         On Error Resume Next
-        ' Try schema-qualified first, then bare name
-        DoCmd.TransferDatabase acLink, "ODBC Database", CONNECT, _
-                               acTable, "dbo." & tables(i), tables(i)
+        Set td = db.CreateTableDef(CStr(tables(i)))
+        td.Connect = CONNECT
+        td.SourceTableName = "dbo." & tables(i)
+        db.TableDefs.Append td
         If Err.Number <> 0 Then
+            ' Retry without the schema prefix
             Err.Clear
-            DoCmd.TransferDatabase acLink, "ODBC Database", CONNECT, _
-                                   acTable, CStr(tables(i)), tables(i)
+            Set td = db.CreateTableDef(CStr(tables(i)))
+            td.Connect = CONNECT
+            td.SourceTableName = CStr(tables(i))
+            db.TableDefs.Append td
         End If
         If Err.Number <> 0 Then
             bad = bad & vbCrLf & "  " & tables(i) & ": " & Err.Description
@@ -91,6 +103,8 @@ Private Sub LinkTables()
         End If
         On Error GoTo 0
     Next i
+    db.TableDefs.Refresh
+
     If Len(bad) > 0 Then
         MsgBox "Some tables failed to link:" & bad & vbCrLf & vbCrLf & _
                "Linked OK:" & ok & vbCrLf & vbCrLf & _
@@ -99,6 +113,13 @@ Private Sub LinkTables()
         If Len(ok) = 0 Then Err.Raise vbObjectError + 1, , _
             "No tables linked - check the connection (run TestConnection)."
     End If
+End Sub
+
+Private Sub DropTableDef(db As DAO.Database, nm As String)
+    On Error Resume Next
+    db.TableDefs.Delete nm
+    Err.Clear
+    On Error GoTo 0
 End Sub
 
 ' Diagnose the ODBC connection: run this from the Immediate window
