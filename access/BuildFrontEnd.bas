@@ -530,7 +530,6 @@ Private Sub BuildFrmWorkbench()
     ' Button + combo + subform wiring
     Dim mdl As Module, ln As Long
     frm!btnBrowse.OnClick = "[Event Procedure]"
-    frm!cboRelationship.OnUpdated = ""
     frm!cboRelationship.AfterUpdate = "[Event Procedure]"
     frm.OnCurrent = "[Event Procedure]"
     Set mdl = frm.Module
