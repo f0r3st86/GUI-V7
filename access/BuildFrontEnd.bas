@@ -36,8 +36,12 @@ Option Explicit
 ' (existing links/queries/forms with the same names are replaced).
 ' =====================================================================
 
+' Matches the production app's linked-table connection string exactly —
+' TrustServerCertificate=Yes is required when the server uses a
+' self-signed certificate (omitting it makes every link fail).
 Private Const CONNECT As String = _
-    "ODBC;DSN=sqlDueDiligence;DATABASE=MidwestDDi;Trusted_Connection=Yes"
+    "ODBC;DSN=sqlDueDiligence;DATABASE=MidwestDDi;Trusted_Connection=Yes;" & _
+    "APP=Microsoft Office;Encrypt=Optional;TrustServerCertificate=Yes"
 
 ' Twips: 1440 per inch
 Private Const T1 As Long = 1440
@@ -64,20 +68,65 @@ End Sub
 ' ================= TABLE LINKS =======================================
 Private Sub LinkTables()
     Dim tables As Variant, i As Integer
+    Dim ok As String, bad As String
     tables = Array("tblRelationships", "tblLoan", "CollateralInfo", _
                    "tblTasks", "tblBorrowers", "tblBorrowerLookup", _
                    "tblcomments", "tblPayHistory")
     For i = LBound(tables) To UBound(tables)
         DropIfExists tables(i), acTable
-        On Error Resume Next   ' skip tables the DSN user cannot see
+        On Error Resume Next
+        ' Try schema-qualified first, then bare name
         DoCmd.TransferDatabase acLink, "ODBC Database", CONNECT, _
                                acTable, "dbo." & tables(i), tables(i)
         If Err.Number <> 0 Then
-            Debug.Print "Skipped link " & tables(i) & ": " & Err.Description
             Err.Clear
+            DoCmd.TransferDatabase acLink, "ODBC Database", CONNECT, _
+                                   acTable, CStr(tables(i)), tables(i)
+        End If
+        If Err.Number <> 0 Then
+            bad = bad & vbCrLf & "  " & tables(i) & ": " & Err.Description
+            Err.Clear
+        Else
+            ok = ok & " " & tables(i)
         End If
         On Error GoTo 0
     Next i
+    If Len(bad) > 0 Then
+        MsgBox "Some tables failed to link:" & bad & vbCrLf & vbCrLf & _
+               "Linked OK:" & ok & vbCrLf & vbCrLf & _
+               "Run TestConnection (Ctrl+G, type TestConnection) for the " & _
+               "exact ODBC error.", vbExclamation, "Link results"
+        If Len(ok) = 0 Then Err.Raise vbObjectError + 1, , _
+            "No tables linked - check the connection (run TestConnection)."
+    End If
+End Sub
+
+' Diagnose the ODBC connection: run this from the Immediate window
+' (Ctrl+G, type TestConnection) and send the message shown.
+Public Sub TestConnection()
+    Dim db As DAO.Database, qd As DAO.QueryDef, rs As DAO.Recordset
+    On Error GoTo Fail
+    Set db = CurrentDb
+    Set qd = db.CreateQueryDef("")
+    qd.Connect = CONNECT
+    qd.SQL = "SELECT DB_NAME() AS DbName, SUSER_SNAME() AS LoginName, @@SERVERNAME AS ServerName"
+    qd.ReturnsRecords = True
+    Set rs = qd.OpenRecordset()
+    MsgBox "Connection OK!" & vbCrLf & vbCrLf & _
+           "Server: " & rs!ServerName & vbCrLf & _
+           "Database: " & rs!DbName & vbCrLf & _
+           "Login: " & rs!LoginName, vbInformation, "TestConnection"
+    rs.Close
+    Exit Sub
+Fail:
+    MsgBox "Connection FAILED:" & vbCrLf & vbCrLf & Err.Description & vbCrLf & vbCrLf & _
+           "Common fixes:" & vbCrLf & _
+           "1. Confirm you are on the network / VPN." & vbCrLf & _
+           "2. Open the production Access app on this machine - if its " & _
+           "linked tables open, the DSN works and the name matches." & vbCrLf & _
+           "3. Check the DSN name in Start > ODBC Data Sources (both " & _
+           "64-bit and 32-bit apps): is it exactly 'sqlDueDiligence'?", _
+           vbCritical, "TestConnection"
 End Sub
 
 ' ================= QUERIES ===========================================
