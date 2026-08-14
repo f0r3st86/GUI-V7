@@ -90,9 +90,12 @@ The React trailing-payment analytics should replicate this exact window.
 - Vendor comps live in **tblBPO columns**, imported from broker files
   ("Summit" import mapping present) — the React Report tab's comparable
   sales should bind to tblBPO rather than a new tblComparableSales
-- `Ah/Bhd` appears in no query and no extractable string — it is a compiled
-  form expression or VBA; recover empirically (observed values vs payment
-  schedule) or from the `.accdb` master if found
+- `Ah/Bhd` — RESOLVED by the 2026-08 deep mine (see
+  DDMAIN-PRODUCTION-REFERENCE.md): it IS a bound expression on
+  frmLoanDetail: `=monthsbetween([duedt],[currentmaturitydate])
+  -amortizedmaturity([repayamt],[principalbalance],[rate])`
+  (months of delinquency ahead/behind vs an amortized-maturity solve;
+  the two functions live in compiled VBA modules)
 
 ## Implications for the alignment plan
 
@@ -140,10 +143,13 @@ The React trailing-payment analytics should replicate this exact window.
   have rowversion timestamps and Access uses them for conflict detection.
   The future API gets its optimistic-locking mechanism for free.
 
-**Not recoverable:** pixel layout/geometry (binary, undocumented),
-event VBA (compiled), and **Ah/Bhd's formula specifically** — its caption
-exists but no bound expression does, confirming it is computed in stripped
-VBA. Recover empirically from observed values.
+**Not recoverable:** pixel layout/geometry (binary, undocumented) and
+event VBA (compiled). ~~Ah/Bhd's formula~~ — recovered by the 2026-08
+full mine: `=monthsbetween([duedt],[currentmaturitydate])-
+amortizedmaturity([repayamt],[principalbalance],[rate])` (the earlier
+string pass missed it; the full-dump sweep found the bound expression).
+The superset of everything recoverable now lives in
+**docs/DDMAIN-PRODUCTION-REFERENCE.md**.
 
 ## The comment lifecycle (recovered from embedded VBA SQL strings)
 
