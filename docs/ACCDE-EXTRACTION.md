@@ -144,3 +144,58 @@ The React trailing-payment analytics should replicate this exact window.
 event VBA (compiled), and **Ah/Bhd's formula specifically** — its caption
 exists but no bound expression does, confirming it is computed in stripped
 VBA. Recover empirically from observed values.
+
+## The comment lifecycle (recovered from embedded VBA SQL strings)
+
+The dynamic SQL that the compiled VBA builds at runtime survives as UTF-16
+string constants — enough to reconstruct exactly how Add/Edit/Delete
+Comment work in production.
+
+**tblComments full schema** (from the ODBC prepared statements):
+`MWLoanNo, AcctOfficer, Date, KeyProvision, ProjectName, RelatedLoans,
+Group, GroupType, Comment, LastModifiedDate, rowguid` (+ `upsize_ts`).
+
+**KeyProvision is the comment's IDENTITY key, not a flag.** Evidence:
+- `SET IDENTITY_INSERT "dbo"."tblcomments" ON` — it is a SQL Server
+  identity column
+- `Select Max(KeyProvision) as lastrecord from tblcomments WHERE
+  projectname='…'` — after insert, VBA looks up the max to find/focus the
+  new row
+- Delete targets it: `Delete * From tblComments Where ProjectName='…' And
+  RelatedLoans='…' And KeyProvision= <n>` (sample captured:
+  `…And KeyProvision= 31933`)
+- Lists order by it (`ORDER BY tblcomments.KeyProvision` = insertion order)
+
+**Add Comment** stamps keys + defaults, no text:
+```
+INSERT INTO tblComments (MWLoanNo, ProjectName, RelatedLoans,
+  [Date], AcctOfficer, [Group]) SELECT '…
+```
+i.e. new row = current loan (or the relationship key itself for a
+relationship-level comment), current project + relationship, today's
+date, the logged-in account officer, and a comment Group. SQL Server
+assigns KeyProvision; the user then types the Comment text into the bound
+subform, which saves via the prepared UPDATE (`…"GroupType"=?,"Comment"=?,
+"LastModifiedDate"=?…` with `upsize_ts` in the WHERE — optimistic lock).
+
+**Delete Comment**: "Are you sure you want to delete this comment?" →
+delete by ProjectName + RelatedLoans + KeyProvision.
+
+**Display/navigation**:
+- The comment picker list shows `Left([Comment],150–175) AS [Text]` keyed
+  by KeyProvision — a truncated-preview list, full text in the editor
+- Subform requery orders `tblcomments.Date DESC` (newest first); reports
+  order by `ztblCommentGroups.ReportPriority, Date DESC`
+- Categories: `Group` joins `ztblCommentGroups.GroupName` (LEFT JOIN, so
+  uncategorized comments still show); `GroupType` is a second-level tag
+- Relationship-level comments confirmed in the wild: a captured query
+  filters `RelatedLoans = 'USB-ARTRIP STEVEN' And MWLoanNo =
+  'USB-ARTRIP STEVEN'` — the MWLoanNo=RelatedLoans sentinel in real use
+
+**React implications**: our `Comment {id, loanNo, commentType, date, text}`
+maps cleanly — `id`↔KeyProvision (server-assigned identity: correct that
+mockApi mints it), `commentType`↔Group (should become ztblCommentGroups
+values), `loanNo`↔MWLoanNo. Missing fields to add when aligning:
+`acctOfficer`, `relatedLoans`, `projectName`, `groupType`. Our
+add-then-select-new-row behavior matches production's Max(KeyProvision)
+refocus exactly.
