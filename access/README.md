@@ -22,6 +22,7 @@ DD.Main app, rebuilt from the full reverse-engineering pass in
 | Collateral tab | **Add Collateral** button: `Max(Priority)+1` mint, `'**ADDED**'` group, typed-`yes` confirm |
 | BPOTitleUCC tab | Live BPO/Title order lists plus **Order BPO** (First/Second/Third slots, 3-order cap, seven collateral-field guards, `#9/9/1999#` sentinel date, `LO-BPO`) and **Order Title** (`MWTitle`/`LO-Title`) |
 | `frmTasks` | Production defaults (EntryDate=Now, DueDate=Date, loan/project keys from session state), officer combos over `ztblLogins`, `***` Task For filter, DueDate-desc sort |
+| Projections tab | **Two modes.** *Normal* = the production `tblProjections` ledger (live entry grid: group/sect/year/month/amount, net-CF footer — remember auto-projections overwrite unless `tblLoan.CashFlowUpdate='manual'`). *Modern* = the Bid_Project workbook's **relationship bid model**: one row per loan with payment/rate/exit selectors (PIF, DPO, Value Cap, YTM Sell Solve, User Enter, Liquidation), Bid = NPV of the monthly stream at the relationship target yield, plus Bid %, MOIC, 12M CY, and implied DPO, with a relationship rollup footer. Parameters live in **local** `xtblBidModel`/`xtblBidSettings` — modeling never writes to SQL Server, and scenarios persist across sessions and rebuilds |
 
 Editability follows the workbook's yellow-cell convention: grids read-only,
 detail panels and flags editable, keys (`MWLoanNo`, `MWPropertyNo`,
