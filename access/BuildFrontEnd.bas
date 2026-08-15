@@ -3,29 +3,38 @@ Option Compare Database
 Option Explicit
 
 ' =====================================================================
-' MidwestDDi Access Front-End Builder  (v6 - production-logic edition)
+' MidwestDDi Access Front-End Builder  (v7.0 - production write paths)
 '
-' Builds a linked front-end styled after the LOANSYSTEM React app:
-' dark zinc backgrounds, green accents, red flag panel, pinned loan
-' grid, and a tab strip (Loan / Collateral / Tasks / Overview /
-' Strategies) below it.
+' Builds a linked front-end styled after the LOANSYSTEM React app and
+' wired with the real DD.Main production logic recovered in
+' docs/DDMAIN-PRODUCTION-REFERENCE.md / docs/ACCESS-V7-GAP-PLAN.md.
 '
 '   frmBrowser           dark relationship browser (dbl-click to open)
 '   frmWorkbench         header bar + relationship bar + pinned loan
-'                        grid + flag card + tab control
+'                        grid (vwRelationshipSummary + 12-pmt column)
+'                        + flag card + 13-tab control + the production
+'                        "Items Currently Activated" state footer
 '   frmLoanGrid          dark continuous loan grid, Total in green,
 '                        dbl-click loan no -> frmLoanDetail
-'   frmLoanDetail        dark editable loan panel (popup)
+'   frmLoanDetail        dark editable loan panel (popup, combos)
 '   frmCollateralGrid    dark continuous collateral grid
-'   frmCollateralDetail  dark editable collateral panel (popup)
-'   frmTasks             dark task cards + perpetual new-entry row
+'   frmCollateralDetail  dark editable collateral panel (popup, combos)
+'   frmCommentsSub       production comment editor (sentinel captions)
+'   frmTasks             dark task rows + production defaults + filter
+'
+' v7.0 production write paths (exact SQL from the accde mine):
+'   New Loan/Rel Comment   keys-only INSERT + Max(KeyProvision) refocus
+'   Add Collateral         Max(Priority)+1 mint + '**ADDED**' group
+'   Order BPO              #9/9/1999 sentinel, First/Second/Third slot,
+'                          3-order cap, seven collateral field guards
+'   Order Title            'MWTitle'/'LO-Title' pending order
 '
 ' HOW TO USE (same as before)
 '   1. Blank .accdb on a machine with the sqlDueDiligence DSN
 '   2. Alt+F11 -> File -> Import File -> this .bas
 '   3. Ctrl+G -> type BuildAll -> Enter
-'   4. Open frmLogin, pick a project (scopes the whole session,
-'      exactly like the production frmLogin flow)
+'   4. Open frmLogin, pick a project + your initials (scopes the whole
+'      session, exactly like the production frmLogin flow)
 ' Re-running BuildAll rebuilds everything.
 ' =====================================================================
 
@@ -58,11 +67,13 @@ Public Sub BuildAll()
     On Error GoTo Fail
     LinkTables
     EnsureLocalProjectTable
+    EnsureLocalUserTable
     BuildQueries
     BuildFrmLoanDetail
     BuildFrmCollateralDetail
     BuildFrmLoanGrid
     BuildFrmCollateralGrid
+    BuildFrmCommentsSub
     BuildFrmTasks
     BuildFrmWorkbench
     BuildFrmBrowser
@@ -80,11 +91,20 @@ Private Sub LinkTables()
     Dim tables As Variant, i As Integer
     Dim td As DAO.TableDef
     Dim ok As String, bad As String
+    ' v7 tier-1 links per ACCESS-V7-GAP-PLAN B1: the server views the
+    ' production grids actually bind, plus the lookup/auth tables the
+    ' combos and write paths need. Views link read-only - production
+    ' treats all 17 views read-only, so no unique index is declared.
     tables = Array("tblRelationships", "tblLoan", "CollateralInfo", _
                    "tblTasks", "tblBorrowers", "tblBorrowerLookup", _
                    "tblcomments", "tblPayHistory", "tblProjects", _
                    "tblBPO", "tblTitle", "z_CCodes", "zExitCodes", _
-                   "vwPayHistorySpread")
+                   "vwPayHistorySpread", _
+                   "vwRelationshipSummary", "vwCollateralSummary", _
+                   "vwTitleDetail", "tblLiens", "ztblCommentGroups", _
+                   "ztblLogins", "zCollateralCodes", "zBKStatus", _
+                   "vwlstFinancialItemsRowSrc", "vwPropertyStmtsSummary", _
+                   "tblFinancialCMR", "tblFinancialPFS", "tblPools")
     For i = LBound(tables) To UBound(tables)
         DropTableDef db, CStr(tables(i))
         DropTableDef db, "dbo_" & tables(i)
@@ -162,12 +182,40 @@ Private Sub EnsureLocalProjectTable()
     On Error GoTo 0
 End Sub
 
+' Local one-row table holding the login-chosen user initials - the
+' cheap half of production auth (GAP-PLAN B14). AcctOfficer defaults
+' and the comment write path read it.
+Private Sub EnsureLocalUserTable()
+    Dim db As DAO.Database: Set db = CurrentDb
+    Dim td As DAO.TableDef, f As DAO.Field
+    On Error Resume Next
+    Set td = db.TableDefs("xtblLocalCurrentUser")
+    If Err.Number <> 0 Then
+        Err.Clear
+        On Error GoTo 0
+        Set td = db.CreateTableDef("xtblLocalCurrentUser")
+        Set f = td.CreateField("CurrentUser", dbText, 20)
+        td.Fields.Append f
+        db.TableDefs.Append td
+    End If
+    Err.Clear
+    On Error GoTo 0
+End Sub
+
 Private Sub DropTableDef(db As DAO.Database, nm As String)
     On Error Resume Next
     db.TableDefs.Delete nm
     Err.Clear
     On Error GoTo 0
 End Sub
+
+Private Function TableExists(nm As String) As Boolean
+    Dim db As DAO.Database: Set db = CurrentDb
+    On Error Resume Next
+    TableExists = (Len(db.TableDefs(nm).Name) > 0)
+    Err.Clear
+    On Error GoTo 0
+End Function
 
 ' ================= QUERIES ===========================================
 Private Sub BuildQueries()
@@ -204,11 +252,25 @@ Private Sub BuildQueries()
         "WHERE c.ProjectName = (SELECT CurrentProject FROM xtblLocalCurrentProject) " & _
         "GROUP BY c.RelatedLoans;"
 
+    ' Production binds the pinned grid to vwRelationshipSummary joined
+    ' to the local project scope (GAP-PLAN B2); amtpd is the
+    ' server-computed trailing-12-payment total ("12 Pmts"). Fall back
+    ' to tblLoan if the view failed to link so the build stays green.
     DropQuery db, "qryLoansSorted"
-    db.CreateQueryDef "qryLoansSorted", _
-        "SELECT MWLoanNo, RelatedLoans, BorrowerNm, OrigPrincipalBalance, " & _
-        "PrincipalBalance, InterestBalance, Rate, RepayAmt, DueDt, LastPmtDt " & _
-        "FROM tblLoan ORDER BY PrincipalBalance DESC;"
+    If TableExists("vwRelationshipSummary") Then
+        db.CreateQueryDef "qryLoansSorted", _
+            "SELECT v.MWLoanNo, v.RelatedLoans, v.BorrowerNm, " & _
+            "v.OrigPrincipalBalance, v.PrincipalBalance, v.InterestBalance, " & _
+            "v.Rate, v.RepayAmt, v.DueDt, v.LastPmtDt, v.amtpd " & _
+            "FROM vwRelationshipSummary AS v INNER JOIN xtblLocalCurrentProject AS p " & _
+            "ON v.ProjectName = p.CurrentProject " & _
+            "ORDER BY v.PrincipalBalance DESC;"
+    Else
+        db.CreateQueryDef "qryLoansSorted", _
+            "SELECT MWLoanNo, RelatedLoans, BorrowerNm, OrigPrincipalBalance, " & _
+            "PrincipalBalance, InterestBalance, Rate, RepayAmt, DueDt, LastPmtDt, " & _
+            "Null AS amtpd FROM tblLoan ORDER BY PrincipalBalance DESC;"
+    End If
     db.QueryDefs.Refresh
 End Sub
 
@@ -240,13 +302,22 @@ Private Sub BuildFrmLoanGrid()
     GridCol frm, "Rate", "Rate", 8.4, 0.6, True, "0.00%"
     GridCol frm, "RepayAmt", "PMT", 9.1, 0.85, True, "$#,##0"
     GridCol frm, "DueDt", "NxtDue", 10.05, 0.8, False, "mm/dd/yy"
+    ' Server-computed trailing-12 payment total (vwRelationshipSummary)
+    GridCol frm, "amtpd", "12 Pmts", 10.95, 0.95, True, "$#,##0"
 
-    Dim mdl As Module, ln As Long
+    Dim mdl As Module, ln As Long, code As String
     frm!txtMWLoanNo.OnDblClick = "[Event Procedure]"
+    frm.OnCurrent = "[Event Procedure]"
     Set mdl = frm.Module
     ln = mdl.CreateEventProc("DblClick", "txtMWLoanNo")
     mdl.InsertLines ln + 1, _
         "    DoCmd.OpenForm ""frmLoanDetail"", , , ""MWLoanNo='"" & Me!txtMWLoanNo & ""'"""
+    ' Active-loan state writer (GAP-PLAN B9): row focus feeds the
+    ' workbench "Items Currently Activated" footer
+    ln = mdl.CreateEventProc("Current", "Form")
+    code = "    On Error Resume Next" & vbCrLf
+    code = code & "    Me.Parent!txtActiveLoan = Me!txtMWLoanNo"
+    mdl.InsertLines ln + 1, code
     SaveAs nm, "frmLoanGrid"
 End Sub
 
@@ -273,36 +344,146 @@ Private Sub BuildFrmCollateralGrid()
     GridCol frm, "CurrentAppraisedValue", "MwValue", 7.55, 1.05, True, "$#,##0"
     GridCol frm, "TaxDelinquentAmt", "Dlq Taxes", 8.7, 0.95, True, "$#,##0"
 
-    Dim mdl As Module, ln As Long
+    Dim mdl As Module, ln As Long, code As String
     frm!txtMWPropertyNo.OnDblClick = "[Event Procedure]"
+    frm.OnCurrent = "[Event Procedure]"
     Set mdl = frm.Module
     ln = mdl.CreateEventProc("DblClick", "txtMWPropertyNo")
     mdl.InsertLines ln + 1, _
         "    DoCmd.OpenForm ""frmCollateralDetail"", , , ""MWPropertyNo="" & Me!txtMWPropertyNo"
+    ' Active-property state writer (GAP-PLAN B9) - BPO/Title ordering
+    ' and Add Collateral read these from the workbench footer
+    ln = mdl.CreateEventProc("Current", "Form")
+    code = "    On Error Resume Next" & vbCrLf
+    code = code & "    Me.Parent!txtActivePropNo = Me!txtMWPropertyNo" & vbCrLf
+    code = code & "    Me.Parent!txtActivePriority = Me!txtPriority"
+    mdl.InsertLines ln + 1, code
     SaveAs nm, "frmCollateralGrid"
 End Sub
 
-' ================= FORM: TASKS (dark cards) ==========================
+' ================= FORM: TASKS (production defaults) =================
+' GAP-PLAN B7: DueDate-desc sort, production defaults (EntryDate=Now,
+' DueDate=Date, keys from the workbench state), ztblLogins officer
+' combos, and the "***" Task For filter. Production's ProjectName<-
+' MWLoanNo default bug is deliberately FIXED (scope-table default).
 Private Sub BuildFrmTasks()
     Dim frm As Form, nm As String, c As Control
     DropIfExists "frmTasks", acForm
-    Set frm = NewDarkForm("SELECT * FROM tblTasks ORDER BY EntryDate DESC", 1)
+    Set frm = NewDarkForm("SELECT * FROM tblTasks ORDER BY DueDate DESC", 1)
     nm = frm.Name
     frm.AllowAdditions = True
-    frm.Section(acDetail).Height = 1# * T1
+    frm.HasModule = True
+    EnsureHeader frm
+    frm.Section(acHeader).BackColor = CLR_HEADER
+    frm.Section(acHeader).Height = 0.34 * T1
+    frm.Section(acDetail).Height = 1.55 * T1
     frm.Section(acDetail).BackColor = CLR_CARD
 
-    DarkBoxL frm, "AcctOfficer", "Task For", 0.15, 0.12, 1#
-    DarkBoxL frm, "EntryAcctOfficer", "Entered By", 2.7, 0.12, 1#
-    DarkBoxL frm, "EntryDate", "Date", 5.3, 0.12, 1.05
-    DarkBoxL frm, "Completed", "Complete", 7.7, 0.12, 0.3
-    DarkBoxL frm, "CompleteDate", "Done", 8.9, 0.12, 0.95
+    ' Header: Task For filter, production default "***" (= everyone)
+    AddHeadLabel frm, "Task For Filter", 0.15, 1.1, False, 0.07
+    Set c = CreateControl(nm, acComboBox, acHeader, "", "", _
+                          CLng(1.35 * T1), CLng(0.04 * T1), CLng(0.9 * T1), CLng(0.26 * T1))
+    c.Name = "cboOfficerFilter"
+    c.RowSourceType = "Table/Query"
+    c.RowSource = "SELECT DISTINCTROW Initials FROM ztblLogins ORDER BY Initials;"
+    c.LimitToList = False
+    c.DefaultValue = "=""***"""
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
+
+    DarkComboL frm, "AcctOfficer", "Task For", 0.15, 0.12, 0.9, _
+               "Table/Query", "SELECT DISTINCTROW Initials FROM ztblLogins ORDER BY Initials;"
+    DarkComboL frm, "EntryAcctOfficer", "Entered By", 2.35, 0.12, 0.9, _
+               "Table/Query", "SELECT DISTINCTROW Initials FROM ztblLogins ORDER BY Initials;"
+    DarkBoxL frm, "EntryDate", "Entered", 4.55, 0.12, 0.95, False, "mm/dd/yy"
+    DarkBoxL frm, "Completed", "Complete", 6.8, 0.12, 0.3
+    DarkBoxL frm, "CompleteDate", "Done", 8.3, 0.12, 0.9, False, "mm/dd/yy"
+    DarkBoxL frm, "DueDate", "Due", 0.15, 0.52, 0.95, False, "mm/dd/yy"
+    DarkBoxL frm, "MWLoanNo", "Loan", 2.35, 0.52, 1.2
     Set c = CreateControl(nm, acTextBox, acDetail, "", "Comment", _
-                          CLng(0.15 * T1), CLng(0.5 * T1), CLng(9.7 * T1), CLng(0.42 * T1))
+                          CLng(0.15 * T1), CLng(0.94 * T1), CLng(9.7 * T1), CLng(0.5 * T1))
     StyleInput c: c.Name = "Comment": c.ScrollBars = 2
+    ' Hidden ProjectName carrier so the default applies on new rows
+    Set c = CreateControl(nm, acTextBox, acDetail, "", "ProjectName", _
+                          CLng(10# * T1), CLng(0.94 * T1), CLng(0.4 * T1), CLng(0.2 * T1))
+    c.Name = "txtProjectName": c.Visible = False
+
     frm!EntryDate.DefaultValue = "=Now()"
-    'frm!KeyGenerator.DefaultValue = "=DMax(""KeyGenerator"",""tblTasks"")+1"  ' if not IDENTITY
+    frm!DueDate.DefaultValue = "=Date()"
+    frm!MWLoanNo.DefaultValue = "=[Forms]![frmWorkbench]![txtActiveLoan]"
+    frm!txtProjectName.DefaultValue = "=DLookUp(""CurrentProject"",""xtblLocalCurrentProject"")"
+    frm!EntryAcctOfficer.DefaultValue = "=DLookUp(""CurrentUser"",""xtblLocalCurrentUser"")"
+
+    Dim mdl As Module, ln As Long, code As String
+    frm!cboOfficerFilter.AfterUpdate = "[Event Procedure]"
+    Set mdl = frm.Module
+    ln = mdl.CreateEventProc("AfterUpdate", "cboOfficerFilter")
+    code = "    If Nz(Me!cboOfficerFilter, ""***"") = ""***"" Then" & vbCrLf
+    code = code & "        Me.FilterOn = False" & vbCrLf
+    code = code & "    Else" & vbCrLf
+    code = code & "        Me.Filter = ""AcctOfficer='"" & Replace(Me!cboOfficerFilter, ""'"", ""''"") & ""'""" & vbCrLf
+    code = code & "        Me.FilterOn = True" & vbCrLf
+    code = code & "    End If"
+    mdl.InsertLines ln + 1, code
     SaveAs nm, "frmTasks"
+End Sub
+
+' ================= FORM: COMMENTS SUB (production editor) ============
+' GAP-PLAN B3: the production FrmCommentsSub - continuous editor with
+' the relationship-level sentinel caption (MWLoanNo = RelatedLoans),
+' mm/dd/yy date, ztblCommentGroups category combo, and the Comment
+' memo. Rows are minted by the workbench New buttons (write path C.1);
+' the identity key (KeyProvision) is server-assigned.
+Private Sub BuildFrmCommentsSub()
+    Dim frm As Form, nm As String, c As Control
+    DropIfExists "frmCommentsSub", acForm
+    Set frm = NewDarkForm( _
+        "SELECT MWLoanNo, AcctOfficer, [Date], KeyProvision, ProjectName, " & _
+        "RelatedLoans, [Group], GroupType, Comment FROM tblcomments " & _
+        "ORDER BY [Date] DESC", 1)
+    nm = frm.Name
+    frm.AllowAdditions = False
+    frm.AllowDeletions = False
+    frm.Section(acDetail).Height = 1.15 * T1
+    frm.Section(acDetail).BackColor = CLR_CARD
+
+    ' Sentinel header (production expression, recovered verbatim)
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+        "=IIf([MWLoanNo]=[RelatedLoans],""Relationship Level Comments - "" & [RelatedLoans],""Loan Level Comments - "" & [MWLoanNo])", _
+        CLng(0.1 * T1), CLng(0.06 * T1), CLng(4.4 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtLevel": c.ForeColor = CLR_GREEN: c.FontBold = True
+
+    ' Bracketed sources: bare "Date"/"Group" would resolve to the VBA
+    ' function / reserved word instead of the tblcomments columns
+    Set c = CreateControl(nm, acTextBox, acDetail, "", "[Date]", _
+                          CLng(4.6 * T1), CLng(0.06 * T1), CLng(0.85 * T1), CLng(0.24 * T1))
+    StyleInput c: c.Name = "txtDate": c.Format = "mm/dd/yy"
+    Set c = CreateControl(nm, acComboBox, acDetail, "", "[Group]", _
+                          CLng(5.55 * T1), CLng(0.06 * T1), CLng(1.5 * T1), CLng(0.24 * T1))
+    c.Name = "cboGroup"
+    c.RowSourceType = "Table/Query"
+    c.RowSource = "SELECT GroupName FROM ztblCommentGroups " & _
+                  "WHERE GroupName<>'**Show All**' ORDER BY ReportPriority, GroupName;"
+    c.LimitToList = False
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
+    Set c = CreateControl(nm, acTextBox, acDetail, "", "AcctOfficer", _
+                          CLng(7.15 * T1), CLng(0.06 * T1), CLng(0.7 * T1), CLng(0.24 * T1))
+    StyleInput c: c.Name = "txtAcctOfficer"
+    Set c = CreateControl(nm, acTextBox, acDetail, "", "KeyProvision", _
+                          CLng(7.95 * T1), CLng(0.06 * T1), CLng(0.7 * T1), CLng(0.24 * T1))
+    StyleInput c: c.Name = "txtKeyProvision"
+    c.Locked = True: c.BackColor = CLR_READONLY: c.ForeColor = CLR_MUTED
+
+    Set c = CreateControl(nm, acTextBox, acDetail, "", "Comment", _
+                          CLng(0.1 * T1), CLng(0.36 * T1), CLng(11.7 * T1), CLng(0.68 * T1))
+    StyleInput c: c.Name = "txtComment": c.ScrollBars = 2
+    c.EnterKeyBehavior = True
+    SaveAs nm, "frmCommentsSub"
 End Sub
 
 ' ================= FORM: LOAN DETAIL (dark popup) ====================
@@ -352,14 +533,21 @@ Private Sub BuildFrmLoanDetail()
     DarkBoxL frm, "nextchangedt", "Change Dt", 6.8, y, 1.25, False, "mm/dd/yy"
 
     y = 0.25
-    DarkBoxL frm, "RateType", "Rate Type", 9.8, y, 1.25: y = y + 0.42
+    ' Production value lists (recovered verbatim - GAP-PLAN B5)
+    DarkComboL frm, "RateType", "Rate Type", 9.8, y, 1.25, _
+               "Value List", """Variable"";""Fixed""": y = y + 0.42
     DarkBoxL frm, "index", "Index", 9.8, y, 1.25: y = y + 0.42
     DarkBoxL frm, "margin", "Margin", 9.8, y, 1.25, False, "0.00%": y = y + 0.42
     DarkBoxL frm, "floor", "Floor", 9.8, y, 1.25, False, "0.00%": y = y + 0.42
     DarkBoxL frm, "ceiling", "Ceiling", 9.8, y, 1.25, False, "0.00%": y = y + 0.42
     DarkBoxL frm, "changefreq", "Change Freq", 9.8, y, 1.25: y = y + 0.42
-    DarkBoxL frm, "AssetType", "Asset Type", 9.8, y, 1.25: y = y + 0.42
-    DarkBoxL frm, "[Unfunded Commitment]", "Unfunded", 9.8, y, 1.25
+    DarkComboL frm, "AssetType", "Asset Type", 9.8, y, 1.25, _
+               "Value List", """No Default"";""Payment Default"";""Technical Default""": y = y + 0.42
+    DarkBoxL frm, "[Unfunded Commitment]", "Unfunded", 9.8, y, 1.25: y = y + 0.42
+    DarkComboL frm, "CFLikelyhood", "CF Likelihood", 9.8, y, 1.25, _
+               "Value List", _
+               "2;""Very Optimistic"";1;""Optimistic"";0;""Neutral"";-1;""Pessimistic"";-2;""Very Pessimistic""", _
+               2, "360;1080"
 
     SaveAs nm, "frmLoanDetail"
 End Sub
@@ -378,7 +566,10 @@ Private Sub BuildFrmCollateralDetail()
 
     Dim y As Single: y = 0.25
     DarkBoxL frm, "MWPropertyNo", "Property No", 0.2, y, 1.7, True: y = y + 0.42
-    DarkBoxL frm, "MWCollateralCode", "Code", 0.2, y, 1.7: y = y + 0.42
+    ' Production combo: code + class from zCollateralCodes (widths verbatim)
+    DarkComboL frm, "MWCollateralCode", "Code", 0.2, y, 1.7, _
+               "Table/Query", "SELECT Code, Class FROM zCollateralCodes ORDER BY Class;", _
+               2, "2016;864": y = y + 0.42
     DarkBoxL frm, "Description", "Description", 0.2, y, 1.7: y = y + 0.42
     DarkBoxL frm, "OwnerName", "Owner", 0.2, y, 1.7: y = y + 0.42
     DarkBoxL frm, "Address", "Address", 0.2, y, 1.7: y = y + 0.42
@@ -409,7 +600,8 @@ Private Sub BuildFrmCollateralDetail()
     DarkBoxL frm, "SellerAppraisedValue", "Seller Value", 7.1, y, 1.3, False, "$#,##0": y = y + 0.42
     DarkBoxL frm, "PossibleEnvironmental", "Environmental", 7.1, y, 0.3: y = y + 0.42
     DarkBoxL frm, "IsFloodZone", "Flood Zone", 7.1, y, 0.3: y = y + 0.42
-    DarkBoxL frm, "RealEstateGroup", "Group", 7.1, y, 1.3: y = y + 0.42
+    DarkComboL frm, "RealEstateGroup", "Group", 7.1, y, 1.3, _
+               "Value List", """Commercial"";""Residential"";""Unknown""": y = y + 0.42
     DarkBoxL frm, "TaxWebCard", "Tax Card", 7.1, y, 1.3
 
     AddThemedLabel frm, "Prop Detail", 0.2, 5.25, CLR_MUTED, 8
@@ -465,7 +657,17 @@ Private Sub BuildFrmWorkbench()
     AddThemedLabel frm, "Project", 4.1, 0.78, CLR_MUTED, 9
     DarkBox frm, "ProjectName", 4.7, 0.76, 1.7, True
     AddThemedLabel frm, "Exit Code", 6.6, 0.78, CLR_MUTED, 9
-    DarkBox frm, "ExitCode", 7.35, 0.76, 1.2
+    ' Production combo: the 11 zExitCodes values, rowguid order (verbatim)
+    Set cbo = CreateControl(nm, acComboBox, acDetail, "", "ExitCode", _
+                            CLng(7.35 * T1), CLng(0.76 * T1), CLng(1.2 * T1), CLng(0.24 * T1))
+    cbo.Name = "ExitCode"
+    cbo.RowSourceType = "Table/Query"
+    cbo.RowSource = "SELECT ExitCode FROM zExitCodes ORDER BY rowguid;"
+    cbo.LimitToList = False
+    On Error Resume Next
+    cbo.BackColor = CLR_INPUT: cbo.ForeColor = CLR_TEXT
+    cbo.BorderColor = CLR_INBORDER: cbo.FontName = FONT: cbo.FontSize = 9
+    On Error GoTo 0
     Set c = CreateControl(nm, acCommandButton, acDetail, "", "", _
                           CLng(10.7 * T1), CLng(0.74 * T1), CLng(1.75 * T1), CLng(0.28 * T1))
     c.Name = "btnBrowse": c.Caption = "Browse Relationships"
@@ -530,17 +732,58 @@ Private Sub BuildFrmWorkbench()
     Set c = CreateControl(nm, acSubform, acDetail, "pgObligor", "", _
                           CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
     c.Name = "subBorrowers": c.SourceObject = "Table.tblBorrowers"
+    ' Comment page: the production comment center (GAP-PLAN B3) -
+    ' category filter (default **Show All**, a real ztblCommentGroups
+    ' row), 150-char preview list, editor subform, and the two New
+    ' buttons that run the keys-only INSERT write path (C.1)
+    AddPageLabel frm, "pgComment", "Comment Category:", 0.3, PY
+    Set c = CreateControl(nm, acComboBox, acDetail, "pgComment", "", _
+                          CLng(1.75 * T1), CLng((PY - 0.02) * T1), CLng(1.6 * T1), CLng(0.26 * T1))
+    c.Name = "CommentFilter"
+    c.RowSourceType = "Table/Query"
+    c.RowSource = "SELECT GroupName FROM ztblCommentGroups ORDER BY ReportPriority, GroupName;"
+    c.LimitToList = False
+    c.DefaultValue = "=""**Show All**"""
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
+    Set c = CreateControl(nm, acCommandButton, acDetail, "pgComment", "", _
+                          CLng(9.05 * T1), CLng((PY - 0.02) * T1), CLng(1.6 * T1), CLng(0.28 * T1))
+    c.Name = "cmdNewComment": c.Caption = "New Loan Comment"
+    DarkButton c
+    Set c = CreateControl(nm, acCommandButton, acDetail, "pgComment", "", _
+                          CLng(10.75 * T1), CLng((PY - 0.02) * T1), CLng(1.55 * T1), CLng(0.28 * T1))
+    c.Name = "cmdNewRelComment": c.Caption = "New Rel Comment"
+    DarkButton c
+    Set c = CreateControl(nm, acListBox, acDetail, "pgComment", "", _
+                          CLng(0.3 * T1), CLng((PY + 0.32) * T1), CLng(12# * T1), CLng(1.15 * T1))
+    c.Name = "lstComments"
+    c.RowSourceType = "Table/Query"
+    c.RowSource = "SELECT 'nothing' as field1"
+    c.ColumnCount = 4
+    c.BoundColumn = 1
+    c.ColumnWidths = "0;720;1080;9600"
+    c.ColumnHeads = True
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
     Set c = CreateControl(nm, acSubform, acDetail, "pgComment", "", _
-                          CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
-    c.Name = "subComments": c.SourceObject = "Table.tblcomments"
+                          CLng(0.3 * T1), CLng((PY + 1.55) * T1), CLng(12# * T1), CLng(2.3 * T1))
+    c.Name = "subComments": c.SourceObject = "frmCommentsSub"
     ' Production's server-side year x 12 payment pivot
     Set c = CreateControl(nm, acSubform, acDetail, "pgPayHist", "", _
                           CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
     c.Name = "subPayHist": c.SourceObject = "Table.vwPayHistorySpread"
 
-    ' Collateral page
+    ' Collateral page + Add Collateral write path (GAP-PLAN B6 / C.2)
+    Set c = CreateControl(nm, acCommandButton, acDetail, "pgCollateral", "", _
+                          CLng(10.85 * T1), CLng((PY - 0.02) * T1), CLng(1.45 * T1), CLng(0.28 * T1))
+    c.Name = "cmdAddCollateral": c.Caption = "Add Collateral"
+    DarkButton c
     Set c = CreateControl(nm, acSubform, acDetail, "pgCollateral", "", _
-                          CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
+                          CLng(0.3 * T1), CLng((PY + 0.3) * T1), CLng(12# * T1), CLng((PH - 0.35) * T1))
     c.Name = "subCollateral": c.SourceObject = "frmCollateralGrid"
 
     ' Tasks page
@@ -589,16 +832,46 @@ Private Sub BuildFrmWorkbench()
                           CLng(0.3 * T1), CLng((PY + 3.05) * T1), CLng(12# * T1), CLng(0.6 * T1))
     StyleInput c: c.Name = "Original_Strategy": c.ScrollBars = 2
 
-    ' BPOTitleUCC page: real BPO orders (workflow states from tblBPO)
-    ' + title orders below, per the production qryAdminBPO-* family
-    AddPageLabel frm, "pgBPOTitleUCC", "BPO Orders (status workflow)", 0.3, PY
-    Set c = CreateControl(nm, acSubform, acDetail, "pgBPOTitleUCC", "", _
-                          CLng(0.3 * T1), CLng((PY + 0.24) * T1), CLng(12# * T1), CLng(1.7 * T1))
-    c.Name = "subBPO": c.SourceObject = "Table.tblBPO"
-    AddPageLabel frm, "pgBPOTitleUCC", "Title Orders", 0.3, PY + 2.05
-    Set c = CreateControl(nm, acSubform, acDetail, "pgBPOTitleUCC", "", _
-                          CLng(0.3 * T1), CLng((PY + 2.29) * T1), CLng(12# * T1), CLng(1.55 * T1))
-    c.Name = "subTitle": c.SourceObject = "Table.tblTitle"
+    ' BPOTitleUCC page (GAP-PLAN B4): production listboxes with the
+    ' design-time 'nothing' placeholder (runtime SQL set in Current),
+    ' plus the Order BPO / Order Title write paths (C.3 / C.4)
+    AddPageLabel frm, "pgBPOTitleUCC", _
+        "BPO Orders (First/Second/Third slots - 3 max per property)", 0.3, PY
+    Set c = CreateControl(nm, acCommandButton, acDetail, "pgBPOTitleUCC", "", _
+                          CLng(9.35 * T1), CLng((PY - 0.02) * T1), CLng(1.4 * T1), CLng(0.28 * T1))
+    c.Name = "cmdOrderBPO": c.Caption = "Order BPO"
+    DarkButton c
+    Set c = CreateControl(nm, acCommandButton, acDetail, "pgBPOTitleUCC", "", _
+                          CLng(10.9 * T1), CLng((PY - 0.02) * T1), CLng(1.4 * T1), CLng(0.28 * T1))
+    c.Name = "cmdOrderTitle": c.Caption = "Order Title"
+    DarkButton c
+    Set c = CreateControl(nm, acListBox, acDetail, "pgBPOTitleUCC", "", _
+                          CLng(0.3 * T1), CLng((PY + 0.3) * T1), CLng(12# * T1), CLng(1.55 * T1))
+    c.Name = "lstBPOs"
+    c.RowSourceType = "Table/Query"
+    c.RowSource = "SELECT 'nothing' as field1"
+    c.ColumnCount = 6
+    c.BoundColumn = 1
+    c.ColumnWidths = "1000;900;1000;1000;1600;1100"
+    c.ColumnHeads = True
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
+    AddPageLabel frm, "pgBPOTitleUCC", "Title Orders", 0.3, PY + 1.95
+    Set c = CreateControl(nm, acListBox, acDetail, "pgBPOTitleUCC", "", _
+                          CLng(0.3 * T1), CLng((PY + 2.22) * T1), CLng(12# * T1), CLng(1.6 * T1))
+    c.Name = "lstTitles"
+    c.RowSourceType = "Table/Query"
+    c.RowSource = "SELECT 'nothing' as field1"
+    c.ColumnCount = 5
+    c.BoundColumn = 1
+    c.ColumnWidths = "1000;1100;1100;1000;1600"
+    c.ColumnHeads = True
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
 
     ' Placeholder pages (mirrors the React "Coming soon" default case)
     AddPageLabel frm, "pgFinStmts", "FinStmts tab content - Coming soon", 4.5, PY + 1.5
@@ -606,11 +879,40 @@ Private Sub BuildFrmWorkbench()
     AddPageLabel frm, "pgProperty", "Property tab content - Coming soon", 4.5, PY + 1.5
     AddPageLabel frm, "pgReport", "Investor reports live in the React app", 4.3, PY + 1.5
 
-    ' Button + combo + subform wiring
-    Dim mdl As Module, ln As Long
+    ' --- "Items Currently Activated" state footer (GAP-PLAN B9) ---
+    ' Production frmLoanView's unbound current-record state machine:
+    ' every guard and write path reads these. Fed by the loan and
+    ' collateral grids' Current events.
+    AddThemedLabel frm, "Items Currently Activated:", 0.15, 7.88, CLR_MUTED, 8
+    AddThemedLabel frm, "Loan", 2.05, 7.88, CLR_MUTED, 8
+    Set c = CreateControl(nm, acTextBox, acDetail, "", "", _
+                          CLng(2.5 * T1), CLng(7.85 * T1), CLng(1.5 * T1), CLng(0.24 * T1))
+    StyleInput c: c.Name = "txtActiveLoan"
+    c.Locked = True: c.TabStop = False: c.BackColor = CLR_READONLY: c.ForeColor = CLR_GREEN
+    AddThemedLabel frm, "Prop No", 4.2, 7.88, CLR_MUTED, 8
+    Set c = CreateControl(nm, acTextBox, acDetail, "", "", _
+                          CLng(4.9 * T1), CLng(7.85 * T1), CLng(0.9 * T1), CLng(0.24 * T1))
+    StyleInput c: c.Name = "txtActivePropNo"
+    c.Locked = True: c.TabStop = False: c.BackColor = CLR_READONLY: c.ForeColor = CLR_GREEN
+    AddThemedLabel frm, "Priority", 5.95, 7.88, CLR_MUTED, 8
+    Set c = CreateControl(nm, acTextBox, acDetail, "", "", _
+                          CLng(6.6 * T1), CLng(7.85 * T1), CLng(0.5 * T1), CLng(0.24 * T1))
+    StyleInput c: c.Name = "txtActivePriority"
+    c.Locked = True: c.TabStop = False: c.BackColor = CLR_READONLY: c.ForeColor = CLR_GREEN
+
+    ' Button + combo + subform wiring. Constraint 3: every control has
+    ' its final name by now; set the property, then create the proc.
+    Dim mdl As Module, ln As Long, code As String
     frm!btnBrowse.OnClick = "[Event Procedure]"
     frm!cboRelationship.AfterUpdate = "[Event Procedure]"
     frm.OnCurrent = "[Event Procedure]"
+    frm!CommentFilter.AfterUpdate = "[Event Procedure]"
+    frm!lstComments.AfterUpdate = "[Event Procedure]"
+    frm!cmdNewComment.OnClick = "[Event Procedure]"
+    frm!cmdNewRelComment.OnClick = "[Event Procedure]"
+    frm!cmdAddCollateral.OnClick = "[Event Procedure]"
+    frm!cmdOrderBPO.OnClick = "[Event Procedure]"
+    frm!cmdOrderTitle.OnClick = "[Event Procedure]"
     Set mdl = frm.Module
     ln = mdl.CreateEventProc("Click", "btnBrowse")
     mdl.InsertLines ln + 1, "    DoCmd.OpenForm ""frmBrowser"""
@@ -618,7 +920,12 @@ Private Sub BuildFrmWorkbench()
     mdl.InsertLines ln + 1, _
         "    Me.Recordset.FindFirst ""RelatedLoans='"" & Replace(Me!cboRelationship, ""'"", ""''"") & ""'"""
     ln = mdl.CreateEventProc("Current", "Form")
-    mdl.InsertLines ln + 1, "    Me!cboRelationship = Me!RelatedLoans" & vbCrLf & "    OvLayout"
+    code = "    On Error Resume Next" & vbCrLf
+    code = code & "    Me!cboRelationship = Me!RelatedLoans" & vbCrLf
+    code = code & "    OvLayout" & vbCrLf
+    code = code & "    RefreshComments" & vbCrLf
+    code = code & "    RefreshBPOTitle"
+    mdl.InsertLines ln + 1, code
     ln = mdl.CreateEventProc("Change", "RelationshipOverview")
     mdl.InsertLines ln + 1, "    OvLayout"
     ln = mdl.CreateEventProc("Change", "CollateralOverview")
@@ -630,10 +937,139 @@ Private Sub BuildFrmWorkbench()
     frm!CollateralOverview.OnChange = "[Event Procedure]"
     frm!ConditionsDeadlines.OnChange = "[Event Procedure]"
 
+    ' Comment filter re-sorts the preview list (production: filtered
+    ' view orders by Group, KeyProvision instead of Date DESC)
+    ln = mdl.CreateEventProc("AfterUpdate", "CommentFilter")
+    mdl.InsertLines ln + 1, "    RefreshComments"
+    ' Preview list click -> focus that comment in the editor
+    ln = mdl.CreateEventProc("AfterUpdate", "lstComments")
+    code = "    On Error Resume Next" & vbCrLf
+    code = code & "    Me!subComments.Form.Recordset.FindFirst ""KeyProvision="" & Me!lstComments"
+    mdl.InsertLines ln + 1, code
+
+    ' --- Write path C.1: New Loan Comment (keys-only INSERT, then
+    ' Max(KeyProvision) re-find - the production add-comment protocol) ---
+    ln = mdl.CreateEventProc("Click", "cmdNewComment")
+    code = "    Dim sql As String, k As Variant, g As String" & vbCrLf
+    code = code & "    If Len(Nz(Me!txtActiveLoan, """")) = 0 Then" & vbCrLf
+    code = code & "        MsgBox ""You must first activate a Relationship and LoanNo before entering a Comment.""" & vbCrLf
+    code = code & "        Exit Sub" & vbCrLf
+    code = code & "    End If" & vbCrLf
+    code = code & "    g = Nz(Me!CommentFilter, ""**Show All**"")" & vbCrLf
+    code = code & "    If g = ""**Show All**"" Then g = """"" & vbCrLf
+    code = code & "    sql = ""INSERT INTO tblcomments (MWLoanNo, ProjectName, RelatedLoans, [Date], AcctOfficer, [Group]) VALUES (""" & vbCrLf
+    code = code & "    sql = sql & ""'"" & Q(Me!txtActiveLoan) & ""','"" & Q(Me!ProjectName) & ""','"" & Q(Me!RelatedLoans) & ""',Date(),'"" & Q(CurUser()) & ""',""" & vbCrLf
+    code = code & "    If Len(g) = 0 Then" & vbCrLf
+    code = code & "        sql = sql & ""Null)""" & vbCrLf
+    code = code & "    Else" & vbCrLf
+    code = code & "        sql = sql & ""'"" & Q(g) & ""')""" & vbCrLf
+    code = code & "    End If" & vbCrLf
+    code = code & "    CurrentDb.Execute sql, dbFailOnError" & vbCrLf
+    code = code & "    RefreshComments" & vbCrLf
+    code = code & "    Me!subComments.Requery" & vbCrLf
+    code = code & "    k = DMax(""KeyProvision"", ""tblcomments"", ""ProjectName='"" & Q(Me!ProjectName) & ""' AND RelatedLoans='"" & Q(Me!RelatedLoans) & ""'"")" & vbCrLf
+    code = code & "    On Error Resume Next" & vbCrLf
+    code = code & "    If Not IsNull(k) Then Me!subComments.Form.Recordset.FindFirst ""KeyProvision="" & k"
+    mdl.InsertLines ln + 1, code
+
+    ' --- Write path C.1b: relationship-level comment - the sentinel
+    ' convention: MWLoanNo = RelatedLoans ---
+    ln = mdl.CreateEventProc("Click", "cmdNewRelComment")
+    code = "    Dim sql As String, k As Variant" & vbCrLf
+    code = code & "    If Len(Nz(Me!RelatedLoans, """")) = 0 Then" & vbCrLf
+    code = code & "        MsgBox ""You must first activate a Relationship before entering a Comment.""" & vbCrLf
+    code = code & "        Exit Sub" & vbCrLf
+    code = code & "    End If" & vbCrLf
+    code = code & "    sql = ""INSERT INTO tblcomments (MWLoanNo, ProjectName, RelatedLoans, [Date], AcctOfficer) VALUES (""" & vbCrLf
+    code = code & "    sql = sql & ""'"" & Q(Me!RelatedLoans) & ""','"" & Q(Me!ProjectName) & ""','"" & Q(Me!RelatedLoans) & ""',Date(),'"" & Q(CurUser()) & ""')""" & vbCrLf
+    code = code & "    CurrentDb.Execute sql, dbFailOnError" & vbCrLf
+    code = code & "    RefreshComments" & vbCrLf
+    code = code & "    Me!subComments.Requery" & vbCrLf
+    code = code & "    k = DMax(""KeyProvision"", ""tblcomments"", ""ProjectName='"" & Q(Me!ProjectName) & ""' AND RelatedLoans='"" & Q(Me!RelatedLoans) & ""'"")" & vbCrLf
+    code = code & "    On Error Resume Next" & vbCrLf
+    code = code & "    If Not IsNull(k) Then Me!subComments.Form.Recordset.FindFirst ""KeyProvision="" & k"
+    mdl.InsertLines ln + 1, code
+
+    ' --- Write path C.2: Add Collateral (Max(Priority)+1 mint,
+    ' '**ADDED**' group, typed-yes confirm - production protocol) ---
+    ln = mdl.CreateEventProc("Click", "cmdAddCollateral")
+    code = "    Dim ans As String, isRE As String, pri As Long, sql As String, borr As String" & vbCrLf
+    code = code & "    If Len(Nz(Me!RelatedLoans, """")) = 0 Then" & vbCrLf
+    code = code & "        MsgBox ""Activate a relationship first.""" & vbCrLf
+    code = code & "        Exit Sub" & vbCrLf
+    code = code & "    End If" & vbCrLf
+    code = code & "    ans = InputBox(""Add a collateral record to "" & Me!RelatedLoans & ""?  Type yes to continue."", ""Add Collateral"")" & vbCrLf
+    code = code & "    If LCase(Trim(ans)) <> ""yes"" Then Exit Sub" & vbCrLf
+    code = code & "    isRE = InputBox(""Is the new collateral Real Estate?  Type yes for Real Estate; anything else for Non-RE."", ""Add Collateral"")" & vbCrLf
+    code = code & "    pri = Nz(DMax(""Priority"", ""CollateralInfo"", ""RelatedLoans='"" & Q(Me!RelatedLoans) & ""' AND ProjectName='"" & Q(Me!ProjectName) & ""'""), 0) + 1" & vbCrLf
+    code = code & "    borr = Nz(DLookup(""BorrowerNm"", ""tblLoan"", ""MWLoanNo='"" & Q(Me!txtActiveLoan) & ""'""), """")" & vbCrLf
+    code = code & "    sql = ""INSERT INTO CollateralInfo (RelatedLoans, Priority, ProjectName, BorrowerName, IsRealEstate, RealEstateGroup) VALUES (""" & vbCrLf
+    code = code & "    sql = sql & ""'"" & Q(Me!RelatedLoans) & ""',"" & pri & "",'"" & Q(Me!ProjectName) & ""','"" & Q(borr) & ""',"" & IIf(LCase(Trim(isRE)) = ""yes"", ""True"", ""False"") & "",'**ADDED**')""" & vbCrLf
+    code = code & "    CurrentDb.Execute sql, dbFailOnError" & vbCrLf
+    code = code & "    Me!subCollateral.Requery" & vbCrLf
+    code = code & "    MsgBox ""Collateral record added with Priority "" & pri & ""."" & vbCrLf & ""REMINDER - Please insert collateral codes."""
+    mdl.InsertLines ln + 1, code
+
+    ' --- Write path C.3: Order BPO (sentinel date #9/9/1999,
+    ' First/Second/Third slot machine, 3-order cap, 7 field guards) ---
+    ln = mdl.CreateEventProc("Click", "cmdOrderBPO")
+    code = "    Dim n As Long, slot As String, ans As String, sql As String, prop As Variant" & vbCrLf
+    code = code & "    prop = Me!txtActivePropNo" & vbCrLf
+    code = code & "    If Len(Nz(prop, """")) = 0 Then" & vbCrLf
+    code = code & "        MsgBox ""Activate a collateral row first (click it in the Collateral grid).""" & vbCrLf
+    code = code & "        Exit Sub" & vbCrLf
+    code = code & "    End If" & vbCrLf
+    code = code & "    If MissingColl(""a BPO"") Then Exit Sub" & vbCrLf
+    code = code & "    n = DCount(""*"", ""tblBPO"", ""MWPropertyNo="" & prop & "" AND Status<>'Canceled' AND Status<>'DELETED'"")" & vbCrLf
+    code = code & "    If n >= 3 Then" & vbCrLf
+    code = code & "        MsgBox ""Three BPOs are already on order. No additional orders are allowed for this property.""" & vbCrLf
+    code = code & "        Exit Sub" & vbCrLf
+    code = code & "    End If" & vbCrLf
+    code = code & "    If DCount(""*"", ""tblBPO"", ""MWPropertyNo="" & prop & "" AND BPOBroker='First' AND Status<>'Canceled' AND Status<>'DELETED'"") = 0 Then" & vbCrLf
+    code = code & "        slot = ""First""" & vbCrLf
+    code = code & "    ElseIf DCount(""*"", ""tblBPO"", ""MWPropertyNo="" & prop & "" AND BPOBroker='Second' AND Status<>'Canceled' AND Status<>'DELETED'"") = 0 Then" & vbCrLf
+    code = code & "        slot = ""Second""" & vbCrLf
+    code = code & "    Else" & vbCrLf
+    code = code & "        slot = ""Third""" & vbCrLf
+    code = code & "    End If" & vbCrLf
+    code = code & "    If n = 0 Then" & vbCrLf
+    code = code & "        ans = InputBox(""Are you sure you want to order this BPO?  Type yes to continue."", ""Order BPO"")" & vbCrLf
+    code = code & "    Else" & vbCrLf
+    code = code & "        ans = InputBox(""Are you sure you want to order this BPO, causing a total of "" & (n + 1) & "" BPOs to be ordered for this property?  Type yes to continue."", ""Order BPO"")" & vbCrLf
+    code = code & "    End If" & vbCrLf
+    code = code & "    If LCase(Trim(ans)) <> ""yes"" Then Exit Sub" & vbCrLf
+    code = code & "    sql = ""INSERT INTO tblBPO (RelatedLoans, Priority, ProjectName, BPODate, BPOBroker, MWPropertyNo, Status, BPOProvider) VALUES (""" & vbCrLf
+    code = code & "    sql = sql & ""'"" & Q(Me!RelatedLoans) & ""',"" & Nz(Me!txtActivePriority, 0) & "",'"" & Q(Me!ProjectName) & ""',#09/09/1999#,'"" & slot & ""',"" & prop & "",'Pending','LO-BPO')""" & vbCrLf
+    code = code & "    CurrentDb.Execute sql, dbFailOnError" & vbCrLf
+    code = code & "    RefreshBPOTitle" & vbCrLf
+    code = code & "    MsgBox ""Your order has been placed."""
+    mdl.InsertLines ln + 1, code
+
+    ' --- Write path C.4: Order Title ('MWTitle'/'LO-Title' pending) ---
+    ln = mdl.CreateEventProc("Click", "cmdOrderTitle")
+    code = "    Dim ans As String, sql As String, prop As Variant" & vbCrLf
+    code = code & "    prop = Me!txtActivePropNo" & vbCrLf
+    code = code & "    If Len(Nz(prop, """")) = 0 Then" & vbCrLf
+    code = code & "        MsgBox ""Activate a collateral row first (click it in the Collateral grid).""" & vbCrLf
+    code = code & "        Exit Sub" & vbCrLf
+    code = code & "    End If" & vbCrLf
+    code = code & "    If MissingColl(""Title"") Then Exit Sub" & vbCrLf
+    code = code & "    If DCount(""*"", ""tblTitle"", ""MWPropertyNo="" & prop & "" AND Source='MWTitle' AND Status='Pending'"") > 0 Then" & vbCrLf
+    code = code & "        MsgBox ""A Midwest title order is already pending for this property.""" & vbCrLf
+    code = code & "        Exit Sub" & vbCrLf
+    code = code & "    End If" & vbCrLf
+    code = code & "    ans = InputBox(""Are you sure you want to order Title for property "" & prop & ""?  Type yes to continue."", ""Order Title"")" & vbCrLf
+    code = code & "    If LCase(Trim(ans)) <> ""yes"" Then Exit Sub" & vbCrLf
+    code = code & "    sql = ""INSERT INTO tblTitle (ProjectName, MWPropertyNo, RelatedLoans, Priority, SourceDate, Source, Status, TitleVendor) VALUES (""" & vbCrLf
+    code = code & "    sql = sql & ""'"" & Q(Me!ProjectName) & ""',"" & prop & "",'"" & Q(Me!RelatedLoans) & ""',"" & Nz(Me!txtActivePriority, 0) & "",#09/09/1999#,'MWTitle','Pending','LO-Title')""" & vbCrLf
+    code = code & "    CurrentDb.Execute sql, dbFailOnError" & vbCrLf
+    code = code & "    RefreshBPOTitle" & vbCrLf
+    code = code & "    MsgBox ""Your order has been placed."""
+    mdl.InsertLines ln + 1, code
+
     ' Inject the auto-grow layout helpers at the end of the form module
-    ' Inject auto-grow helpers (one statement per line - VBA caps
-    ' line continuations at ~24 per statement)
-    Dim code As String
+    ' (one statement per line - VBA caps line continuations at ~24 per
+    ' statement; `code` was declared in the wiring block above)
     code = ""
     code = code & "Private Function OvGrow(s As String) As Long" & vbCrLf
     code = code & "    ' Estimate rendered lines: hard returns + word-wrap at ~95 chars" & vbCrLf
@@ -676,6 +1112,59 @@ Private Sub BuildFrmWorkbench()
     code = code & "End Sub" & vbCrLf
     mdl.InsertLines mdl.CountOfLines + 1, code
 
+    ' Inject the write-path helpers: quote escaper, session user,
+    ' the 7-field collateral guard chain, and the two runtime
+    ' listbox-SQL refreshers (production 'nothing'-placeholder pattern)
+    code = ""
+    code = code & "Private Function Q(v As Variant) As String" & vbCrLf
+    code = code & "    Q = Replace(Nz(v, """"), ""'"", ""''"")" & vbCrLf
+    code = code & "End Function" & vbCrLf
+    code = code & "" & vbCrLf
+    code = code & "Private Function CurUser() As String" & vbCrLf
+    code = code & "    CurUser = Nz(DLookup(""CurrentUser"", ""xtblLocalCurrentUser""), ""MW"")" & vbCrLf
+    code = code & "End Function" & vbCrLf
+    code = code & "" & vbCrLf
+    code = code & "Private Function MissingColl(pfx As String) As Boolean" & vbCrLf
+    code = code & "    ' Production guard chain: seven required collateral fields" & vbCrLf
+    code = code & "    Dim fds As Variant, caps As Variant, i As Integer, crit As String" & vbCrLf
+    code = code & "    fds = Array(""MWCollateralCode"", ""Address"", ""City"", ""State"", ""Zip"", ""County"", ""TaxParcelIDNO"")" & vbCrLf
+    code = code & "    caps = Array(""Collateral Code"", ""Address"", ""City Code"", ""State Code"", ""Zip Code"", ""County"", ""Parcel Number"")" & vbCrLf
+    code = code & "    crit = ""MWPropertyNo="" & Me!txtActivePropNo" & vbCrLf
+    code = code & "    For i = 0 To 6" & vbCrLf
+    code = code & "        If Len(Nz(DLookup(fds(i), ""CollateralInfo"", crit), """")) = 0 Then" & vbCrLf
+    code = code & "            MsgBox ""To order "" & pfx & "" you must complete the "" & caps(i) & "" on the Collateral Tab""" & vbCrLf
+    code = code & "            MissingColl = True" & vbCrLf
+    code = code & "            Exit Function" & vbCrLf
+    code = code & "        End If" & vbCrLf
+    code = code & "    Next i" & vbCrLf
+    code = code & "End Function" & vbCrLf
+    code = code & "" & vbCrLf
+    code = code & "Public Sub RefreshComments()" & vbCrLf
+    code = code & "    Dim s As String, g As String" & vbCrLf
+    code = code & "    On Error Resume Next" & vbCrLf
+    code = code & "    g = Nz(Me!CommentFilter, ""**Show All**"")" & vbCrLf
+    code = code & "    s = ""SELECT KeyProvision, Format([Date],'mm/dd/yy') AS Dt, [Group], Left([Comment],150) AS [Comment Detail] FROM tblcomments""" & vbCrLf
+    code = code & "    s = s & "" WHERE ProjectName='"" & Q(Me!ProjectName) & ""' AND RelatedLoans='"" & Q(Me!RelatedLoans) & ""'""" & vbCrLf
+    code = code & "    If g <> ""**Show All**"" And Len(g) > 0 Then" & vbCrLf
+    code = code & "        s = s & "" AND [Group]='"" & Q(g) & ""' ORDER BY [Group], KeyProvision""" & vbCrLf
+    code = code & "    Else" & vbCrLf
+    code = code & "        s = s & "" ORDER BY [Date] DESC""" & vbCrLf
+    code = code & "    End If" & vbCrLf
+    code = code & "    Me!lstComments.RowSource = s" & vbCrLf
+    code = code & "End Sub" & vbCrLf
+    code = code & "" & vbCrLf
+    code = code & "Public Sub RefreshBPOTitle()" & vbCrLf
+    code = code & "    Dim s As String" & vbCrLf
+    code = code & "    On Error Resume Next" & vbCrLf
+    code = code & "    s = ""SELECT MWPropertyNo, BPOBroker, Status, Format(BPODate,'mm/dd/yy') AS Ordered, BPOProvider, Format(SubjSalePrice,'$#,##0') AS SalePrice FROM tblBPO""" & vbCrLf
+    code = code & "    s = s & "" WHERE ProjectName='"" & Q(Me!ProjectName) & ""' AND RelatedLoans='"" & Q(Me!RelatedLoans) & ""' ORDER BY MWPropertyNo, BPOBroker""" & vbCrLf
+    code = code & "    Me!lstBPOs.RowSource = s" & vbCrLf
+    code = code & "    s = ""SELECT MWPropertyNo, Source, Status, Format(SourceDate,'mm/dd/yy') AS SrcDt, TitleVendor FROM tblTitle""" & vbCrLf
+    code = code & "    s = s & "" WHERE ProjectName='"" & Q(Me!ProjectName) & ""' AND RelatedLoans='"" & Q(Me!RelatedLoans) & ""' ORDER BY MWPropertyNo""" & vbCrLf
+    code = code & "    Me!lstTitles.RowSource = s" & vbCrLf
+    code = code & "End Sub" & vbCrLf
+    mdl.InsertLines mdl.CountOfLines + 1, code
+
     SaveAs nm, "frmWorkbench"
 
     DoCmd.OpenForm "frmWorkbench", acDesign
@@ -684,9 +1173,13 @@ Private Sub BuildFrmWorkbench()
     f!subLoanDetail.LinkMasterFields = "RelatedLoans": f!subLoanDetail.LinkChildFields = "RelatedLoans"
     f!subCollateral.LinkMasterFields = "RelatedLoans": f!subCollateral.LinkChildFields = "RelatedLoans"
     f!subTasks.LinkMasterFields = "RelatedLoans": f!subTasks.LinkChildFields = "RelatedLoans"
-    f!subBPO.LinkMasterFields = "RelatedLoans": f!subBPO.LinkChildFields = "RelatedLoans"
-    ' Borrower/Comment/PayHist datasheets stay unlinked until their
-    ' production schemas are confirmed (see INTERFACE-ALIGNMENT-PLAN Phase 4)
+    ' Comments editor: two-field link, exactly like production's
+    ' cFrmCommentsSub (ProjectName;RelatedLoans)
+    f!subComments.LinkMasterFields = "ProjectName;RelatedLoans"
+    f!subComments.LinkChildFields = "ProjectName;RelatedLoans"
+    ' Borrower/PayHist datasheets stay unlinked until their production
+    ' schemas are confirmed (see INTERFACE-ALIGNMENT-PLAN Phase 4);
+    ' the BPO/Title listboxes are filtered by runtime SQL instead.
     DoCmd.Close acForm, "frmWorkbench", acSaveYes
 End Sub
 
@@ -790,8 +1283,23 @@ Private Sub BuildFrmLogin()
     c.DefaultValue = "=DLookUp(""CurrentProject"",""xtblLocalCurrentProject"")"
     On Error GoTo 0
 
+    ' Initials picker (GAP-PLAN B14): the cheap half of production
+    ' auth - session initials drive AcctOfficer stamps and defaults
+    AddThemedLabel frm, "Initials", 0.4, 1.5, CLR_MUTED, 9
+    Set c = CreateControl(nm, acComboBox, acDetail, "", "", _
+                          CLng(0.4 * T1), CLng(1.72 * T1), CLng(1# * T1), CLng(0.26 * T1))
+    c.Name = "cboUser"
+    c.RowSourceType = "Table/Query"
+    c.RowSource = "SELECT Initials FROM ztblLogins ORDER BY Initials;"
+    c.LimitToList = False
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT
+    c.BorderColor = CLR_INBORDER: c.FontName = FONT: c.FontSize = 10
+    c.DefaultValue = "=DLookUp(""CurrentUser"",""xtblLocalCurrentUser"")"
+    On Error GoTo 0
+
     Set c = CreateControl(nm, acCommandButton, acDetail, "", "", _
-                          CLng(0.4 * T1), CLng(1.6 * T1), CLng(1.2 * T1), CLng(0.3 * T1))
+                          CLng(0.4 * T1), CLng(2.25 * T1), CLng(1.2 * T1), CLng(0.3 * T1))
     c.Name = "btnOpen": c.Caption = "Open"
     On Error Resume Next
     c.UseTheme = False: c.BackColor = CLR_GREEN5: c.ForeColor = CLR_TEXT
@@ -805,6 +1313,10 @@ Private Sub BuildFrmLogin()
     code = "    If IsNull(Me!cboProject) Then Exit Sub" & vbCrLf
     code = code & "    CurrentDb.Execute ""DELETE FROM xtblLocalCurrentProject""" & vbCrLf
     code = code & "    CurrentDb.Execute ""INSERT INTO xtblLocalCurrentProject (CurrentProject) VALUES ('"" & Replace(Me!cboProject, ""'"", ""''"") & ""')""" & vbCrLf
+    code = code & "    If Not IsNull(Me!cboUser) Then" & vbCrLf
+    code = code & "        CurrentDb.Execute ""DELETE FROM xtblLocalCurrentUser""" & vbCrLf
+    code = code & "        CurrentDb.Execute ""INSERT INTO xtblLocalCurrentUser (CurrentUser) VALUES ('"" & Replace(Me!cboUser, ""'"", ""''"") & ""')""" & vbCrLf
+    code = code & "    End If" & vbCrLf
     code = code & "    DoCmd.OpenForm ""frmBrowser""" & vbCrLf
     code = code & "    On Error Resume Next" & vbCrLf
     code = code & "    Forms(""frmBrowser"").Requery" & vbCrLf
@@ -916,6 +1428,36 @@ Private Sub DarkBoxL(frm As Form, src As String, cap As String, xIn As Single, _
                      Optional fmt As String = "")
     AddThemedLabel frm, cap, xIn, yIn + 0.01, CLR_MUTED, 8
     DarkBox frm, src, xIn + 1.15, yIn, wIn, lockIt, fmt
+End Sub
+
+' Label + bound combo (GAP-PLAN B5). Sets only properties that exist
+' on combos (constraint 4); cosmetic colors wrapped, never events.
+Private Sub DarkComboL(frm As Form, src As String, cap As String, xIn As Single, _
+                       yIn As Single, wIn As Single, rowType As String, _
+                       rowSrc As String, Optional colCount As Integer = 1, _
+                       Optional widths As String = "")
+    AddThemedLabel frm, cap, xIn, yIn + 0.01, CLR_MUTED, 8
+    Dim c As Control
+    Set c = CreateControl(frm.Name, acComboBox, acDetail, "", src, _
+                          CLng((xIn + 1.15) * T1), CLng(yIn * T1), CLng(wIn * T1), CLng(0.24 * T1))
+    c.Name = Replace(Replace(src, "[", ""), "]", "")
+    c.RowSourceType = rowType
+    c.RowSource = rowSrc
+    c.ColumnCount = colCount
+    c.BoundColumn = 1
+    If Len(widths) > 0 Then c.ColumnWidths = widths
+    c.LimitToList = False
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.SpecialEffect = 0: c.FontName = FONT: c.FontSize = 9
+    On Error GoTo 0
+End Sub
+
+Private Sub DarkButton(c As Control)
+    On Error Resume Next
+    c.UseTheme = False: c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXTSEC
+    c.BorderColor = CLR_INBORDER: c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
 End Sub
 
 Private Sub AddThemedLabel(frm As Form, cap As String, xIn As Single, yIn As Single, _
