@@ -1165,9 +1165,38 @@ Private Sub BuildFrmWorkbench()
     Set c = CreateControl(nm, acSubform, acDetail, "pgComment", "", _
                           CLng(0.3 * T1), CLng((PY + 1.55) * T1), CLng(12# * T1), CLng(2.3 * T1))
     c.Name = "subComments": c.SourceObject = "frmCommentsSub"
-    ' Production's server-side year x 12 payment pivot
+    ' PayHist page: the Bid_Project workbook's payment statistics panel
+    ' (per-loan PMT / Int PMT / Trailing 3-6-12-24 with the Trail
+    ' Selection transforms) above production's year x 12 payment pivot.
+    AddPageLabel frm, "pgPayHist", "Trail Selection:", 0.3, PY
+    Set c = CreateControl(nm, acComboBox, acDetail, "pgPayHist", "", _
+                          CLng(1.45 * T1), CLng((PY - 0.02) * T1), CLng(1.6 * T1), CLng(0.26 * T1))
+    c.Name = "cboTrailSel"
+    c.RowSourceType = "Value List"
+    c.RowSource = """Actual"";""monthly"";""yearly"";""% of Contractual"";""% of Int PMT"";""# of PMT's Made"";""# of Int Pmt's Made"""
+    c.LimitToList = True
+    c.DefaultValue = "=""# of PMT's Made"""
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
+    AddPageLabel frm, "pgPayHist", "(trailing windows anchor to each loan's LastImport)", 3.25, PY
+    Set c = CreateControl(nm, acListBox, acDetail, "pgPayHist", "", _
+                          CLng(0.3 * T1), CLng((PY + 0.3) * T1), CLng(12# * T1), CLng(1.35 * T1))
+    c.Name = "lstPayStats"
+    c.RowSourceType = "Value List"
+    c.RowSource = "Loan No;PMT;Int PMT;Trail 3;Trail 6;Trail 12;Trail 24"
+    c.ColumnCount = 7
+    c.BoundColumn = 1
+    c.ColumnWidths = "1500;1000;1000;950;950;950;950"
+    c.ColumnHeads = True
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
+    AddPageLabel frm, "pgPayHist", "Payment History (year x month pivot)", 0.3, PY + 1.75
     Set c = CreateControl(nm, acSubform, acDetail, "pgPayHist", "", _
-                          CLng(0.3 * T1), CLng(PY * T1), CLng(12# * T1), CLng(PH * T1))
+                          CLng(0.3 * T1), CLng((PY + 2#) * T1), CLng(12# * T1), CLng((PH - 2.05) * T1))
     c.Name = "subPayHist": c.SourceObject = "Table.vwPayHistorySpread"
 
     ' Collateral page + Add Collateral write path (GAP-PLAN B6 / C.2)
@@ -1326,6 +1355,7 @@ Private Sub BuildFrmWorkbench()
     frm!cmdOrderTitle.OnClick = "[Event Procedure]"
     frm!cmdProjNormal.OnClick = "[Event Procedure]"
     frm!cmdProjModern.OnClick = "[Event Procedure]"
+    frm!cboTrailSel.AfterUpdate = "[Event Procedure]"
     Set mdl = frm.Module
     ln = mdl.CreateEventProc("Click", "btnBrowse")
     mdl.InsertLines ln + 1, "    DoCmd.OpenForm ""frmBrowser"""
@@ -1338,6 +1368,7 @@ Private Sub BuildFrmWorkbench()
     code = code & "    OvLayout" & vbCrLf
     code = code & "    RefreshComments" & vbCrLf
     code = code & "    RefreshBPOTitle" & vbCrLf
+    code = code & "    RefreshPayStats" & vbCrLf
     code = code & "    If Me!subProjModern.Visible Then Me!subProjModern.Form.SyncRecalc"
     mdl.InsertLines ln + 1, code
     ln = mdl.CreateEventProc("Change", "RelationshipOverview")
@@ -1355,6 +1386,9 @@ Private Sub BuildFrmWorkbench()
     ' view orders by Group, KeyProvision instead of Date DESC)
     ln = mdl.CreateEventProc("AfterUpdate", "CommentFilter")
     mdl.InsertLines ln + 1, "    RefreshComments"
+    ' Trail-selection switch recomputes the payment statistics
+    ln = mdl.CreateEventProc("AfterUpdate", "cboTrailSel")
+    mdl.InsertLines ln + 1, "    RefreshPayStats"
     ' Preview list click -> focus that comment in the editor
     ln = mdl.CreateEventProc("AfterUpdate", "lstComments")
     code = "    On Error Resume Next" & vbCrLf
@@ -1590,6 +1624,54 @@ Private Sub BuildFrmWorkbench()
     code = code & "    s = s & "" WHERE ProjectName='"" & Q(Me!ProjectName) & ""' AND RelatedLoans='"" & Q(Me!RelatedLoans) & ""' ORDER BY MWPropertyNo""" & vbCrLf
     code = code & "    Me!lstTitles.RowSource = s" & vbCrLf
     code = code & "End Sub" & vbCrLf
+    code = code & "" & vbCrLf
+    code = code & "Private Function TrailStat(lnq As String, anchor As Date, n As Long, sel As String, cpmt As Double, ipmt As Double) As String" & vbCrLf
+    code = code & "    ' Trailing-N payment window over tblPayHistory's pd key" & vbCrLf
+    code = code & "    ' (Year*100+Month), transformed per the workbook's Trail Selection" & vbCrLf
+    code = code & "    Dim lo As Long, hi As Long, s As Double, d As Date" & vbCrLf
+    code = code & "    hi = Year(anchor) * 100 + Month(anchor)" & vbCrLf
+    code = code & "    d = DateAdd(""m"", -(n - 1), anchor)" & vbCrLf
+    code = code & "    lo = Year(d) * 100 + Month(d)" & vbCrLf
+    code = code & "    s = Nz(DSum(""amount"", ""tblPayHistory"", ""mwloanno='"" & lnq & ""' AND pd >= "" & lo & "" AND pd <= "" & hi), 0)" & vbCrLf
+    code = code & "    Select Case sel" & vbCrLf
+    code = code & "        Case ""monthly"": TrailStat = Format(s / n, ""$#,##0"")" & vbCrLf
+    code = code & "        Case ""yearly"": TrailStat = Format(s / n * 12, ""$#,##0"")" & vbCrLf
+    code = code & "        Case ""% of Contractual""" & vbCrLf
+    code = code & "            If cpmt = 0 Then TrailStat = ""-"" Else TrailStat = Format(s / (cpmt * n), ""0.0%"")" & vbCrLf
+    code = code & "        Case ""% of Int PMT""" & vbCrLf
+    code = code & "            If ipmt = 0 Then TrailStat = ""-"" Else TrailStat = Format(s / (ipmt * n), ""0.0%"")" & vbCrLf
+    code = code & "        Case ""# of PMT's Made""" & vbCrLf
+    code = code & "            If cpmt = 0 Then TrailStat = ""-"" Else TrailStat = Format(s / cpmt, ""0.00"")" & vbCrLf
+    code = code & "        Case ""# of Int Pmt's Made""" & vbCrLf
+    code = code & "            If ipmt = 0 Then TrailStat = ""-"" Else TrailStat = Format(s / ipmt, ""0.00"")" & vbCrLf
+    code = code & "        Case Else: TrailStat = Format(s, ""$#,##0"")" & vbCrLf
+    code = code & "    End Select" & vbCrLf
+    code = code & "End Function" & vbCrLf
+    code = code & "" & vbCrLf
+    code = code & "Public Sub RefreshPayStats()" & vbCrLf
+    code = code & "    ' Per-loan payment statistics (Bid_Project workbook panel):" & vbCrLf
+    code = code & "    ' PMT, interest-only PMT, and Trailing 3/6/12/24 windows" & vbCrLf
+    code = code & "    Dim s As String, rs As DAO.Recordset, anchor As Date, sel As String" & vbCrLf
+    code = code & "    Dim cpmt As Double, ipmt As Double, lnq As String" & vbCrLf
+    code = code & "    On Error Resume Next" & vbCrLf
+    code = code & "    sel = Nz(Me!cboTrailSel, ""# of PMT's Made"")" & vbCrLf
+    code = code & "    s = ""Loan No;PMT;Int PMT;Trail 3;Trail 6;Trail 12;Trail 24""" & vbCrLf
+    code = code & "    Set rs = CurrentDb.OpenRecordset(""SELECT MWLoanNo, RepayAmt, Rate, PrincipalBalance, LastImport FROM tblLoan WHERE RelatedLoans='"" & Q(Me!RelatedLoans) & ""' ORDER BY PrincipalBalance DESC"", dbOpenSnapshot)" & vbCrLf
+    code = code & "    Do While Not rs.EOF" & vbCrLf
+    code = code & "        lnq = Replace(Nz(rs!MWLoanNo, """"), ""'"", ""''"")" & vbCrLf
+    code = code & "        cpmt = Nz(rs!RepayAmt, 0)" & vbCrLf
+    code = code & "        ipmt = Nz(rs!Rate, 0) / 12 * Nz(rs!PrincipalBalance, 0)" & vbCrLf
+    code = code & "        anchor = Nz(rs!LastImport, Date)" & vbCrLf
+    code = code & "        s = s & "";"" & Nz(rs!MWLoanNo, """") & "";"" & Format(cpmt, ""$#,##0"") & "";"" & Format(ipmt, ""$#,##0"")" & vbCrLf
+    code = code & "        s = s & "";"" & TrailStat(lnq, anchor, 3, sel, cpmt, ipmt)" & vbCrLf
+    code = code & "        s = s & "";"" & TrailStat(lnq, anchor, 6, sel, cpmt, ipmt)" & vbCrLf
+    code = code & "        s = s & "";"" & TrailStat(lnq, anchor, 12, sel, cpmt, ipmt)" & vbCrLf
+    code = code & "        s = s & "";"" & TrailStat(lnq, anchor, 24, sel, cpmt, ipmt)" & vbCrLf
+    code = code & "        rs.MoveNext" & vbCrLf
+    code = code & "    Loop" & vbCrLf
+    code = code & "    rs.Close" & vbCrLf
+    code = code & "    Me!lstPayStats.RowSource = s" & vbCrLf
+    code = code & "End Sub" & vbCrLf
     mdl.InsertLines mdl.CountOfLines + 1, code
 
     SaveAs nm, "frmWorkbench"
@@ -1609,6 +1691,11 @@ Private Sub BuildFrmWorkbench()
     f!subProjNormal.LinkChildFields = "RelatedLoans"
     f!subProjModern.LinkMasterFields = "RelatedLoans"
     f!subProjModern.LinkChildFields = "RelatedLoans"
+    ' PayHist pivot now scopes to the relationship too
+    On Error Resume Next
+    f!subPayHist.LinkMasterFields = "RelatedLoans"
+    f!subPayHist.LinkChildFields = "RelatedLoans"
+    On Error GoTo 0
     ' Borrower/PayHist datasheets stay unlinked until their production
     ' schemas are confirmed (see INTERFACE-ALIGNMENT-PLAN Phase 4);
     ' the BPO/Title listboxes are filtered by runtime SQL instead.
