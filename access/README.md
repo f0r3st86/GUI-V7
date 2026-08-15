@@ -15,8 +15,8 @@ DD.Main app, rebuilt from the full reverse-engineering pass in
 | `qryLoansSorted` | The pinned loan grid source — binds `vwRelationshipSummary` joined to the local project scope (server-computed **12 Pmts** column), falling back to `tblLoan` if the view is unavailable |
 | `frmLogin` | Project **and initials** pick — writes `xtblLocalCurrentProject` / `xtblLocalCurrentUser`, which scope every query and stamp every write (the production frmLogin flow) |
 | `frmBrowser` | Portfolio browser — double-click a relationship to open it |
-| `frmWorkbench` | Relationship workbench: flag checkboxes, pinned loan grid, 13-tab strip in production order, and the production **"Items Currently Activated"** state footer that every write path reads |
-| `frmLoanDetail` | Fully editable loan panel — RateType/AssetType/CF Likelihood combos use the recovered production value lists |
+| `frmWorkbench` | Relationship workbench in the **production frmLoanView layout**: relationship combo + Sort + Relationship Report/Main Menu bar, full-width loan grid with production columns (RelatedLoans → Mat Dt, rates ×100), the BK/FA/FC/JG/LT + Low Yield Asset flag stack at right, 13-tab strip in production order, and the "Items Currently Activated" state footer |
+| `frmLoanDetail` | The production Loan tab: dense five-column micro-label panel (identity/address · dates · balances · payment · rate structure with the FL/CL/M stack), Consumer Loan checkbox, production value-list combos, and the recovered **Ah/Bhd** computed control |
 | `frmCollateralDetail` | Same for collateral — collateral-code combo reads `zCollateralCodes` |
 | Comment tab | The production comment center: category filter (default `**Show All**`), 150-char preview list, editor subform with the relationship-level sentinel caption, and **New Loan/Rel Comment** buttons running the production keys-only INSERT + `Max(KeyProvision)` refocus |
 | Collateral tab | **Add Collateral** button: `Max(Priority)+1` mint, `'**ADDED**'` group, typed-`yes` confirm |

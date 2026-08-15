@@ -3,7 +3,14 @@ Option Compare Database
 Option Explicit
 
 ' =====================================================================
-' MidwestDDi Access Front-End Builder  (v7.0 - production write paths)
+' MidwestDDi Access Front-End Builder  (v7.2 - production layouts)
+'
+' v7.2: forms follow the PRODUCTION frmLoanView design (from the
+' screenshot + accde mine): production loan-grid columns (RelatedLoans
+' ... Mat Dt, rates x100), BK/FA/FC/JG/LT flag stack right of the grid,
+' bar = relationship combo + Sort + Relationship Report + Main Menu,
+' Loan tab as the dense 5-column micro-label panel incl. the recovered
+' Ah/Bhd computed control, Exit Code on the Strategies tab.
 '
 ' Builds a linked front-end styled after the LOANSYSTEM React app and
 ' wired with the real DD.Main production logic recovered in
@@ -314,22 +321,24 @@ Private Sub BuildQueries()
         "GROUP BY c.RelatedLoans;"
 
     ' Production binds the pinned grid to vwRelationshipSummary joined
-    ' to the local project scope (GAP-PLAN B2); amtpd is the
-    ' server-computed trailing-12-payment total ("12 Pmts"). Fall back
-    ' to tblLoan if the view failed to link so the build stays green.
+    ' to the local project scope (GAP-PLAN B2). Column set matches the
+    ' production LstRelatedLoans grid (see the frmLoanView screenshot).
+    ' Fall back to tblLoan if the view failed to link.
     DropQuery db, "qryLoansSorted"
     If TableExists("vwRelationshipSummary") Then
         db.CreateQueryDef "qryLoansSorted", _
             "SELECT v.MWLoanNo, v.RelatedLoans, v.BorrowerNm, " & _
             "v.OrigPrincipalBalance, v.PrincipalBalance, v.InterestBalance, " & _
-            "v.Rate, v.RepayAmt, v.DueDt, v.LastPmtDt, v.amtpd " & _
+            "v.Rate, v.DefaultRate, v.RepayAmt, v.DueDt, v.LastPmtDt, " & _
+            "v.OrgNoteDate, v.CurrentMaturityDate, v.amtpd " & _
             "FROM vwRelationshipSummary AS v INNER JOIN xtblLocalCurrentProject AS p " & _
             "ON v.ProjectName = p.CurrentProject " & _
             "ORDER BY v.PrincipalBalance DESC;"
     Else
         db.CreateQueryDef "qryLoansSorted", _
             "SELECT MWLoanNo, RelatedLoans, BorrowerNm, OrigPrincipalBalance, " & _
-            "PrincipalBalance, InterestBalance, Rate, RepayAmt, DueDt, LastPmtDt, " & _
+            "PrincipalBalance, InterestBalance, Rate, DefaultRate, RepayAmt, " & _
+            "DueDt, LastPmtDt, OrgNoteDate, CurrentMaturityDate, " & _
             "Null AS amtpd FROM tblLoan ORDER BY PrincipalBalance DESC;"
     End If
     db.QueryDefs.Refresh
@@ -348,23 +357,29 @@ Private Sub BuildFrmLoanGrid()
     frm.Section(acHeader).Height = 0.24 * T1
     frm.Section(acDetail).Height = 0.26 * T1
 
-    ' Header labels + row cells (dark grid like LoanTable.tsx)
-    GridCol frm, "MWLoanNo", "Loan No", 0.1, 1.5, False
-    GridCol frm, "BorrowerNm", "Borrower", 1.7, 2.2, False
-    GridCol frm, "OrigPrincipalBalance", "Orig Balance", 4#, 1.05, True, "$#,##0"
-    GridCol frm, "PrincipalBalance", "Principal", 5.15, 1.05, True, "$#,##0"
-    GridCol frm, "InterestBalance", "Interest", 6.3, 0.95, True, "$#,##0"
-    ' calculated Total in green (React: styles.textGreen)
-    AddHeadLabel frm, "Total", 7.35, 0.95, True
-    Set c = CreateControl(nm, acTextBox, acDetail, "", _
-        "=[PrincipalBalance]+[InterestBalance]", CLng(7.35 * T1), 0, CLng(0.95 * T1), CLng(0.22 * T1))
-    StyleCell c: c.Name = "txtTotal": c.ForeColor = CLR_GREEN
-    c.Format = "$#,##0": c.TextAlign = 3
-    GridCol frm, "Rate", "Rate", 8.4, 0.6, True, "0.00%"
-    GridCol frm, "RepayAmt", "PMT", 9.1, 0.85, True, "$#,##0"
-    GridCol frm, "DueDt", "NxtDue", 10.05, 0.8, False, "mm/dd/yy"
-    ' Server-computed trailing-12 payment total (vwRelationshipSummary)
-    GridCol frm, "amtpd", "12 Pmts", 10.95, 0.95, True, "$#,##0"
+    ' Header labels + row cells - PRODUCTION column order from the
+    ' frmLoanView screenshot: RelatedLoans, MWLoanNo, Borrower Name,
+    ' Orig Balance, Principal, Interest, IntRate, DRate, Pmt, NxtDue,
+    ' LastPmt, Orig Dt, Mat Dt (rates displayed x100, no % sign)
+    GridCol frm, "RelatedLoans", "RelatedLoans", 0.05, 0.9, False
+    GridCol frm, "MWLoanNo", "MWLoanNo", 0.95, 1.15, False
+    GridCol frm, "BorrowerNm", "Borrower Name", 2.1, 1.6, False
+    GridCol frm, "OrigPrincipalBalance", "Orig Balance", 3.75, 0.9, True, "$#,##0"
+    GridCol frm, "PrincipalBalance", "Principal", 4.65, 0.9, True, "$#,##0"
+    GridCol frm, "InterestBalance", "Interest", 5.55, 0.7, True, "$#,##0"
+    AddHeadLabel frm, "IntRate", 6.25, 0.5, True
+    Set c = CreateControl(nm, acTextBox, acDetail, "", "=[Rate]*100", _
+                          CLng(6.25 * T1), 0, CLng(0.5 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtIntRate": c.TextAlign = 3: c.Format = "0.00"
+    AddHeadLabel frm, "DRate", 6.8, 0.5, True
+    Set c = CreateControl(nm, acTextBox, acDetail, "", "=[DefaultRate]*100", _
+                          CLng(6.8 * T1), 0, CLng(0.5 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtDRate": c.TextAlign = 3: c.Format = "0.00"
+    GridCol frm, "RepayAmt", "Pmt", 7.35, 0.7, True, "$#,##0"
+    GridCol frm, "DueDt", "NxtDue", 8.1, 0.65, False, "mm/dd/yy"
+    GridCol frm, "LastPmtDt", "LastPmt", 8.8, 0.65, False, "mm/dd/yy"
+    GridCol frm, "OrgNoteDate", "Orig Dt", 9.5, 0.65, False, "mm/dd/yy"
+    GridCol frm, "CurrentMaturityDate", "Mat Dt", 10.2, 0.65, False, "mm/dd/yy"
 
     Dim mdl As Module, ln As Long, code As String
     frm!txtMWLoanNo.OnDblClick = "[Event Procedure]"
@@ -905,60 +920,77 @@ Private Sub BuildFrmLoanDetail()
     nm = frm.Name
     frm.Caption = "Loan Detail"
     frm.PopUp = True
-    CardRect frm, 0.1, 0.1, 3.5, 4.6      ' identity card
-    CardRect frm, 3.7, 0.1, 2.9, 4.6      ' balances card
-    CardRect frm, 6.7, 0.1, 2.9, 4.6      ' dates/rates card
-    CardRect frm, 9.7, 0.1, 2.7, 4.6      ' rate structure card
 
-    Dim y As Single: y = 0.25
-    DarkBoxL frm, "MWLoanNo", "MW Loan #", 0.2, y, 1.9, True: y = y + 0.42
-    DarkBoxL frm, "BorrowerNm", "Borrower", 0.2, y, 1.9: y = y + 0.42
-    DarkBoxL frm, "RelatedLoans", "Relationship", 0.2, y, 1.9: y = y + 0.42
-    DarkBoxL frm, "Pool", "Pool", 0.2, y, 1.9: y = y + 0.42
-    DarkBoxL frm, "consumerloan", "Consumer Loan", 0.2, y, 0.3: y = y + 0.42
-    DarkBoxL frm, "BorrowerAddress", "Address 1", 0.2, y, 1.9: y = y + 0.42
-    DarkBoxL frm, "BorrowerAddress2", "Address 2", 0.2, y, 1.9: y = y + 0.42
-    DarkBoxL frm, "CityNm", "City", 0.2, y, 1.9: y = y + 0.42
-    DarkBoxL frm, "StCd", "State", 0.2, y, 0.6
-    DarkBoxL frm, "ZipCd", "Zip", 1.9, y, 0.85: y = y + 0.42
-    DarkBoxL frm, "LastImport", "Last Import", 0.2, y, 1.9
+    ' PRODUCTION Loan-tab layout (from the frmLoanView screenshot):
+    ' five dense columns with micro labels - identity/address | dates |
+    ' balances | payment | rate structure (+FL/CL/M stack), Consumer
+    ' Loan checkbox top-left, Ah/Bhd computed control (recovered
+    ' formula, validated -654 against the screenshot).
+    Dim c As Control
+    AddThemedLabel frm, "Consumer Loan", 0.15, 0.08, CLR_MUTED, 8
+    Set c = CreateControl(nm, acCheckBox, acDetail, "", "consumerloan", _
+                          CLng(1.25 * T1), CLng(0.08 * T1), CLng(0.22 * T1), CLng(0.2 * T1))
+    c.Name = "consumerloan"
 
-    y = 0.25
-    DarkBoxL frm, "OrigPrincipalBalance", "Orig Balance", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
-    DarkBoxL frm, "PrincipalBalance", "Principal", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
-    DarkBoxL frm, "InterestBalance", "Interest", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
-    DarkBoxL frm, "EscrowBalance", "Escrow", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
-    DarkBoxL frm, "OtherBalances", "Other", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
-    DarkBoxL frm, "PayoffBalance", "Payoff", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
-    DarkBoxL frm, "RepayAmt", "Payment", 3.8, y, 1.35, False, "$#,##0": y = y + 0.42
-    DarkBoxL frm, "EscrowPmt", "Escrow Pmt", 3.8, y, 1.35, False, "$#,##0"
+    ' Col A - identity + address block
+    MicroBoxL frm, "MWLoanNo", "LoanNo", 0.15, 0.42, 0.6, 1.35, True
+    MicroBoxL frm, "RelatedLoans", "Related", 0.15, 0.76, 0.6, 1#
+    AddThemedLabel frm, "Pool:", 1.8, 0.77, CLR_MUTED, 8
+    DarkBox frm, "Pool", 2.2, 0.76, 0.55
+    DarkBox frm, "BorrowerNm", 0.15, 1.1, 2.6
+    DarkBox frm, "BorrowerAddress", 0.15, 1.44, 2.6
+    DarkBox frm, "BorrowerAddress2", 0.15, 1.78, 2.6
+    DarkBox frm, "CityNm", 0.15, 2.12, 1.35
+    DarkBox frm, "StCd", 1.55, 2.12, 0.4
+    DarkBox frm, "ZipCd", 2#, 2.12, 0.75
 
-    y = 0.25
-    DarkBoxL frm, "OrgNoteDate", "Orig Dt", 6.8, y, 1.25, False, "mm/dd/yy": y = y + 0.42
-    DarkBoxL frm, "InterestAccrualDate", "Acc Dt", 6.8, y, 1.25, False, "mm/dd/yy": y = y + 0.42
-    DarkBoxL frm, "DueDt", "Due Dt", 6.8, y, 1.25, False, "mm/dd/yy": y = y + 0.42
-    DarkBoxL frm, "LastPmtDt", "Last PMT", 6.8, y, 1.25, False, "mm/dd/yy": y = y + 0.42
-    DarkBoxL frm, "CurrentMaturityDate", "Mat Dt", 6.8, y, 1.25, False, "mm/dd/yy": y = y + 0.42
-    DarkBoxL frm, "Rate", "Int Rate", 6.8, y, 1.25, False, "0.00%": y = y + 0.42
-    DarkBoxL frm, "DefaultRate", "Default Rate", 6.8, y, 1.25, False, "0.00%": y = y + 0.42
-    DarkBoxL frm, "nextchangedt", "Change Dt", 6.8, y, 1.25, False, "mm/dd/yy"
+    ' Col B - dates
+    MicroBoxL frm, "OrgNoteDate", "Orig Dt", 2.95, 0.42, 0.55, 0.95, False, "mm/dd/yy"
+    MicroBoxL frm, "LastImport", "LastIm", 2.95, 0.76, 0.55, 0.95, False, "mm/dd/yy"
+    MicroBoxL frm, "InterestAccrualDate", "IAcc Dt", 2.95, 1.1, 0.55, 0.95, False, "mm/dd/yy"
+    MicroBoxL frm, "DueDt", "Due Dt", 2.95, 1.44, 0.55, 0.95, False, "mm/dd/yy"
+    MicroBoxL frm, "CurrentMaturityDate", "Mat Dt", 2.95, 1.78, 0.55, 0.95, False, "mm/dd/yy"
+    AddThemedLabel frm, "Unfunded Commitment:", 2.95, 2.47, CLR_MUTED, 8
+    DarkBox frm, "[Unfunded Commitment]", 4.4, 2.46, 0.9, False, "$#,##0"
 
-    y = 0.25
-    ' Production value lists (recovered verbatim - GAP-PLAN B5)
-    DarkComboL frm, "RateType", "Rate Type", 9.8, y, 1.25, _
-               "Value List", """Variable"";""Fixed""": y = y + 0.42
-    DarkBoxL frm, "index", "Index", 9.8, y, 1.25: y = y + 0.42
-    DarkBoxL frm, "margin", "Margin", 9.8, y, 1.25, False, "0.00%": y = y + 0.42
-    DarkBoxL frm, "floor", "Floor", 9.8, y, 1.25, False, "0.00%": y = y + 0.42
-    DarkBoxL frm, "ceiling", "Ceiling", 9.8, y, 1.25, False, "0.00%": y = y + 0.42
-    DarkBoxL frm, "changefreq", "Change Freq", 9.8, y, 1.25: y = y + 0.42
-    DarkComboL frm, "AssetType", "Asset Type", 9.8, y, 1.25, _
-               "Value List", """No Default"";""Payment Default"";""Technical Default""": y = y + 0.42
-    DarkBoxL frm, "[Unfunded Commitment]", "Unfunded", 9.8, y, 1.25: y = y + 0.42
-    DarkComboL frm, "CFLikelyhood", "CF Likelihood", 9.8, y, 1.25, _
-               "Value List", _
-               "2;""Very Optimistic"";1;""Optimistic"";0;""Neutral"";-1;""Pessimistic"";-2;""Very Pessimistic""", _
-               2, "360;1080"
+    ' Col C - balances
+    MicroBoxL frm, "OrigPrincipalBalance", "OrgBal", 4.6, 0.42, 0.55, 1#, False, "$#,##0.00"
+    MicroBoxL frm, "PrincipalBalance", "PrinBal", 4.6, 0.76, 0.55, 1#, False, "$#,##0.00"
+    MicroBoxL frm, "InterestBalance", "IntBal", 4.6, 1.1, 0.55, 1#, False, "$#,##0.00"
+    MicroBoxL frm, "EscrowBalance", "EscBal", 4.6, 1.44, 0.55, 1#, False, "$#,##0.00"
+    MicroBoxL frm, "OtherBalances", "OthBal", 4.6, 1.78, 0.55, 1#, False, "$#,##0.00"
+    MicroBoxL frm, "PayoffBalance", "Payoff", 4.6, 2.12, 0.55, 1#, False, "$#,##0.00"
+
+    ' Col D - payment
+    MicroBoxL frm, "RepayAmt", "PmtAmt", 6.3, 0.42, 0.6, 0.95, False, "$#,##0.00"
+    MicroBoxL frm, "EscrowPmt", "EscPmt", 6.3, 0.76, 0.6, 0.95, False, "$#,##0.00"
+    MicroBoxL frm, "LastPmtDt", "LastPDt", 6.3, 1.1, 0.6, 0.95, False, "mm/dd/yy"
+    MicroBoxL frm, "PmtFrequency", "PmtFrq", 6.3, 1.44, 0.6, 0.5
+    AddThemedLabel frm, "Ah/Bhd", 6.3, 2.13, CLR_MUTED, 8
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+        "=IIf(Nz([Rate],0)<=0 Or Nz([RepayAmt],0)<=0 Or [RepayAmt]<=[PrincipalBalance]*[Rate]/12" & _
+        " Or IsNull([DueDt]) Or IsNull([CurrentMaturityDate]),Null," & _
+        "DateDiff('m',[DueDt],[CurrentMaturityDate])+Log(1-[PrincipalBalance]*[Rate]/12/[RepayAmt])/Log(1+[Rate]/12))", _
+        CLng(6.9 * T1), CLng(2.12 * T1), CLng(0.7 * T1), CLng(0.24 * T1))
+    StyleInput c: c.Name = "txtAhBhd": c.Format = "0": c.TextAlign = 3
+    c.Locked = True: c.BackColor = CLR_READONLY: c.ForeColor = CLR_GREEN
+
+    ' Col E - rate structure
+    MicroBoxL frm, "Rate", "Rate", 8#, 0.42, 0.5, 0.95, False, "0.0000%"
+    MicroBoxL frm, "DefaultRate", "DefR", 8#, 0.76, 0.5, 0.95, False, "0.0000%"
+    MicroBoxL frm, "nextchangedt", "ChDt", 8#, 1.1, 0.5, 0.95, False, "mm/dd/yy"
+    MicroBoxL frm, "index", "Index", 8#, 1.44, 0.5, 0.95
+    MicroBoxL frm, "changefreq", "ChFrq", 8#, 1.78, 0.5, 0.5
+    MicroCombo frm, "RateType", "RType", 8#, 2.12, 0.5, 0.95, _
+               "Value List", """Variable"";""Fixed"""
+    AddThemedLabel frm, "AssetType:", 8#, 2.47, CLR_MUTED, 8
+    MicroCombo frm, "AssetType", "", 8.7, 2.46, 0.01, 1.35, _
+               "Value List", """No Default"";""Payment Default"";""Technical Default"""
+
+    ' FL / CL / M stack (floor, ceiling, margin - production far right)
+    MicroBoxL frm, "floor", "FL", 9.6, 0.42, 0.35, 0.8, False, "0.00%"
+    MicroBoxL frm, "ceiling", "CL", 9.6, 0.76, 0.35, 0.8, False, "0.00%"
+    MicroBoxL frm, "margin", "M", 9.6, 1.1, 0.35, 0.8, False, "0.00%"
 
     SaveAs nm, "frmLoanDetail"
 End Sub
@@ -1048,11 +1080,11 @@ Private Sub BuildFrmWorkbench()
         mx = mx + 0.62
     Next mi
 
-    ' --- Relationship bar (combo navigation like production frmLoanView) ---
-    AddThemedLabel frm, "Relationship:", 0.15, 0.78, CLR_MUTED, 9
+    ' --- Relationship bar - PRODUCTION arrangement: combo (no label),
+    ' Sort box, then Relationship Report + Main Menu buttons at right ---
     Dim cbo As Control
     Set cbo = CreateControl(nm, acComboBox, acDetail, "", "", _
-                            CLng(1.25 * T1), CLng(0.76 * T1), CLng(1.5 * T1), CLng(0.24 * T1))
+                            CLng(0.15 * T1), CLng(0.76 * T1), CLng(1.6 * T1), CLng(0.24 * T1))
     cbo.Name = "cboRelationship"
     cbo.RowSourceType = "Table/Query"
     cbo.RowSource = "SELECT RelatedLoans FROM tblRelationships " & _
@@ -1063,43 +1095,34 @@ Private Sub BuildFrmWorkbench()
     cbo.BackColor = CLR_INPUT: cbo.ForeColor = CLR_TEXT
     cbo.BorderColor = CLR_INBORDER: cbo.FontName = FONT: cbo.FontSize = 9
     On Error GoTo 0
-    AddThemedLabel frm, "Sort", 3#, 0.78, CLR_MUTED, 9
-    DarkBox frm, "SortNo", 3.4, 0.76, 0.5, True
-    AddThemedLabel frm, "Project", 4.1, 0.78, CLR_MUTED, 9
-    DarkBox frm, "ProjectName", 4.7, 0.76, 1.7, True
-    AddThemedLabel frm, "Exit Code", 6.6, 0.78, CLR_MUTED, 9
-    ' Production combo: the 11 zExitCodes values, rowguid order (verbatim)
-    Set cbo = CreateControl(nm, acComboBox, acDetail, "", "ExitCode", _
-                            CLng(7.35 * T1), CLng(0.76 * T1), CLng(1.2 * T1), CLng(0.24 * T1))
-    cbo.Name = "ExitCode"
-    cbo.RowSourceType = "Table/Query"
-    cbo.RowSource = "SELECT ExitCode FROM zExitCodes ORDER BY rowguid;"
-    cbo.LimitToList = False
-    On Error Resume Next
-    cbo.BackColor = CLR_INPUT: cbo.ForeColor = CLR_TEXT
-    cbo.BorderColor = CLR_INBORDER: cbo.FontName = FONT: cbo.FontSize = 9
-    On Error GoTo 0
+    AddThemedLabel frm, "Sort", 1.95, 0.78, CLR_MUTED, 9
+    DarkBox frm, "SortNo", 2.35, 0.76, 0.5, True
+    ' Hidden ProjectName carrier - the injected helpers read
+    ' Me!ProjectName for every scoped query and write path
+    Set c = CreateControl(nm, acTextBox, acDetail, "", "ProjectName", _
+                          CLng(3# * T1), CLng(0.76 * T1), CLng(0.4 * T1), CLng(0.2 * T1))
+    c.Name = "ProjectName": c.Visible = False
     Set c = CreateControl(nm, acCommandButton, acDetail, "", "", _
-                          CLng(10.7 * T1), CLng(0.74 * T1), CLng(1.75 * T1), CLng(0.28 * T1))
-    c.Name = "btnBrowse": c.Caption = "Browse Relationships"
-    On Error Resume Next
-    c.UseTheme = False: c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXTSEC
-    c.BorderColor = CLR_INBORDER: c.FontName = FONT: c.FontSize = 8
-    On Error GoTo 0
+                          CLng(8.85 * T1), CLng(0.74 * T1), CLng(1.75 * T1), CLng(0.28 * T1))
+    c.Name = "btnRelReport": c.Caption = "Relationship Report"
+    DarkButton c
+    Set c = CreateControl(nm, acCommandButton, acDetail, "", "", _
+                          CLng(10.75 * T1), CLng(0.74 * T1), CLng(1.7 * T1), CLng(0.28 * T1))
+    c.Name = "btnBrowse": c.Caption = "Main Menu"
+    DarkButton c
 
-    ' --- Pinned loan grid + flag card (React LoanTable + flag panel) ---
-    AddSub frm, "frmLoanGrid", "subLoans", 0.15, 1.15, 10.2, 2#
-    CardRect frm, 10.45, 1.15, 2.05, 2#
-    AddThemedLabel frm, "Relationship Flags", 10.55, 1.23, CLR_MUTED, 8
+    ' --- Pinned loan grid + flag stack (production: full-width grid,
+    ' BK/FA/FC/JG/LT + Low Yield Asset checkboxes at right) ---
+    AddSub frm, "frmLoanGrid", "subLoans", 0.15, 1.15, 11.15, 2#
+    CardRect frm, 11.35, 1.15, 1.2, 2#
     Dim flags As Variant, caps As Variant, i As Integer, y As Single
-    flags = Array("InBankruptcy", "ForeclosureFlag", "LitigationFlag", _
-                  "ForbearanceFlag", "JudgmentFlag", "LowYieldAsset")
-    caps = Array("Bankruptcy", "Foreclosure", "Litigation", _
-                 "Forbearance", "Judgment", "Low Yield Asset")
-    y = 1.5
+    flags = Array("InBankruptcy", "ForbearanceFlag", "ForeclosureFlag", _
+                  "JudgmentFlag", "LitigationFlag", "LowYieldAsset")
+    caps = Array("BK", "FA", "FC", "JG", "LT", "Low Yield Asset")
+    y = 1.25
     For i = 0 To UBound(flags)
-        FlagCheck frm, CStr(flags(i)), CStr(caps(i)), 10.6, y
-        y = y + 0.26
+        FlagCheck frm, CStr(flags(i)), CStr(caps(i)), 11.42, y
+        y = y + 0.28
     Next i
 
     ' --- Tab strip: FULL 13 tabs in the React TABS order ---
@@ -1262,14 +1285,25 @@ Private Sub BuildFrmWorkbench()
     StyleInput c: c.Name = "ConditionsDeadlines": c.ScrollBars = 0
     c.EnterKeyBehavior = True
 
-    ' Strategies page
-    AddPageLabel frm, "pgStrategies", "Exit Strategy", 0.3, PY
+    ' Strategies page - production keeps the Exit Code combo here
+    AddPageLabel frm, "pgStrategies", "Exit Code:", 0.3, PY
+    Set c = CreateControl(nm, acComboBox, acDetail, "pgStrategies", "ExitCode", _
+                          CLng(1.15 * T1), CLng((PY - 0.02) * T1), CLng(1.4 * T1), CLng(0.26 * T1))
+    c.Name = "ExitCode"
+    c.RowSourceType = "Table/Query"
+    c.RowSource = "SELECT ExitCode FROM zExitCodes ORDER BY rowguid;"
+    c.LimitToList = False
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.FontName = FONT: c.FontSize = 9
+    On Error GoTo 0
+    AddPageLabel frm, "pgStrategies", "Exit Strategy", 0.3, PY + 0.34
     Set c = CreateControl(nm, acTextBox, acDetail, "pgStrategies", "ExitStrategyOverview", _
-                          CLng(0.3 * T1), CLng((PY + 0.25) * T1), CLng(12# * T1), CLng(2.4 * T1))
+                          CLng(0.3 * T1), CLng((PY + 0.58) * T1), CLng(12# * T1), CLng(2.1 * T1))
     StyleInput c: c.Name = "ExitStrategyOverview": c.ScrollBars = 2
-    AddPageLabel frm, "pgStrategies", "Original Strategy", 0.3, PY + 2.8
+    AddPageLabel frm, "pgStrategies", "Original Strategy", 0.3, PY + 2.82
     Set c = CreateControl(nm, acTextBox, acDetail, "pgStrategies", "Original_Strategy", _
-                          CLng(0.3 * T1), CLng((PY + 3.05) * T1), CLng(12# * T1), CLng(0.6 * T1))
+                          CLng(0.3 * T1), CLng((PY + 3.06) * T1), CLng(12# * T1), CLng(0.6 * T1))
     StyleInput c: c.Name = "Original_Strategy": c.ScrollBars = 2
 
     ' BPOTitleUCC page (GAP-PLAN B4): production listboxes with the
@@ -1374,9 +1408,13 @@ Private Sub BuildFrmWorkbench()
     frm!cmdProjNormal.OnClick = "[Event Procedure]"
     frm!cmdProjModern.OnClick = "[Event Procedure]"
     frm!cboTrailSel.AfterUpdate = "[Event Procedure]"
+    frm!btnRelReport.OnClick = "[Event Procedure]"
     Set mdl = frm.Module
     ln = mdl.CreateEventProc("Click", "btnBrowse")
     mdl.InsertLines ln + 1, "    DoCmd.OpenForm ""frmBrowser"""
+    ln = mdl.CreateEventProc("Click", "btnRelReport")
+    mdl.InsertLines ln + 1, _
+        "    MsgBox ""The Relationship Report is generated from the React app / production DD.Main."", vbInformation, ""Relationship Report"""
     ln = mdl.CreateEventProc("AfterUpdate", "cboRelationship")
     mdl.InsertLines ln + 1, _
         "    Me.Recordset.FindFirst ""RelatedLoans='"" & Replace(Me!cboRelationship, ""'"", ""''"") & ""'"""
@@ -1967,6 +2005,39 @@ Private Sub DarkBoxL(frm As Form, src As String, cap As String, xIn As Single, _
                      Optional fmt As String = "")
     AddThemedLabel frm, cap, xIn, yIn + 0.01, CLR_MUTED, 8
     DarkBox frm, src, xIn + 1.15, yIn, wIn, lockIt, fmt
+End Sub
+
+' Production-density micro label + box (label tight-left of the box,
+' like the frmLoanView Loan-tab panel)
+Private Sub MicroBoxL(frm As Form, src As String, cap As String, xIn As Single, _
+                      yIn As Single, lblW As Single, boxW As Single, _
+                      Optional lockIt As Boolean = False, Optional fmt As String = "")
+    Dim c As Control
+    Set c = CreateControl(frm.Name, acLabel, acDetail, "", "", _
+                          CLng(xIn * T1), CLng((yIn + 0.01) * T1), CLng(lblW * T1), CLng(0.2 * T1))
+    c.Caption = cap: c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
+    DarkBox frm, src, xIn + lblW, yIn, boxW, lockIt, fmt
+End Sub
+
+Private Sub MicroCombo(frm As Form, src As String, cap As String, xIn As Single, _
+                       yIn As Single, lblW As Single, wIn As Single, _
+                       rowType As String, rowSrc As String)
+    Dim c As Control
+    If Len(cap) > 0 Then
+        Set c = CreateControl(frm.Name, acLabel, acDetail, "", "", _
+                              CLng(xIn * T1), CLng((yIn + 0.01) * T1), CLng(lblW * T1), CLng(0.2 * T1))
+        c.Caption = cap: c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
+    End If
+    Set c = CreateControl(frm.Name, acComboBox, acDetail, "", src, _
+                          CLng((xIn + lblW) * T1), CLng(yIn * T1), CLng(wIn * T1), CLng(0.24 * T1))
+    c.Name = Replace(Replace(src, "[", ""), "]", "")
+    c.RowSourceType = rowType
+    c.RowSource = rowSrc
+    c.LimitToList = False
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.SpecialEffect = 0: c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
 End Sub
 
 ' Label + bound combo (GAP-PLAN B5). Sets only properties that exist
