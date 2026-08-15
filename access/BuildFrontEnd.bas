@@ -1245,8 +1245,10 @@ Private Sub BuildFrmBrowser()
     frm!txtRelatedLoans.OnDblClick = "[Event Procedure]"
     Set mdl = frm.Module
     ln = mdl.CreateEventProc("DblClick", "txtRelatedLoans")
+    ' RelatedLoans is borrower-derived text - escape apostrophes
+    ' (O'BRIEN FARMS) exactly like the workbench combo handler does
     mdl.InsertLines ln + 1, _
-        "    DoCmd.OpenForm ""frmWorkbench"", , , ""RelatedLoans='"" & Me!txtRelatedLoans & ""'"""
+        "    DoCmd.OpenForm ""frmWorkbench"", , , ""RelatedLoans='"" & Replace(Me!txtRelatedLoans, ""'"", ""''"") & ""'"""
     frm!btnProject.OnClick = "[Event Procedure]"
     ln = mdl.CreateEventProc("Click", "btnProject")
     mdl.InsertLines ln + 1, "    DoCmd.OpenForm ""frmLogin"""
