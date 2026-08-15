@@ -384,7 +384,7 @@ End Sub
 
 ' ================= FORM: COLLATERAL GRID =============================
 Private Sub BuildFrmCollateralGrid()
-    Dim frm As Form, nm As String
+    Dim frm As Form, nm As String, c As Control
     DropIfExists "frmCollateralGrid", acForm
     Set frm = NewDarkForm("CollateralInfo", 1)
     nm = frm.Name
@@ -404,6 +404,24 @@ Private Sub BuildFrmCollateralGrid()
     GridCol frm, "SellerAppraisedValue", "SellerValue", 6.4, 1.05, True, "$#,##0"
     GridCol frm, "CurrentAppraisedValue", "MwValue", 7.55, 1.05, True, "$#,##0"
     GridCol frm, "TaxDelinquentAmt", "Dlq Taxes", 8.7, 0.95, True, "$#,##0"
+
+    ' Value-per metrics (MW value / size), blank when size is missing -
+    ' same derivations as the Property valuation grid and Bid workbook
+    AddHeadLabel frm, "$/SF", 9.7, 0.75, True
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+        "=IIf(Nz([SQFT],0)=0,Null,[CurrentAppraisedValue]/[SQFT])", _
+        CLng(9.7 * T1), 0, CLng(0.75 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtPerSF": c.TextAlign = 3: c.Format = "$#,##0"
+    AddHeadLabel frm, "$/Unit", 10.5, 0.75, True
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+        "=IIf(Nz([NumUnits],0)=0,Null,[CurrentAppraisedValue]/[NumUnits])", _
+        CLng(10.5 * T1), 0, CLng(0.75 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtPerUnit": c.TextAlign = 3: c.Format = "$#,##0"
+    AddHeadLabel frm, "$/Acre", 11.3, 0.7, True
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+        "=IIf(Nz([Acreage],0)=0,Null,[CurrentAppraisedValue]/[Acreage])", _
+        CLng(11.3 * T1), 0, CLng(0.7 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtPerAcre": c.TextAlign = 3: c.Format = "$#,##0"
 
     Dim mdl As Module, ln As Long, code As String
     frm!txtMWPropertyNo.OnDblClick = "[Event Procedure]"
