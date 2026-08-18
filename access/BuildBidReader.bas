@@ -3,7 +3,15 @@ Option Compare Database
 Option Explicit
 
 ' =====================================================================
-' RELATIONSHIP PROJECTION - standalone read-only bid database (v1.2)
+' RELATIONSHIP PROJECTION - standalone read-only bid database (v1.3)
+'
+' v1.3: the main form now uses the SHEET'S OWN ORIENTATION - categories
+' run DOWN the left in the sheet's exact row order (UPB, Interest, MAI,
+' Rate ... Legal block ... Exit block ... Bid results), loans are
+' COLUMNS (up to 8) plus a Relationship totals column. Newly modeled
+' sheet rows: MAI, Payment/Rate Pull, Interest/Term PMT, % X Trail,
+' M Trail, LQDN Forward Acr M (liquidation accrual months), Bid/MwVx,
+' F12/P12 PMT, and the Trail Selection display transform.
 '
 ' v1.2 visual redesign: styled like the Bid_Project Excel workbook -
 ' Calibri on white with banded rows and gridline borders, gray header
@@ -171,6 +179,8 @@ Private Sub EnsureReaderTables()
         td.Fields.Append td.CreateField("ValCapPct", dbDouble)
         td.Fields.Append td.CreateField("YTMTgt", dbDouble)
         td.Fields.Append td.CreateField("UserExit", dbCurrency)
+        td.Fields.Append td.CreateField("MTrailSel", dbText, 3)
+        td.Fields.Append td.CreateField("LiqAcrM", dbLong)
         td.Fields.Append td.CreateField("AddAccrued", dbText, 3)
         td.Fields.Append td.CreateField("PmtPull", dbCurrency)
         td.Fields.Append td.CreateField("ExitVal", dbCurrency)
@@ -205,6 +215,18 @@ Private Sub EnsureReaderTables()
         If Err.Number <> 0 Then
             Err.Clear
             db.Execute "ALTER TABLE xtblBidReader ADD COLUMN UserExit CURRENCY"
+        End If
+        Err.Clear
+        Set f = td.Fields("MTrailSel")
+        If Err.Number <> 0 Then
+            Err.Clear
+            db.Execute "ALTER TABLE xtblBidReader ADD COLUMN MTrailSel TEXT(3)"
+        End If
+        Err.Clear
+        Set f = td.Fields("LiqAcrM")
+        If Err.Number <> 0 Then
+            Err.Clear
+            db.Execute "ALTER TABLE xtblBidReader ADD COLUMN LiqAcrM LONG"
         End If
     End If
     db.TableDefs.Refresh
@@ -554,25 +576,38 @@ Private Sub BuildFrmCollSheet()
     SaveAs nm, "frmCollSheet"
 End Sub
 
-' ================= THE FORM ==========================================
+' ================= THE FORM (vertical sheet layout) ==================
+' The 'Relationship Projection' sheet's own orientation: categories run
+' DOWN the left in the sheet's exact row order; loans are COLUMNS
+' (up to 8, like the sheet's C..L) plus a Relationship totals column.
+' Yellow cells are editable in place - any change sweeps the columns
+' back to the local scratch table, recalcs, and repaints.
 Private Sub BuildFrmBidReader()
     Dim frm As Form, nm As String, c As Control
+    Dim K As Variant, Cp As Variant, T As Variant, F As Variant
+    Dim r As Integer, i As Integer, y As Single, x As Single
+    Const LBLW As Single = 1.45
+    Const X0 As Single = 1.55
+    Const COLW As Single = 0.85
+    Const NCOLS As Integer = 8
+    Const TOTX As Single = 8.4
+    Const TOTW As Single = 0.95
+    Const RH As Single = 0.21
+
     DropIfExists "frmBidReader", acForm
-    Set frm = NewDarkForm("SELECT * FROM xtblBidReader ORDER BY LoanNo", 1)
+    Set frm = NewDarkForm("", 0)
     nm = frm.Name
     frm.Caption = "Relationship Projection"
-    frm.AllowAdditions = False
-    frm.AllowDeletions = False
+    frm.NavigationButtons = False
     frm.HasModule = True
     EnsureHeader frm
     frm.Section(acHeader).BackColor = CLR_CARD
-    frm.Section(acHeader).Height = 1.25 * T1
-    frm.Section(acDetail).Height = 1.06 * T1
+    frm.Section(acHeader).Height = 0.62 * T1
+    frm.Section(acDetail).Height = 12.55 * T1
     frm.Section(acDetail).BackColor = CLR_MAIN
-    frm.Section(acFooter).Height = 1.95 * T1
-    frm.Section(acFooter).BackColor = CLR_HEADER
+    frm.Section(acFooter).Height = 0
 
-    ' --- Header row 0: brand + recalc ---
+    ' --- Header: title + pickers (unchanged flow) ---
     Set c = CreateControl(nm, acLabel, acHeader, "", "", _
                           CLng(0.1 * T1), CLng(0.03 * T1), CLng(1.35 * T1), CLng(0.24 * T1))
     c.Caption = "RELATIONSHIP": c.ForeColor = CLR_TEXT
@@ -586,170 +621,138 @@ Private Sub BuildFrmBidReader()
                           CLng(9# * T1), CLng(0.02 * T1), CLng(0.85 * T1), CLng(0.26 * T1))
     c.Name = "btnRecalc": c.Caption = "Recalc"
     DarkBtn c
-
-    ' --- Header row 1: pickers ---
-    HeadLbl frm, "Project", 0.1, 0.55, 0.34, False
+    HeadLbl frm, "Project", 0.1, 0.55, 0.36, False
     Set c = CreateControl(nm, acComboBox, acHeader, "", "", _
-                          CLng(0.65 * T1), CLng(0.32 * T1), CLng(1.9 * T1), CLng(0.25 * T1))
+                          CLng(0.65 * T1), CLng(0.34 * T1), CLng(1.9 * T1), CLng(0.25 * T1))
     c.Name = "cboProject"
     c.RowSourceType = "Table/Query"
     c.RowSource = "SELECT ProjectName FROM tblProjects ORDER BY ProjectName;"
     c.LimitToList = True
     ComboLook c
-    HeadLbl frm, "Relationship", 2.65, 0.8, 0.34, False
+    HeadLbl frm, "Relationship", 2.65, 0.8, 0.36, False
     Set c = CreateControl(nm, acComboBox, acHeader, "", "", _
-                          CLng(3.5 * T1), CLng(0.32 * T1), CLng(1.7 * T1), CLng(0.25 * T1))
+                          CLng(3.5 * T1), CLng(0.34 * T1), CLng(1.7 * T1), CLng(0.25 * T1))
     c.Name = "cboRelationship"
     c.RowSourceType = "Table/Query"
     c.RowSource = "SELECT RelatedLoans FROM tblRelationships " & _
         "WHERE ProjectName = Forms!frmBidReader!cboProject ORDER BY SortNo;"
     c.LimitToList = True
     ComboLook c
-    HeadLbl frm, "PMT Hist Dt", 5.3, 0.75, 0.34, False
+    HeadLbl frm, "PMT Hist Dt", 5.3, 0.75, 0.36, False
     Set c = CreateControl(nm, acTextBox, acHeader, "", "", _
-                          CLng(6.05 * T1), CLng(0.32 * T1), CLng(0.8 * T1), CLng(0.25 * T1))
+                          CLng(6.05 * T1), CLng(0.34 * T1), CLng(0.8 * T1), CLng(0.25 * T1))
     StyleInput c: c.Name = "txtAnchor": c.Format = "mm/dd/yy": c.FontSize = 8
     c.DefaultValue = "=Date()"
-    HeadLbl frm, "Yield", 6.95, 0.4, 0.34, False
+    HeadLbl frm, "Yield", 6.95, 0.4, 0.36, False
     Set c = CreateControl(nm, acTextBox, acHeader, "", "", _
-                          CLng(7.35 * T1), CLng(0.32 * T1), CLng(0.55 * T1), CLng(0.25 * T1))
+                          CLng(7.35 * T1), CLng(0.34 * T1), CLng(0.55 * T1), CLng(0.25 * T1))
     StyleInput c: c.Name = "txtYield": c.Format = "0.00%": c.FontSize = 8
     Set c = CreateControl(nm, acCommandButton, acHeader, "", "", _
-                          CLng(8# * T1), CLng(0.31 * T1), CLng(0.9 * T1), CLng(0.26 * T1))
+                          CLng(8# * T1), CLng(0.33 * T1), CLng(0.9 * T1), CLng(0.26 * T1))
     c.Name = "btnPayHist": c.Caption = "Pay History"
     DarkBtn c
     Set c = CreateControl(nm, acCommandButton, acHeader, "", "", _
-                          CLng(8.95 * T1), CLng(0.31 * T1), CLng(0.9 * T1), CLng(0.26 * T1))
+                          CLng(8.95 * T1), CLng(0.33 * T1), CLng(0.9 * T1), CLng(0.26 * T1))
     c.Name = "btnColl": c.Caption = "Collateral"
     DarkBtn c
 
-    ' --- Header label bands for the three detail rows: gray =
-    ' snapshot, yellow = editable parameters, green = results ---
-    HeadBand frm, 0.05, 9.9, 0.62, CLR_HEADER
-    HeadBand frm, 0.05, 8.2, 0.82, CLR_INPUT
-    HeadBand frm, 0.05, 4.97, 1.02, CLR_INPUT
-    HeadBand frm, 5.02, 4.93, 1.02, CLR_RESBG
-    HeadLbl frm, "Loan No", 0.05, 1#, 0.64, False
-    HeadLbl frm, "UPB", 1.1, 0.85, 0.64, True
-    HeadLbl frm, "Interest", 2#, 0.8, 0.64, True
-    HeadLbl frm, "Rate", 2.85, 0.5, 0.64, True
-    HeadLbl frm, "PMT", 3.4, 0.8, 0.64, True
-    HeadLbl frm, "MTM", 4.25, 0.45, 0.64, True
-    HeadLbl frm, "MTA", 4.75, 0.45, 0.64, True
-    HeadLbl frm, "3M Trail", 5.25, 0.85, 0.64, True
-    HeadLbl frm, "6M Trail", 6.15, 0.85, 0.64, True
-    HeadLbl frm, "12M Trail", 7.05, 0.9, 0.64, True
-    HeadLbl frm, "Pmt Selection", 0.05, 0.95, 0.84, False
-    HeadLbl frm, "User PMT", 1.05, 0.8, 0.84, True
-    HeadLbl frm, "Term", 1.9, 0.45, 0.84, True
-    HeadLbl frm, "Trail %", 2.4, 0.5, 0.84, True
-    HeadLbl frm, "Rate Selection", 2.95, 0.9, 0.84, False
-    HeadLbl frm, "User Rate", 3.9, 0.55, 0.84, True
-    HeadLbl frm, "Legal $", 4.5, 0.8, 0.84, True
-    HeadLbl frm, "LglSt", 5.35, 0.45, 0.84, True
-    HeadLbl frm, "Hold $", 5.85, 0.75, 0.84, True
-    HeadLbl frm, "LglEnd", 6.65, 0.5, 0.84, True
-    HeadLbl frm, "Add Back to Exit", 7.2, 1.05, 0.84, False
-    HeadLbl frm, "Exit Type", 0.05, 0.95, 1.04, False
-    HeadLbl frm, "ExitM", 1.05, 0.45, 1.04, True
-    HeadLbl frm, "StartM", 1.55, 0.45, 1.04, True
-    HeadLbl frm, "DPO %", 2.05, 0.5, 1.04, True
-    HeadLbl frm, "Cap %", 2.6, 0.5, 1.04, True
-    HeadLbl frm, "YTM %", 3.15, 0.5, 1.04, True
-    HeadLbl frm, "User Exit", 3.7, 0.8, 1.04, True
-    HeadLbl frm, "Accr", 4.55, 0.45, 1.04, False
-    HeadLbl frm, "Pmt Pull", 5.05, 0.8, 1.04, True
-    HeadLbl frm, "Exit Value", 5.9, 0.85, 1.04, True
-    HeadLbl frm, "Bid (NPV)", 6.8, 0.9, 1.04, True
-    HeadLbl frm, "Bid %", 7.75, 0.5, 1.04, True
-    HeadLbl frm, "MOIC", 8.3, 0.5, 1.04, True
-    HeadLbl frm, "12M CY", 8.85, 0.5, 1.04, True
-    HeadLbl frm, "ImpDPO", 9.4, 0.55, 1.04, True
+    ' --- Row definitions: the sheet's exact top-to-bottom order ---
+    ' kinds: g=data (white), c=calc (white), r=result (green fill),
+    ' y=yellow input, Y=yellow combo, t=single Trail Selection combo,
+    ' s=section label
+    K = Array("LoanNo", "UPB", "IntBal", "MAI", "CRate", "DRate", "MatDt", "CPmt", "MTM", "MTA", "RelColl", "T3", "T6", "T12", "TrailDisp", "PmtSel", "PmtPull", _
+              "IntPmt", "UserPmt", "TermPmt", "TermMonths", "PctTrail", "MTrailSel", "TrailPct", "RateSel", "RatePull", "UserRate", "LegalHdr", "LegalInit", "LegalStartM", "HoldCost", "LegalEndM", "AddBack", _
+              "ExitType", "ExitVal", "DPOPct", "UserExit", "ValCapPct", "YTMTgt", "AddAccrued", "LiqAcrM", "ImpDPO", "StartMonth", "ExitMonth", "BidPct", "BidNPV", "CY12", "MOIC", "BidMwVx", "F12P12")
+    Cp = Array("Loan Number", "UPB", "Interest", "MAI", "Rate", "Default Rate", "Maturity", "PMT", "MTM", "MTA", "Rel Collateral", "3M Trail", "6M Trail", "12M Trail", "Trail Selection", "Payment Selection", "Payment Pull", _
+               "Interest Payment", "User PMT", "Term PMT", "Term Months", "% X Trail PMT", "M Trail", "Trail %", "Rate Selection", "Rate Pull", "User Rate", "Legal", "Initial Legal $", "Intial Start M", "Holding Cost $", "Legal End M", "Add Back to Exit", _
+               "Exit Type", "Exit Pull", "DPO %", "User Enter", "Value Cap", "YTM Target %", "Add Current Accrued", "LQDN Forward Acr M", "Implied DPO", "Start Mont", "Exit Month", "Bid %", "Bid", "12M CY", "MOIC", "Bid/MwVx", "F12/P12 PMT")
+    T = Array("g", "g", "g", "c", "g", "g", "g", "g", "c", "c", "c", "c", "c", "c", "t", "Y", "c", _
+              "c", "y", "c", "y", "c", "Y", "y", "Y", "c", "y", "s", "y", "y", "y", "y", "Y", _
+              "Y", "r", "y", "y", "y", "y", "Y", "y", "r", "y", "y", "r", "r", "r", "r", "r", "r")
+    F = Array("", "$#,##0", "$#,##0", "0.0", "0.00%", "0.00%", "mm/dd/yy", "$#,##0", "0", "0", "$#,##0", "", "", "", "", "", "$#,##0", _
+              "$#,##0", "$#,##0", "$#,##0", "0", "$#,##0", "", "0.00%", "", "0.00%", "0.00%", "", "$#,##0", "0", "$#,##0", "0", "", _
+              "", "$#,##0", "0.00%", "$#,##0", "0.00%", "0.00%", "", "0", "0.0%", "0", "0", "0.0%", "$#,##0", "0.0%", "0.00", "0.0%", "0.00")
 
-    ' --- Detail row A: snapshot + trails (locked) ---
-    RCell frm, "LoanNo", 0.05, 0.02, 1#, 1, ""
-    RCell frm, "UPB", 1.1, 0.02, 0.85, 1, "$#,##0"
-    RCell frm, "IntBal", 2#, 0.02, 0.8, 1, "$#,##0"
-    RCell frm, "CRate", 2.85, 0.02, 0.5, 1, "0.00%"
-    RCell frm, "CPmt", 3.4, 0.02, 0.8, 1, "$#,##0"
-    RCell frm, "MTM", 4.25, 0.02, 0.45, 1, ""
-    RCell frm, "MTA", 4.75, 0.02, 0.45, 1, ""
-    RCell frm, "T3", 5.25, 0.02, 0.85, 1, "$#,##0"
-    RCell frm, "T6", 6.15, 0.02, 0.85, 1, "$#,##0"
-    RCell frm, "T12", 7.05, 0.02, 0.9, 1, "$#,##0"
-    ' --- Detail row B: payment / rate / legal parameters ---
-    RCombo frm, "PmtSel", 0.05, 0.36, 0.95, _
-        """Current PMT"";""User PMT"";""Interest PMT"";""Term PMT"";""% of M Trail PMT"""
-    RCell frm, "UserPmt", 1.05, 0.36, 0.8, 0, "$#,##0"
-    RCell frm, "TermMonths", 1.9, 0.36, 0.45, 0, ""
-    RCell frm, "TrailPct", 2.4, 0.36, 0.5, 0, "0.00%"
-    RCombo frm, "RateSel", 2.95, 0.36, 0.9, _
-        """Contractual"";""User Enter"";""Default"""
-    RCell frm, "UserRate", 3.9, 0.36, 0.55, 0, "0.00%"
-    RCell frm, "LegalInit", 4.5, 0.36, 0.8, 0, "$#,##0"
-    RCell frm, "LegalStartM", 5.35, 0.36, 0.45, 0, ""
-    RCell frm, "HoldCost", 5.85, 0.36, 0.75, 0, "$#,##0"
-    RCell frm, "LegalEndM", 6.65, 0.36, 0.5, 0, ""
-    RCombo frm, "AddBack", 7.2, 0.36, 1.05, _
-        """No"";""Yes, Initial Only"";""Yes, Both"""
-    ' --- Detail row C: exit parameters + results ---
-    RCombo frm, "ExitType", 0.05, 0.7, 0.95, _
-        """PIF"";""User Enter"";""DPO"";""YTM Sell Solve"";""Value Cap"";""Liquidation"""
-    RCell frm, "ExitMonth", 1.05, 0.7, 0.45, 0, ""
-    RCell frm, "StartMonth", 1.55, 0.7, 0.45, 0, ""
-    RCell frm, "DPOPct", 2.05, 0.7, 0.5, 0, "0.00%"
-    RCell frm, "ValCapPct", 2.6, 0.7, 0.5, 0, "0.00%"
-    RCell frm, "YTMTgt", 3.15, 0.7, 0.5, 0, "0.00%"
-    RCell frm, "UserExit", 3.7, 0.7, 0.8, 0, "$#,##0"
-    RCombo frm, "AddAccrued", 4.55, 0.7, 0.45, """Yes"";""No"""
-    RCell frm, "PmtPull", 5.05, 0.7, 0.8, 2, "$#,##0"
-    RCell frm, "ExitVal", 5.9, 0.7, 0.85, 2, "$#,##0"
-    RCell frm, "BidNPV", 6.8, 0.7, 0.9, 2, "$#,##0"
-    RCell frm, "BidPct", 7.75, 0.7, 0.5, 2, "0.0%"
-    RCell frm, "MOIC", 8.3, 0.7, 0.5, 2, "0.00"
-    RCell frm, "CY12", 8.85, 0.7, 0.5, 2, "0.0%"
-    RCell frm, "ImpDPO", 9.4, 0.7, 0.55, 2, "0.0%"
+    For r = 0 To UBound(K)
+        y = 0.05 + r * RH
+        If T(r) = "s" Then
+            Set c = CreateControl(nm, acLabel, acDetail, "", "", _
+                                  CLng(0.05 * T1), CLng((y + 0.01) * T1), CLng(3# * T1), CLng(0.19 * T1))
+            c.Caption = CStr(Cp(r)): c.ForeColor = CLR_TITLE
+            c.FontName = FONT: c.FontSize = 9: c.FontBold = True
+        Else
+            Set c = CreateControl(nm, acLabel, acDetail, "", "", _
+                                  CLng(0.05 * T1), CLng((y + 0.01) * T1), CLng(LBLW * T1), CLng(0.19 * T1))
+            c.Caption = CStr(Cp(r)): c.ForeColor = CLR_TEXTSEC
+            c.FontName = FONT: c.FontSize = 8: c.FontBold = True
+            If T(r) = "t" Then
+                Set c = CreateControl(nm, acComboBox, acDetail, "", "", _
+                                      CLng(TOTX * T1), CLng(y * T1), CLng(TOTW * T1), CLng(0.2 * T1))
+                c.Name = "cTrailDisp"
+                c.RowSourceType = "Value List"
+                c.RowSource = ComboList("TrailDisp")
+                c.LimitToList = True
+                c.DefaultValue = "=""Actual"""
+                ComboLook c
+                c.AfterUpdate = "=PaintOnly()"
+            Else
+                For i = 1 To NCOLS
+                    x = X0 + (i - 1) * COLW
+                    If T(r) = "Y" Then
+                        Set c = CreateControl(nm, acComboBox, acDetail, "", "", _
+                                              CLng(x * T1), CLng(y * T1), CLng((COLW - 0.05) * T1), CLng(0.2 * T1))
+                        c.Name = "c" & i & "_" & K(r)
+                        c.RowSourceType = "Value List"
+                        c.RowSource = ComboList(CStr(K(r)))
+                        c.LimitToList = False
+                        ComboLook c
+                        c.AfterUpdate = "=SaveRecalc()"
+                    Else
+                        Set c = CreateControl(nm, acTextBox, acDetail, "", "", _
+                                              CLng(x * T1), CLng(y * T1), CLng((COLW - 0.05) * T1), CLng(0.2 * T1))
+                        c.Name = "c" & i & "_" & K(r)
+                        Select Case T(r)
+                            Case "y"
+                                StyleInput c: c.FontSize = 8: c.TextAlign = 3
+                                c.AfterUpdate = "=SaveRecalc()"
+                            Case "r"
+                                ResultLook c
+                            Case Else
+                                CalcCell c
+                        End Select
+                        If Len(F(r)) > 0 Then c.Format = CStr(F(r))
+                        If K(r) = "LoanNo" Then c.TextAlign = 1
+                    End If
+                Next i
+                ' Relationship totals column (data/calc/result rows only)
+                If T(r) = "g" Or T(r) = "c" Or T(r) = "r" Then
+                    Set c = CreateControl(nm, acTextBox, acDetail, "", "", _
+                                          CLng(TOTX * T1), CLng(y * T1), CLng(TOTW * T1), CLng(0.2 * T1))
+                    c.Name = "cT_" & K(r)
+                    If T(r) = "r" Then
+                        ResultLook c
+                    Else
+                        CalcCell c
+                        c.FontBold = True
+                    End If
+                    If Len(F(r)) > 0 Then c.Format = CStr(F(r))
+                    If K(r) = "LoanNo" Then c.TextAlign = 1
+                End If
+            End If
+        End If
+    Next r
 
-    ' --- Footer: relationship rollup + exit-month sensitivity ---
-    Set c = CreateControl(nm, acLabel, acFooter, "", "", _
-                          CLng(0.05 * T1), CLng(0.05 * T1), CLng(1.1 * T1), CLng(0.2 * T1))
-    c.Caption = "Relationship Bid": c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
-    Set c = CreateControl(nm, acTextBox, acFooter, "", "=Sum([BidNPV])", _
-                          CLng(1.2 * T1), CLng(0.03 * T1), CLng(1# * T1), CLng(0.24 * T1))
-    ResultLook c: c.Name = "txtTotBid"
-    c.Format = "$#,##0": c.TextAlign = 3: c.FontSize = 9
-    Set c = CreateControl(nm, acLabel, acFooter, "", "", _
-                          CLng(2.35 * T1), CLng(0.05 * T1), CLng(0.5 * T1), CLng(0.2 * T1))
-    c.Caption = "Bid %": c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
-    Set c = CreateControl(nm, acTextBox, acFooter, "", _
-        "=IIf(Sum([UPB])=0,0,Sum([BidNPV])/Sum([UPB]))", _
-        CLng(2.85 * T1), CLng(0.03 * T1), CLng(0.6 * T1), CLng(0.24 * T1))
-    ResultLook c: c.Name = "txtTotBidPct"
-    c.Format = "0.0%": c.TextAlign = 3: c.FontSize = 9
-    Set c = CreateControl(nm, acLabel, acFooter, "", "", _
-                          CLng(3.6 * T1), CLng(0.05 * T1), CLng(0.4 * T1), CLng(0.2 * T1))
-    c.Caption = "UPB": c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
-    Set c = CreateControl(nm, acTextBox, acFooter, "", "=Sum([UPB])", _
-                          CLng(4# * T1), CLng(0.03 * T1), CLng(1# * T1), CLng(0.24 * T1))
-    StyleCell c: c.Name = "txtTotUPB": c.Format = "$#,##0": c.TextAlign = 3
-    Set c = CreateControl(nm, acLabel, acFooter, "", "", _
-                          CLng(5.15 * T1), CLng(0.05 * T1), CLng(0.95 * T1), CLng(0.2 * T1))
-    c.Caption = "Rel Collateral": c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
-    Set c = CreateControl(nm, acTextBox, acFooter, "", "", _
-                          CLng(6.1 * T1), CLng(0.03 * T1), CLng(1# * T1), CLng(0.24 * T1))
-    StyleCell c: c.Name = "txtRelColl": c.Format = "$#,##0": c.TextAlign = 3
-    Set c = CreateControl(nm, acLabel, acFooter, "", "", _
-                          CLng(7.25 * T1), CLng(0.05 * T1), CLng(0.7 * T1), CLng(0.2 * T1))
-    c.Caption = "Bid/MwVx": c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
-    Set c = CreateControl(nm, acTextBox, acFooter, "", "", _
-                          CLng(7.95 * T1), CLng(0.03 * T1), CLng(0.6 * T1), CLng(0.24 * T1))
-    StyleCell c: c.Name = "txtBidMwVx": c.Format = "0.0%": c.TextAlign = 3
-    Set c = CreateControl(nm, acLabel, acFooter, "", "", _
-                          CLng(0.05 * T1), CLng(0.36 * T1), CLng(4.5 * T1), CLng(0.2 * T1))
+    y = 0.05 + (UBound(K) + 1) * RH + 0.04
+    Set c = CreateControl(nm, acLabel, acDetail, "", "", _
+                          CLng(0.05 * T1), CLng(y * T1), CLng(6# * T1), CLng(0.19 * T1))
+    c.Caption = "": c.Name = "lblMore": c.ForeColor = CLR_MUTED
+    c.FontName = FONT: c.FontSize = 8
+    Set c = CreateControl(nm, acLabel, acDetail, "", "", _
+                          CLng(0.05 * T1), CLng((y + 0.26) * T1), CLng(4.5 * T1), CLng(0.19 * T1))
     c.Caption = "Exit-Month Sensitivity (every loan exited at month N)"
     c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
-    Set c = CreateControl(nm, acListBox, acFooter, "", "", _
-                          CLng(0.05 * T1), CLng(0.58 * T1), CLng(9.9 * T1), CLng(1.3 * T1))
+    Set c = CreateControl(nm, acListBox, acDetail, "", "", _
+                          CLng(0.05 * T1), CLng((y + 0.48) * T1), CLng(9.3 * T1), CLng(1.3 * T1))
     c.Name = "lstSens"
     c.RowSourceType = "Value List"
     c.RowSource = "Month;Bid;Bid %;MOIC;12M CY"
@@ -759,20 +762,33 @@ Private Sub BuildFrmBidReader()
     c.ColumnHeads = True
     ListLook c
 
-    ' --- Wiring (rename-before-wire, then procs) ---
+    ' --- Wiring ---
     Dim mdl As Module, ln As Long, code As String
-    frm!btnRecalc.OnClick = "[Event Procedure]"
+    frm!btnRecalc.OnClick = "=SaveRecalc()"
     frm!btnPayHist.OnClick = "[Event Procedure]"
     frm!btnColl.OnClick = "[Event Procedure]"
     frm!cboProject.AfterUpdate = "[Event Procedure]"
     frm!cboRelationship.AfterUpdate = "[Event Procedure]"
     frm!txtYield.AfterUpdate = "[Event Procedure]"
     frm!txtAnchor.AfterUpdate = "[Event Procedure]"
-    frm.AfterUpdate = "[Event Procedure]"
     frm.OnLoad = "[Event Procedure]"
     Set mdl = frm.Module
-    ln = mdl.CreateEventProc("Click", "btnRecalc")
-    mdl.InsertLines ln + 1, "    RecalcAll"
+    ln = mdl.CreateEventProc("Load", "Form")
+    code = "    On Error Resume Next" & vbCrLf
+    code = code & "    If IsNull(Me!cboProject) Then Me!cboProject = DFirst(""ProjectName"", ""tblProjects"")" & vbCrLf
+    code = code & "    Me!cboRelationship.Requery"
+    mdl.InsertLines ln + 1, code
+    ln = mdl.CreateEventProc("AfterUpdate", "cboProject")
+    code = "    On Error Resume Next" & vbCrLf
+    code = code & "    Me!cboRelationship = Null" & vbCrLf
+    code = code & "    Me!cboRelationship.Requery"
+    mdl.InsertLines ln + 1, code
+    ln = mdl.CreateEventProc("AfterUpdate", "cboRelationship")
+    mdl.InsertLines ln + 1, "    SyncRel"
+    ln = mdl.CreateEventProc("AfterUpdate", "txtYield")
+    mdl.InsertLines ln + 1, "    SaveSettings" & vbCrLf & "    RefreshAll"
+    ln = mdl.CreateEventProc("AfterUpdate", "txtAnchor")
+    mdl.InsertLines ln + 1, "    SaveSettings" & vbCrLf & "    RefreshAll"
     ln = mdl.CreateEventProc("Click", "btnPayHist")
     code = "    If Len(Nz(Me!cboRelationship, """")) = 0 Then" & vbCrLf
     code = code & "        MsgBox ""Pick a relationship first.""" & vbCrLf
@@ -791,30 +807,15 @@ Private Sub BuildFrmBidReader()
     code = code & "    On Error Resume Next" & vbCrLf
     code = code & "    Forms(""frmCollSheet"").Requery"
     mdl.InsertLines ln + 1, code
-    ln = mdl.CreateEventProc("AfterUpdate", "Form")
-    mdl.InsertLines ln + 1, "    RecalcAll"
-    ln = mdl.CreateEventProc("Load", "Form")
-    code = "    On Error Resume Next" & vbCrLf
-    code = code & "    If IsNull(Me!cboProject) Then Me!cboProject = DFirst(""ProjectName"", ""tblProjects"")" & vbCrLf
-    code = code & "    Me!cboRelationship.Requery" & vbCrLf
-    code = code & "    Me.Filter = ""RelatedLoans='__none__'""" & vbCrLf
-    code = code & "    Me.FilterOn = True"
-    mdl.InsertLines ln + 1, code
-    ln = mdl.CreateEventProc("AfterUpdate", "cboProject")
-    code = "    On Error Resume Next" & vbCrLf
-    code = code & "    Me!cboRelationship = Null" & vbCrLf
-    code = code & "    Me!cboRelationship.Requery" & vbCrLf
-    code = code & "    Me.Filter = ""RelatedLoans='__none__'""" & vbCrLf
-    code = code & "    Me.FilterOn = True"
-    mdl.InsertLines ln + 1, code
-    ln = mdl.CreateEventProc("AfterUpdate", "cboRelationship")
-    mdl.InsertLines ln + 1, "    SyncRel"
-    ln = mdl.CreateEventProc("AfterUpdate", "txtYield")
-    mdl.InsertLines ln + 1, "    SaveSettings" & vbCrLf & "    RecalcAll"
-    ln = mdl.CreateEventProc("AfterUpdate", "txtAnchor")
-    mdl.InsertLines ln + 1, "    SaveSettings" & vbCrLf & "    RecalcAll"
 
-    ' --- The engine (ports of the sheet's LET formulas) ---
+    InjectEngine mdl
+    SaveAs nm, "frmBidReader"
+End Sub
+
+' The runtime engine for the vertical sheet: sweep yellow columns ->
+' local table, recalc (sheet LET formulas), repaint columns + totals.
+Private Sub InjectEngine(mdl As Module)
+    Dim code As String
     code = ""
     code = code & "Private Function Q(v As Variant) As String" & vbCrLf
     code = code & "    Q = Replace(Nz(v, """"), ""'"", ""''"")" & vbCrLf
@@ -825,12 +826,27 @@ Private Sub BuildFrmBidReader()
     code = code & "End Function" & vbCrLf
     code = code & "" & vbCrLf
     code = code & "Private Function TrailSum(lnq As String, anchor As Date, n As Long) As Double" & vbCrLf
-    code = code & "    ' Sum of the last n months of actual payments (pd = Year*100+Month)" & vbCrLf
     code = code & "    Dim lo As Long, hi As Long, d As Date" & vbCrLf
     code = code & "    hi = Year(anchor) * 100 + Month(anchor)" & vbCrLf
     code = code & "    d = DateAdd(""m"", -(n - 1), anchor)" & vbCrLf
     code = code & "    lo = Year(d) * 100 + Month(d)" & vbCrLf
     code = code & "    TrailSum = Nz(DSum(""amount"", ""tblPayHistory"", ""mwloanno='"" & lnq & ""' AND pd >= "" & lo & "" AND pd <= "" & hi), 0)" & vbCrLf
+    code = code & "End Function" & vbCrLf
+    code = code & "" & vbCrLf
+    code = code & "Private Function TrailX(s As Double, n As Long, sel As String, cpmt As Double, ipmt As Double) As String" & vbCrLf
+    code = code & "    Select Case sel" & vbCrLf
+    code = code & "        Case ""monthly"": TrailX = Format(s / n, ""$#,##0"")" & vbCrLf
+    code = code & "        Case ""yearly"": TrailX = Format(s / n * 12, ""$#,##0"")" & vbCrLf
+    code = code & "        Case ""% of Contractual""" & vbCrLf
+    code = code & "            If cpmt = 0 Then TrailX = ""-"" Else TrailX = Format(s / (cpmt * n), ""0.0%"")" & vbCrLf
+    code = code & "        Case ""% of Int PMT""" & vbCrLf
+    code = code & "            If ipmt = 0 Then TrailX = ""-"" Else TrailX = Format(s / (ipmt * n), ""0.0%"")" & vbCrLf
+    code = code & "        Case ""# of PMT's Made""" & vbCrLf
+    code = code & "            If cpmt = 0 Then TrailX = ""-"" Else TrailX = Format(s / cpmt, ""0.00"")" & vbCrLf
+    code = code & "        Case ""# of Int Pmt's Made""" & vbCrLf
+    code = code & "            If ipmt = 0 Then TrailX = ""-"" Else TrailX = Format(s / ipmt, ""0.00"")" & vbCrLf
+    code = code & "        Case Else: TrailX = Format(s, ""$#,##0"")" & vbCrLf
+    code = code & "    End Select" & vbCrLf
     code = code & "End Function" & vbCrLf
     code = code & "" & vbCrLf
     code = code & "Private Function PickRate(sel As String, cr As Double, drt As Double, ur As Double) As Double" & vbCrLf
@@ -841,7 +857,8 @@ Private Sub BuildFrmBidReader()
     code = code & "    End Select" & vbCrLf
     code = code & "End Function" & vbCrLf
     code = code & "" & vbCrLf
-    code = code & "Private Function PickPmt(sel As String, cp As Double, upb As Double, mr As Double, term As Long, upmt As Double, t12 As Double, tpct As Double) As Double" & vbCrLf
+    code = code & "Private Function PickPmt(sel As String, cp As Double, upb As Double, mr As Double, term As Long, upmt As Double, t3 As Double, t6 As Double, t12 As Double, mts As String, tpct As Double) As Double" & vbCrLf
+    code = code & "    Dim base As Double" & vbCrLf
     code = code & "    Select Case sel" & vbCrLf
     code = code & "        Case ""User PMT"": PickPmt = upmt" & vbCrLf
     code = code & "        Case ""Interest PMT"": PickPmt = upb * mr" & vbCrLf
@@ -851,14 +868,17 @@ Private Sub BuildFrmBidReader()
     code = code & "            Else" & vbCrLf
     code = code & "                PickPmt = cp" & vbCrLf
     code = code & "            End If" & vbCrLf
-    code = code & "        Case ""% of M Trail PMT"": PickPmt = tpct * t12 / 12" & vbCrLf
+    code = code & "        Case ""% of M Trail PMT""" & vbCrLf
+    code = code & "            base = t12 / 12" & vbCrLf
+    code = code & "            If mts = ""3M"" Then base = t3 / 3" & vbCrLf
+    code = code & "            If mts = ""6M"" Then base = t6 / 6" & vbCrLf
+    code = code & "            PickPmt = tpct * base" & vbCrLf
     code = code & "        Case Else: PickPmt = cp" & vbCrLf
     code = code & "    End Select" & vbCrLf
     code = code & "End Function" & vbCrLf
     code = code & "" & vbCrLf
-    code = code & "Private Function CoreBid(mr As Double, pm As Double, upb As Double, ib As Double, startM As Long, exitM As Long, xt As String, dpo As Double, cap As Double, ytmr As Double, uex As Double, accY As Boolean, relColl As Double, mtm As Long, mta As Long, y As Double, lgl As Double, lglS As Long, hld As Double, lglE As Long, ab As String, ByRef xv As Double, ByRef sAll As Double, ByRef s12 As Double) As Double" & vbCrLf
-    code = code & "    ' The sheet's Exit Pull LET + NPV of the monthly net stream" & vbCrLf
-    code = code & "    Dim fvx As Double, acc As Double, addb As Double, mm As Long" & vbCrLf
+    code = code & "Private Function CoreBid(mr As Double, pm As Double, upb As Double, ib As Double, startM As Long, exitM As Long, xt As String, dpo As Double, cap As Double, ytmr As Double, uex As Double, accY As Boolean, relColl As Double, mtm As Long, mta As Long, y As Double, lgl As Double, lglS As Long, hld As Double, lglE As Long, ab As String, liqM As Long, ByRef xv As Double, ByRef sAll As Double, ByRef s12 As Double) As Double" & vbCrLf
+    code = code & "    Dim fvx As Double, acc As Double, addb As Double, mm As Long, lm As Long" & vbCrLf
     code = code & "    Dim t As Long, cf As Double, npv As Double, ym As Double" & vbCrLf
     code = code & "    fvx = VBA.FV(mr, exitM - startM + 1, pm, -upb) + pm" & vbCrLf
     code = code & "    acc = 0: If accY Then acc = ib" & vbCrLf
@@ -870,7 +890,9 @@ Private Sub BuildFrmBidReader()
     code = code & "        Case ""User Enter"": xv = uex" & vbCrLf
     code = code & "        Case ""DPO"": xv = fvx * (1 - dpo)" & vbCrLf
     code = code & "        Case ""Value Cap"": xv = relColl * cap" & vbCrLf
-    code = code & "        Case ""Liquidation"": xv = VBA.FV(mr, exitM, 0, -upb) + acc" & vbCrLf
+    code = code & "        Case ""Liquidation""" & vbCrLf
+    code = code & "            lm = liqM: If lm < 1 Then lm = exitM" & vbCrLf
+    code = code & "            xv = VBA.FV(mr, lm, 0, -upb) + acc" & vbCrLf
     code = code & "        Case ""YTM Sell Solve""" & vbCrLf
     code = code & "            mm = mtm: If mta < mm Then mm = mta" & vbCrLf
     code = code & "            If mm > exitM Then" & vbCrLf
@@ -912,13 +934,26 @@ Private Sub BuildFrmBidReader()
     code = code & "    On Error Resume Next" & vbCrLf
     code = code & "    If Len(Nz(Me!cboRelationship, """")) = 0 Then Exit Sub" & vbCrLf
     code = code & "    esc = Q(Me!cboRelationship)" & vbCrLf
-    code = code & "    CurrentDb.Execute ""INSERT INTO xtblBidReader (LoanNo, RelatedLoans, PmtSel, RateSel, ExitType, ExitMonth, StartMonth, DPOPct, ValCapPct, YTMTgt, AddAccrued, AddBack, TrailPct, LegalStartM, LegalEndM) SELECT l.MWLoanNo, l.RelatedLoans, 'Current PMT', 'Contractual', 'PIF', 24, 1, 0.25, 1, 0.15, 'No', 'No', 1, 0, 0 FROM tblLoan AS l WHERE l.RelatedLoans='"" & esc & ""' AND l.MWLoanNo NOT IN (SELECT LoanNo FROM xtblBidReader)""" & vbCrLf
+    code = code & "    CurrentDb.Execute ""INSERT INTO xtblBidReader (LoanNo, RelatedLoans, PmtSel, RateSel, ExitType, ExitMonth, StartMonth, DPOPct, ValCapPct, YTMTgt, AddAccrued, AddBack, TrailPct, LegalStartM, LegalEndM, MTrailSel, LiqAcrM) SELECT l.MWLoanNo, l.RelatedLoans, 'Current PMT', 'Contractual', 'PIF', 24, 1, 0.25, 1, 0.15, 'No', 'No', 1, 0, 0, '12M', 0 FROM tblLoan AS l WHERE l.RelatedLoans='"" & esc & ""' AND l.MWLoanNo NOT IN (SELECT LoanNo FROM xtblBidReader)""" & vbCrLf
     code = code & "    Me!txtYield = Nz(DLookup(""YieldTarget"", ""xtblBidReaderSet"", ""RelatedLoans='"" & esc & ""'""), 0.15)" & vbCrLf
     code = code & "    Me!txtAnchor = Nz(DLookup(""AnchorDt"", ""xtblBidReaderSet"", ""RelatedLoans='"" & esc & ""'""), Date)" & vbCrLf
-    code = code & "    Me.Filter = ""RelatedLoans='"" & esc & ""'""" & vbCrLf
-    code = code & "    Me.FilterOn = True" & vbCrLf
-    code = code & "    RecalcAll" & vbCrLf
+    code = code & "    RefreshAll" & vbCrLf
     code = code & "End Sub" & vbCrLf
+    code = code & "" & vbCrLf
+    code = code & "Public Sub RefreshAll()" & vbCrLf
+    code = code & "    RecalcAll" & vbCrLf
+    code = code & "    PaintColumns" & vbCrLf
+    code = code & "End Sub" & vbCrLf
+    code = code & "" & vbCrLf
+    code = code & "Public Function PaintOnly() As Variant" & vbCrLf
+    code = code & "    PaintColumns" & vbCrLf
+    code = code & "End Function" & vbCrLf
+    code = code & "" & vbCrLf
+    code = code & "Public Function SaveRecalc() As Variant" & vbCrLf
+    code = code & "    SweepColumns" & vbCrLf
+    code = code & "    RecalcAll" & vbCrLf
+    code = code & "    PaintColumns" & vbCrLf
+    code = code & "End Function" & vbCrLf
     code = code & "" & vbCrLf
     code = code & "Public Sub RecalcAll()" & vbCrLf
     code = code & "    Dim db As DAO.Database, rs As DAO.Recordset" & vbCrLf
@@ -940,7 +975,6 @@ Private Sub BuildFrmBidReader()
     code = code & "    sy = DLookup(""cfstartyear"", ""xTblCFparameters"", ""ProjectName='"" & pj & ""'"")" & vbCrLf
     code = code & "    sm = DLookup(""cfstartmonth"", ""xTblCFparameters"", ""ProjectName='"" & pj & ""'"")" & vbCrLf
     code = code & "    If IsNumeric(sy) And IsNumeric(sm) Then cfStart = DateSerial(CInt(sy), CInt(sm), 1)" & vbCrLf
-    code = code & "    ' Pass 1: snapshot from SQL Server (read-only) + per-loan results" & vbCrLf
     code = code & "    Set rs = db.OpenRecordset(""SELECT * FROM xtblBidReader WHERE RelatedLoans='"" & esc & ""'"", dbOpenDynaset)" & vbCrLf
     code = code & "    Do While Not rs.EOF" & vbCrLf
     code = code & "        lq = Q(rs!LoanNo)" & vbCrLf
@@ -957,7 +991,7 @@ Private Sub BuildFrmBidReader()
     code = code & "        rs!T3 = TrailSum(lq, anchor, 3)" & vbCrLf
     code = code & "        rs!T6 = TrailSum(lq, anchor, 6)" & vbCrLf
     code = code & "        rs!T12 = TrailSum(lq, anchor, 12)" & vbCrLf
-    code = code & "        pm = PickPmt(Nz(rs!PmtSel, ""Current PMT""), cp, upb, mr, Nz(rs!TermMonths, 0), Nz(rs!UserPmt, 0), Nz(rs!T12, 0), Nz(rs!TrailPct, 1))" & vbCrLf
+    code = code & "        pm = PickPmt(Nz(rs!PmtSel, ""Current PMT""), cp, upb, mr, Nz(rs!TermMonths, 0), Nz(rs!UserPmt, 0), Nz(rs!T3, 0), Nz(rs!T6, 0), Nz(rs!T12, 0), Nz(rs!MTrailSel, ""12M""), Nz(rs!TrailPct, 1))" & vbCrLf
     code = code & "        mtm = 1" & vbCrLf
     code = code & "        If Not IsNull(mat) Then mtm = DateDiff(""m"", cfStart, mat)" & vbCrLf
     code = code & "        If mtm < 1 Then mtm = 1" & vbCrLf
@@ -968,7 +1002,7 @@ Private Sub BuildFrmBidReader()
     code = code & "        If mta < 1 Then mta = 1" & vbCrLf
     code = code & "        If mta > 360 Then mta = 360" & vbCrLf
     code = code & "        rs!MTM = mtm: rs!MTA = mta" & vbCrLf
-    code = code & "        npv = CoreBid(mr, pm, upb, ib, Nz(rs!StartMonth, 1), Nz(rs!ExitMonth, 24), Nz(rs!ExitType, ""PIF""), Nz(rs!DPOPct, 0), Nz(rs!ValCapPct, 1), Nz(rs!YTMTgt, 0.15), Nz(rs!UserExit, 0), (Nz(rs!AddAccrued, ""No"") = ""Yes""), relColl, mtm, mta, y, Nz(rs!LegalInit, 0), Nz(rs!LegalStartM, 0), Nz(rs!HoldCost, 0), Nz(rs!LegalEndM, 0), Nz(rs!AddBack, ""No""), xv, sAll, s12)" & vbCrLf
+    code = code & "        npv = CoreBid(mr, pm, upb, ib, Nz(rs!StartMonth, 1), Nz(rs!ExitMonth, 24), Nz(rs!ExitType, ""PIF""), Nz(rs!DPOPct, 0), Nz(rs!ValCapPct, 1), Nz(rs!YTMTgt, 0.15), Nz(rs!UserExit, 0), (Nz(rs!AddAccrued, ""No"") = ""Yes""), relColl, mtm, mta, y, Nz(rs!LegalInit, 0), Nz(rs!LegalStartM, 0), Nz(rs!HoldCost, 0), Nz(rs!LegalEndM, 0), Nz(rs!AddBack, ""No""), Nz(rs!LiqAcrM, 0), xv, sAll, s12)" & vbCrLf
     code = code & "        rs!PmtPull = pm: rs!ExitVal = xv: rs!BidNPV = npv" & vbCrLf
     code = code & "        rs!BidPct = 0: If upb <> 0 Then rs!BidPct = npv / upb" & vbCrLf
     code = code & "        rs!MOIC = 0: rs!CY12 = 0" & vbCrLf
@@ -979,15 +1013,14 @@ Private Sub BuildFrmBidReader()
     code = code & "        rs.MoveNext" & vbCrLf
     code = code & "    Loop" & vbCrLf
     code = code & "    rs.Close" & vbCrLf
-    code = code & "    ' Pass 2: exit-month sensitivity from the LOCAL snapshot only" & vbCrLf
     code = code & "    s = ""Month;Bid;Bid %;MOIC;12M CY""" & vbCrLf
     code = code & "    For m = 6 To 60 Step 6" & vbCrLf
     code = code & "        tb = 0: tu = 0: ta = 0: t12s = 0" & vbCrLf
     code = code & "        Set rs = db.OpenRecordset(""SELECT * FROM xtblBidReader WHERE RelatedLoans='"" & esc & ""'"", dbOpenSnapshot)" & vbCrLf
     code = code & "        Do While Not rs.EOF" & vbCrLf
     code = code & "            mr = PickRate(Nz(rs!RateSel, ""Contractual""), Nz(rs!CRate, 0), Nz(rs!DRate, 0), Nz(rs!UserRate, 0))" & vbCrLf
-    code = code & "            pm = PickPmt(Nz(rs!PmtSel, ""Current PMT""), Nz(rs!CPmt, 0), Nz(rs!UPB, 0), mr, Nz(rs!TermMonths, 0), Nz(rs!UserPmt, 0), Nz(rs!T12, 0), Nz(rs!TrailPct, 1))" & vbCrLf
-    code = code & "            npv = CoreBid(mr, pm, Nz(rs!UPB, 0), Nz(rs!IntBal, 0), Nz(rs!StartMonth, 1), m, Nz(rs!ExitType, ""PIF""), Nz(rs!DPOPct, 0), Nz(rs!ValCapPct, 1), Nz(rs!YTMTgt, 0.15), Nz(rs!UserExit, 0), (Nz(rs!AddAccrued, ""No"") = ""Yes""), relColl, Nz(rs!MTM, 1), Nz(rs!MTA, 360), y, Nz(rs!LegalInit, 0), Nz(rs!LegalStartM, 0), Nz(rs!HoldCost, 0), Nz(rs!LegalEndM, 0), Nz(rs!AddBack, ""No""), xv, sAll, s12)" & vbCrLf
+    code = code & "            pm = PickPmt(Nz(rs!PmtSel, ""Current PMT""), Nz(rs!CPmt, 0), Nz(rs!UPB, 0), mr, Nz(rs!TermMonths, 0), Nz(rs!UserPmt, 0), Nz(rs!T3, 0), Nz(rs!T6, 0), Nz(rs!T12, 0), Nz(rs!MTrailSel, ""12M""), Nz(rs!TrailPct, 1))" & vbCrLf
+    code = code & "            npv = CoreBid(mr, pm, Nz(rs!UPB, 0), Nz(rs!IntBal, 0), Nz(rs!StartMonth, 1), m, Nz(rs!ExitType, ""PIF""), Nz(rs!DPOPct, 0), Nz(rs!ValCapPct, 1), Nz(rs!YTMTgt, 0.15), Nz(rs!UserExit, 0), (Nz(rs!AddAccrued, ""No"") = ""Yes""), relColl, Nz(rs!MTM, 1), Nz(rs!MTA, 360), y, Nz(rs!LegalInit, 0), Nz(rs!LegalStartM, 0), Nz(rs!HoldCost, 0), Nz(rs!LegalEndM, 0), Nz(rs!AddBack, ""No""), Nz(rs!LiqAcrM, 0), xv, sAll, s12)" & vbCrLf
     code = code & "            tb = tb + npv: tu = tu + Nz(rs!UPB, 0): ta = ta + sAll: t12s = t12s + s12" & vbCrLf
     code = code & "            rs.MoveNext" & vbCrLf
     code = code & "        Loop" & vbCrLf
@@ -997,13 +1030,169 @@ Private Sub BuildFrmBidReader()
     code = code & "        If tb <> 0 Then s = s & "";"" & Format(ta / tb, ""0.00"") & "";"" & Format(t12s / tb, ""0.0%"") Else s = s & "";-;-""" & vbCrLf
     code = code & "    Next m" & vbCrLf
     code = code & "    Me!lstSens.RowSource = s" & vbCrLf
-    code = code & "    Me!txtRelColl = relColl" & vbCrLf
-    code = code & "    Me!txtBidMwVx = Null" & vbCrLf
-    code = code & "    If relColl <> 0 Then Me!txtBidMwVx = Nz(DSum(""BidNPV"", ""xtblBidReader"", ""RelatedLoans='"" & esc & ""'""), 0) / relColl" & vbCrLf
-    code = code & "    Me.Requery" & vbCrLf
     code = code & "End Sub" & vbCrLf
     mdl.InsertLines mdl.CountOfLines + 1, code
-    SaveAs nm, "frmBidReader"
+
+    code = ""
+    code = code & "Public Sub PaintColumns()" & vbCrLf
+    code = code & "    Dim db As DAO.Database, rs As DAO.Recordset" & vbCrLf
+    code = code & "    Dim esc As String, i As Long, n As Long, relColl As Double, tsel As String" & vbCrLf
+    code = code & "    Dim mr As Double, ip As Double, base As Double" & vbCrLf
+    code = code & "    Dim kk As Variant, k As Variant" & vbCrLf
+    code = code & "    Dim tUPB As Double, tInt As Double, tPmt As Double, tRate As Double" & vbCrLf
+    code = code & "    Dim tT3 As Double, tT6 As Double, tT12 As Double, tXV As Double, tBid As Double" & vbCrLf
+    code = code & "    Dim tSAll As Double, tS12 As Double" & vbCrLf
+    code = code & "    On Error Resume Next" & vbCrLf
+    code = code & "    If Len(Nz(Me!cboRelationship, """")) = 0 Then Exit Sub" & vbCrLf
+    code = code & "    esc = Q(Me!cboRelationship)" & vbCrLf
+    code = code & "    Set db = CurrentDb" & vbCrLf
+    code = code & "    tsel = Nz(Me!cTrailDisp, ""Actual"")" & vbCrLf
+    code = code & "    relColl = Nz(DSum(""CurrentAppraisedValue"", ""CollateralInfo"", ""RelatedLoans='"" & esc & ""'""), 0)" & vbCrLf
+    code = code & "    kk = Array(""LoanNo"", ""UPB"", ""IntBal"", ""MAI"", ""CRate"", ""DRate"", ""MatDt"", ""CPmt"", ""MTM"", ""MTA"", ""RelColl"", ""T3"", ""T6"", ""T12"", ""PmtSel"", ""PmtPull"", ""IntPmt"", ""UserPmt"", ""TermPmt"", ""TermMonths"", ""PctTrail"", ""MTrailSel"", ""TrailPct"", ""RateSel"", ""RatePull"", ""UserRate"", ""LegalInit"", ""LegalStartM"", ""HoldCost"", ""LegalEndM"", ""AddBack"", ""ExitType"", ""ExitVal"", ""DPOPct"", ""UserExit"", ""ValCapPct"", ""YTMTgt"", ""AddAccrued"", ""LiqAcrM"", ""ImpDPO"", ""StartMonth"", ""ExitMonth"", ""BidPct"", ""BidNPV"", ""CY12"", ""MOIC"", ""BidMwVx"", ""F12P12"")" & vbCrLf
+    code = code & "    For i = 1 To 8" & vbCrLf
+    code = code & "        For Each k In kk" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_"" & k) = Null" & vbCrLf
+    code = code & "        Next k" & vbCrLf
+    code = code & "    Next i" & vbCrLf
+    code = code & "    For Each k In kk" & vbCrLf
+    code = code & "        Me(""cT_"" & k) = Null" & vbCrLf
+    code = code & "    Next k" & vbCrLf
+    code = code & "    n = 0: i = 0" & vbCrLf
+    code = code & "    Set rs = db.OpenRecordset(""SELECT * FROM xtblBidReader WHERE RelatedLoans='"" & esc & ""' ORDER BY UPB DESC, LoanNo"", dbOpenSnapshot)" & vbCrLf
+    code = code & "    Do While Not rs.EOF" & vbCrLf
+    code = code & "        n = n + 1" & vbCrLf
+    code = code & "        tUPB = tUPB + Nz(rs!UPB, 0): tInt = tInt + Nz(rs!IntBal, 0): tPmt = tPmt + Nz(rs!CPmt, 0)" & vbCrLf
+    code = code & "        tRate = tRate + Nz(rs!CRate, 0) * Nz(rs!UPB, 0)" & vbCrLf
+    code = code & "        tT3 = tT3 + Nz(rs!T3, 0): tT6 = tT6 + Nz(rs!T6, 0): tT12 = tT12 + Nz(rs!T12, 0)" & vbCrLf
+    code = code & "        tXV = tXV + Nz(rs!ExitVal, 0): tBid = tBid + Nz(rs!BidNPV, 0)" & vbCrLf
+    code = code & "        tSAll = tSAll + Nz(rs!MOIC, 0) * Nz(rs!BidNPV, 0): tS12 = tS12 + Nz(rs!CY12, 0) * Nz(rs!BidNPV, 0)" & vbCrLf
+    code = code & "        If n <= 8 Then" & vbCrLf
+    code = code & "            i = n" & vbCrLf
+    code = code & "            mr = PickRate(Nz(rs!RateSel, ""Contractual""), Nz(rs!CRate, 0), Nz(rs!DRate, 0), Nz(rs!UserRate, 0))" & vbCrLf
+    code = code & "            ip = Nz(rs!UPB, 0) * Nz(rs!CRate, 0) / 12" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_LoanNo"") = rs!LoanNo" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_UPB"") = rs!UPB" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_IntBal"") = rs!IntBal" & vbCrLf
+    code = code & "            If ip <> 0 Then Me(""c"" & i & ""_MAI"") = Nz(rs!IntBal, 0) / ip" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_CRate"") = rs!CRate" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_DRate"") = rs!DRate" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_MatDt"") = rs!MatDt" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_CPmt"") = rs!CPmt" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_MTM"") = rs!MTM" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_MTA"") = rs!MTA" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_RelColl"") = relColl" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_T3"") = TrailX(Nz(rs!T3, 0), 3, tsel, Nz(rs!CPmt, 0), ip)" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_T6"") = TrailX(Nz(rs!T6, 0), 6, tsel, Nz(rs!CPmt, 0), ip)" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_T12"") = TrailX(Nz(rs!T12, 0), 12, tsel, Nz(rs!CPmt, 0), ip)" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_PmtSel"") = Nz(rs!PmtSel, ""Current PMT"")" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_PmtPull"") = rs!PmtPull" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_IntPmt"") = ip" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_UserPmt"") = rs!UserPmt" & vbCrLf
+    code = code & "            If Nz(rs!TermMonths, 0) > 0 Then" & vbCrLf
+    code = code & "                If mr > 0 Then" & vbCrLf
+    code = code & "                    Me(""c"" & i & ""_TermPmt"") = VBA.Pmt(mr, rs!TermMonths, -Nz(rs!UPB, 0))" & vbCrLf
+    code = code & "                Else" & vbCrLf
+    code = code & "                    Me(""c"" & i & ""_TermPmt"") = Nz(rs!UPB, 0) / rs!TermMonths" & vbCrLf
+    code = code & "                End If" & vbCrLf
+    code = code & "            End If" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_TermMonths"") = rs!TermMonths" & vbCrLf
+    code = code & "            base = Nz(rs!T12, 0) / 12" & vbCrLf
+    code = code & "            If Nz(rs!MTrailSel, ""12M"") = ""3M"" Then base = Nz(rs!T3, 0) / 3" & vbCrLf
+    code = code & "            If Nz(rs!MTrailSel, ""12M"") = ""6M"" Then base = Nz(rs!T6, 0) / 6" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_PctTrail"") = Nz(rs!TrailPct, 1) * base" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_MTrailSel"") = Nz(rs!MTrailSel, ""12M"")" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_TrailPct"") = rs!TrailPct" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_RateSel"") = Nz(rs!RateSel, ""Contractual"")" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_RatePull"") = mr * 12" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_UserRate"") = rs!UserRate" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_LegalInit"") = rs!LegalInit" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_LegalStartM"") = rs!LegalStartM" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_HoldCost"") = rs!HoldCost" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_LegalEndM"") = rs!LegalEndM" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_AddBack"") = Nz(rs!AddBack, ""No"")" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_ExitType"") = Nz(rs!ExitType, ""PIF"")" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_ExitVal"") = rs!ExitVal" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_DPOPct"") = rs!DPOPct" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_UserExit"") = rs!UserExit" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_ValCapPct"") = rs!ValCapPct" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_YTMTgt"") = rs!YTMTgt" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_AddAccrued"") = Nz(rs!AddAccrued, ""No"")" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_LiqAcrM"") = rs!LiqAcrM" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_ImpDPO"") = rs!ImpDPO" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_StartMonth"") = rs!StartMonth" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_ExitMonth"") = rs!ExitMonth" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_BidPct"") = rs!BidPct" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_BidNPV"") = rs!BidNPV" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_CY12"") = rs!CY12" & vbCrLf
+    code = code & "            Me(""c"" & i & ""_MOIC"") = rs!MOIC" & vbCrLf
+    code = code & "            If relColl <> 0 Then Me(""c"" & i & ""_BidMwVx"") = Nz(rs!BidNPV, 0) / relColl" & vbCrLf
+    code = code & "            If Nz(rs!T12, 0) <> 0 Then Me(""c"" & i & ""_F12P12"") = (Nz(rs!CY12, 0) * Nz(rs!BidNPV, 0)) / Nz(rs!T12, 0)" & vbCrLf
+    code = code & "        End If" & vbCrLf
+    code = code & "        rs.MoveNext" & vbCrLf
+    code = code & "    Loop" & vbCrLf
+    code = code & "    rs.Close" & vbCrLf
+    code = code & "    Me(""cT_LoanNo"") = ""Relationship""" & vbCrLf
+    code = code & "    Me(""cT_UPB"") = tUPB" & vbCrLf
+    code = code & "    Me(""cT_IntBal"") = tInt" & vbCrLf
+    code = code & "    Me(""cT_CPmt"") = tPmt" & vbCrLf
+    code = code & "    If tUPB <> 0 Then Me(""cT_CRate"") = tRate / tUPB" & vbCrLf
+    code = code & "    Me(""cT_RelColl"") = relColl" & vbCrLf
+    code = code & "    Me(""cT_T3"") = TrailX(tT3, 3, tsel, tPmt, tRate / 12)" & vbCrLf
+    code = code & "    Me(""cT_T6"") = TrailX(tT6, 6, tsel, tPmt, tRate / 12)" & vbCrLf
+    code = code & "    Me(""cT_T12"") = TrailX(tT12, 12, tsel, tPmt, tRate / 12)" & vbCrLf
+    code = code & "    Me(""cT_ExitVal"") = tXV" & vbCrLf
+    code = code & "    Me(""cT_BidNPV"") = tBid" & vbCrLf
+    code = code & "    If tUPB <> 0 Then Me(""cT_BidPct"") = tBid / tUPB" & vbCrLf
+    code = code & "    If tBid <> 0 Then Me(""cT_MOIC"") = tSAll / tBid" & vbCrLf
+    code = code & "    If tBid <> 0 Then Me(""cT_CY12"") = tS12 / tBid" & vbCrLf
+    code = code & "    If relColl <> 0 Then Me(""cT_BidMwVx"") = tBid / relColl" & vbCrLf
+    code = code & "    If tT12 <> 0 Then Me(""cT_F12P12"") = tS12 / tT12" & vbCrLf
+    code = code & "    Me!lblMore.Caption = """"" & vbCrLf
+    code = code & "    If n > 8 Then Me!lblMore.Caption = ""Showing the 8 largest loans of "" & n & "" - the Relationship column totals all of them.""" & vbCrLf
+    code = code & "End Sub" & vbCrLf
+    code = code & "" & vbCrLf
+    code = code & "Public Sub SweepColumns()" & vbCrLf
+    code = code & "    Dim db As DAO.Database, rs As DAO.Recordset, i As Long" & vbCrLf
+    code = code & "    Dim esc As String" & vbCrLf
+    code = code & "    On Error Resume Next" & vbCrLf
+    code = code & "    If Len(Nz(Me!cboRelationship, """")) = 0 Then Exit Sub" & vbCrLf
+    code = code & "    esc = Q(Me!cboRelationship)" & vbCrLf
+    code = code & "    Set db = CurrentDb" & vbCrLf
+    code = code & "    Set rs = db.OpenRecordset(""SELECT * FROM xtblBidReader WHERE RelatedLoans='"" & esc & ""' ORDER BY UPB DESC, LoanNo"", dbOpenDynaset)" & vbCrLf
+    code = code & "    i = 0" & vbCrLf
+    code = code & "    Do While Not rs.EOF" & vbCrLf
+    code = code & "        i = i + 1" & vbCrLf
+    code = code & "        If i > 8 Then Exit Do" & vbCrLf
+    code = code & "        If Nz(Me(""c"" & i & ""_LoanNo""), """") = Nz(rs!LoanNo, """") Then" & vbCrLf
+    code = code & "            rs.Edit" & vbCrLf
+    code = code & "            rs!PmtSel = Nz(Me(""c"" & i & ""_PmtSel""), ""Current PMT"")" & vbCrLf
+    code = code & "            rs!UserPmt = Nz(Me(""c"" & i & ""_UserPmt""), 0)" & vbCrLf
+    code = code & "            rs!TermMonths = Nz(Me(""c"" & i & ""_TermMonths""), 0)" & vbCrLf
+    code = code & "            rs!MTrailSel = Nz(Me(""c"" & i & ""_MTrailSel""), ""12M"")" & vbCrLf
+    code = code & "            rs!TrailPct = Nz(Me(""c"" & i & ""_TrailPct""), 1)" & vbCrLf
+    code = code & "            rs!RateSel = Nz(Me(""c"" & i & ""_RateSel""), ""Contractual"")" & vbCrLf
+    code = code & "            rs!UserRate = Nz(Me(""c"" & i & ""_UserRate""), 0)" & vbCrLf
+    code = code & "            rs!LegalInit = Nz(Me(""c"" & i & ""_LegalInit""), 0)" & vbCrLf
+    code = code & "            rs!LegalStartM = Nz(Me(""c"" & i & ""_LegalStartM""), 0)" & vbCrLf
+    code = code & "            rs!HoldCost = Nz(Me(""c"" & i & ""_HoldCost""), 0)" & vbCrLf
+    code = code & "            rs!LegalEndM = Nz(Me(""c"" & i & ""_LegalEndM""), 0)" & vbCrLf
+    code = code & "            rs!AddBack = Nz(Me(""c"" & i & ""_AddBack""), ""No"")" & vbCrLf
+    code = code & "            rs!ExitType = Nz(Me(""c"" & i & ""_ExitType""), ""PIF"")" & vbCrLf
+    code = code & "            rs!DPOPct = Nz(Me(""c"" & i & ""_DPOPct""), 0)" & vbCrLf
+    code = code & "            rs!UserExit = Nz(Me(""c"" & i & ""_UserExit""), 0)" & vbCrLf
+    code = code & "            rs!ValCapPct = Nz(Me(""c"" & i & ""_ValCapPct""), 1)" & vbCrLf
+    code = code & "            rs!YTMTgt = Nz(Me(""c"" & i & ""_YTMTgt""), 0.15)" & vbCrLf
+    code = code & "            rs!AddAccrued = Nz(Me(""c"" & i & ""_AddAccrued""), ""No"")" & vbCrLf
+    code = code & "            rs!LiqAcrM = Nz(Me(""c"" & i & ""_LiqAcrM""), 0)" & vbCrLf
+    code = code & "            rs!StartMonth = Nz(Me(""c"" & i & ""_StartMonth""), 1)" & vbCrLf
+    code = code & "            rs!ExitMonth = Nz(Me(""c"" & i & ""_ExitMonth""), 24)" & vbCrLf
+    code = code & "            rs.Update" & vbCrLf
+    code = code & "        End If" & vbCrLf
+    code = code & "        rs.MoveNext" & vbCrLf
+    code = code & "    Loop" & vbCrLf
+    code = code & "    rs.Close" & vbCrLf
+    code = code & "End Sub" & vbCrLf
+    mdl.InsertLines mdl.CountOfLines + 1, code
 End Sub
 
 ' ================= HELPERS ===========================================
@@ -1035,6 +1224,28 @@ Private Sub EnsureHeader(frm As Form)
     Err.Clear
     On Error GoTo 0
 End Sub
+
+' Value lists for the yellow selector rows (sheet vocabulary verbatim)
+Private Function ComboList(k As String) As String
+    Select Case k
+        Case "PmtSel"
+            ComboList = """Current PMT"";""User PMT"";""Interest PMT"";""Term PMT"";""% of M Trail PMT"""
+        Case "MTrailSel"
+            ComboList = """3M"";""6M"";""12M"""
+        Case "RateSel"
+            ComboList = """Contractual"";""User Enter"";""Default"""
+        Case "AddBack"
+            ComboList = """No"";""Yes, Initial Only"";""Yes, Both"""
+        Case "ExitType"
+            ComboList = """PIF"";""User Enter"";""DPO"";""YTM Sell Solve"";""Value Cap"";""Liquidation"""
+        Case "AddAccrued"
+            ComboList = """Yes"";""No"""
+        Case "TrailDisp"
+            ComboList = """Actual"";""monthly"";""yearly"";""% of Contractual"";""% of Int PMT"";""# of PMT's Made"";""# of Int Pmt's Made"""
+        Case Else
+            ComboList = """"""
+    End Select
+End Function
 
 ' Editable input = YELLOW cell (the workbook's editability convention)
 Private Sub StyleInput(c As Control)
