@@ -65,9 +65,12 @@ Public Sub BuildReaderDB()
     On Error GoTo Fail
     LinkReaderTables
     EnsureReaderTables
+    BuildFrmPayHistSheet
+    BuildFrmCollSheet
     BuildFrmBidReader
     MsgBox "Relationship Projection reader built." & vbCrLf & vbCrLf & _
            "Open frmBidReader (pick project + relationship)." & vbCrLf & _
+           "Pay History / Collateral buttons open the companion sheets." & vbCrLf & _
            "This database READS SQL Server only - it never writes.", _
            vbInformation, "Relationship Projection"
     Exit Sub
@@ -180,6 +183,347 @@ Private Sub EnsureReaderTables()
     On Error GoTo 0
 End Sub
 
+' ================= FORM: PAY HISTORY SHEET ===========================
+' The workbook's 'Relationship Pay History' sheet: per-loan stats
+' (Origination, PMT, Int PMT, Trailing 3/6/12/24 with the Trail
+' Selection transforms) + the 36-month payment matrix, newest first,
+' anchored to the reader's PMT Hist Dt. Read-only; loans as columns
+' in the matrix (first 10, like the sheet's C..L).
+Private Sub BuildFrmPayHistSheet()
+    Dim frm As Form, nm As String, c As Control
+    DropIfExists "frmPayHistSheet", acForm
+    Set frm = NewDarkForm("", 0)
+    nm = frm.Name
+    frm.Caption = "Relationship Pay History"
+    frm.PopUp = True
+    frm.NavigationButtons = False
+    frm.HasModule = True
+    frm.Section(acDetail).Height = 5.3 * T1
+    frm.Section(acDetail).BackColor = CLR_CARD
+
+    Set c = CreateControl(nm, acLabel, acDetail, "", "", _
+                          CLng(0.05 * T1), CLng(0.05 * T1), CLng(1.4 * T1), CLng(0.24 * T1))
+    c.Caption = "PAY HISTORY": c.ForeColor = CLR_TEXT
+    c.FontName = FONT: c.FontSize = 11: c.FontBold = True
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+                          "=[Forms]![frmBidReader]![cboRelationship]", _
+                          CLng(1.5 * T1), CLng(0.07 * T1), CLng(1.8 * T1), CLng(0.22 * T1))
+    StyleCell c: c.Name = "txtRel": c.ForeColor = CLR_GREEN: c.FontBold = True
+    Set c = CreateControl(nm, acLabel, acDetail, "", "", _
+                          CLng(3.9 * T1), CLng(0.08 * T1), CLng(1# * T1), CLng(0.2 * T1))
+    c.Caption = "Trail Selection": c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
+    Set c = CreateControl(nm, acComboBox, acDetail, "", "", _
+                          CLng(4.95 * T1), CLng(0.05 * T1), CLng(1.5 * T1), CLng(0.25 * T1))
+    c.Name = "cboTrailSel"
+    c.RowSourceType = "Value List"
+    c.RowSource = """Actual"";""monthly"";""yearly"";""% of Contractual"";""% of Int PMT"";""# of PMT's Made"";""# of Int Pmt's Made"""
+    c.LimitToList = True
+    c.DefaultValue = "=""# of PMT's Made"""
+    ComboLook c
+    Set c = CreateControl(nm, acLabel, acDetail, "", "", _
+                          CLng(6.6 * T1), CLng(0.08 * T1), CLng(0.55 * T1), CLng(0.2 * T1))
+    c.Caption = "Anchor": c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+                          "=[Forms]![frmBidReader]![txtAnchor]", _
+                          CLng(7.15 * T1), CLng(0.07 * T1), CLng(0.8 * T1), CLng(0.22 * T1))
+    StyleCell c: c.Name = "txtAnchorEcho": c.Format = "mm/dd/yy"
+
+    Set c = CreateControl(nm, acListBox, acDetail, "", "", _
+                          CLng(0.05 * T1), CLng(0.42 * T1), CLng(9.85 * T1), CLng(1.35 * T1))
+    c.Name = "lstStats"
+    c.RowSourceType = "Value List"
+    c.RowSource = "Loan No;Orig;PMT;Int PMT;Trail 3;Trail 6;Trail 12;Trail 24"
+    c.ColumnCount = 8
+    c.BoundColumn = 1
+    c.ColumnWidths = "1450;800;950;950;850;850;850;850"
+    c.ColumnHeads = True
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
+    Set c = CreateControl(nm, acLabel, acDetail, "", "", _
+                          CLng(0.05 * T1), CLng(1.88 * T1), CLng(4.5 * T1), CLng(0.2 * T1))
+    c.Caption = "Monthly payments, newest first (up to 10 loans + relationship total)"
+    c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
+    Set c = CreateControl(nm, acListBox, acDetail, "", "", _
+                          CLng(0.05 * T1), CLng(2.12 * T1), CLng(9.85 * T1), CLng(3.05 * T1))
+    c.Name = "lstMatrix"
+    c.RowSourceType = "Value List"
+    c.RowSource = "Month;Total"
+    c.ColumnCount = 2
+    c.BoundColumn = 1
+    c.ColumnWidths = "700;1000"
+    c.ColumnHeads = True
+    On Error Resume Next
+    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
+
+    Dim mdl As Module, ln As Long, code As String
+    frm!cboTrailSel.AfterUpdate = "[Event Procedure]"
+    frm.OnLoad = "[Event Procedure]"
+    Set mdl = frm.Module
+    ln = mdl.CreateEventProc("AfterUpdate", "cboTrailSel")
+    mdl.InsertLines ln + 1, "    RebuildAll"
+    ln = mdl.CreateEventProc("Load", "Form")
+    mdl.InsertLines ln + 1, "    On Error Resume Next" & vbCrLf & "    RebuildAll"
+
+    code = ""
+    code = code & "Private Function TrailX(s As Double, n As Long, sel As String, cpmt As Double, ipmt As Double) As String" & vbCrLf
+    code = code & "    ' The sheet's Trail Selection SWITCH transforms" & vbCrLf
+    code = code & "    Select Case sel" & vbCrLf
+    code = code & "        Case ""monthly"": TrailX = Format(s / n, ""$#,##0"")" & vbCrLf
+    code = code & "        Case ""yearly"": TrailX = Format(s / n * 12, ""$#,##0"")" & vbCrLf
+    code = code & "        Case ""% of Contractual""" & vbCrLf
+    code = code & "            If cpmt = 0 Then TrailX = ""-"" Else TrailX = Format(s / (cpmt * n), ""0.0%"")" & vbCrLf
+    code = code & "        Case ""% of Int PMT""" & vbCrLf
+    code = code & "            If ipmt = 0 Then TrailX = ""-"" Else TrailX = Format(s / (ipmt * n), ""0.0%"")" & vbCrLf
+    code = code & "        Case ""# of PMT's Made""" & vbCrLf
+    code = code & "            If cpmt = 0 Then TrailX = ""-"" Else TrailX = Format(s / cpmt, ""0.00"")" & vbCrLf
+    code = code & "        Case ""# of Int Pmt's Made""" & vbCrLf
+    code = code & "            If ipmt = 0 Then TrailX = ""-"" Else TrailX = Format(s / ipmt, ""0.00"")" & vbCrLf
+    code = code & "        Case Else: TrailX = Format(s, ""$#,##0"")" & vbCrLf
+    code = code & "    End Select" & vbCrLf
+    code = code & "End Function" & vbCrLf
+    code = code & "" & vbCrLf
+    code = code & "Public Sub RebuildAll()" & vbCrLf
+    code = code & "    Dim rel As String, esc As String, anchor As Date, sel As String" & vbCrLf
+    code = code & "    Dim rs As DAO.Recordset, cnt As Integer, i As Integer, j As Integer" & vbCrLf
+    code = code & "    Dim lnos(1 To 10) As String, cp(1 To 10) As Double, ip(1 To 10) As Double" & vbCrLf
+    code = code & "    Dim org(1 To 10) As Variant, amounts(1 To 10, 0 To 35) As Double" & vbCrLf
+    code = code & "    Dim inl As String, lo As Long, d As Date, py As Long, pmn As Long, idx As Long" & vbCrLf
+    code = code & "    Dim s As String, w As String, tot As Double, t3 As Double, t6 As Double" & vbCrLf
+    code = code & "    Dim t12 As Double, t24 As Double" & vbCrLf
+    code = code & "    On Error Resume Next" & vbCrLf
+    code = code & "    rel = Nz(Forms(""frmBidReader"")!cboRelationship, """")" & vbCrLf
+    code = code & "    If Len(rel) = 0 Then Exit Sub" & vbCrLf
+    code = code & "    esc = Replace(rel, ""'"", ""''"")" & vbCrLf
+    code = code & "    anchor = Nz(Forms(""frmBidReader"")!txtAnchor, Date)" & vbCrLf
+    code = code & "    sel = Nz(Me!cboTrailSel, ""# of PMT's Made"")" & vbCrLf
+    code = code & "    ' Loans of the relationship, largest first (sheet columns C..L)" & vbCrLf
+    code = code & "    cnt = 0" & vbCrLf
+    code = code & "    Set rs = CurrentDb.OpenRecordset(""SELECT MWLoanNo, OrgNoteDate, RepayAmt, Rate, PrincipalBalance FROM tblLoan WHERE RelatedLoans='"" & esc & ""' ORDER BY PrincipalBalance DESC"", dbOpenSnapshot)" & vbCrLf
+    code = code & "    Do While Not rs.EOF" & vbCrLf
+    code = code & "        If cnt < 10 Then" & vbCrLf
+    code = code & "            cnt = cnt + 1" & vbCrLf
+    code = code & "            lnos(cnt) = Nz(rs!MWLoanNo, """")" & vbCrLf
+    code = code & "            cp(cnt) = Nz(rs!RepayAmt, 0)" & vbCrLf
+    code = code & "            ip(cnt) = Nz(rs!Rate, 0) / 12 * Nz(rs!PrincipalBalance, 0)" & vbCrLf
+    code = code & "            org(cnt) = rs!OrgNoteDate" & vbCrLf
+    code = code & "        End If" & vbCrLf
+    code = code & "        rs.MoveNext" & vbCrLf
+    code = code & "    Loop" & vbCrLf
+    code = code & "    rs.Close" & vbCrLf
+    code = code & "    If cnt = 0 Then Exit Sub" & vbCrLf
+    code = code & "    ' One grouped pull for the whole 36-month window (pd key)" & vbCrLf
+    code = code & "    inl = """"" & vbCrLf
+    code = code & "    For i = 1 To cnt" & vbCrLf
+    code = code & "        inl = inl & "",'"" & Replace(lnos(i), ""'"", ""''"") & ""'""" & vbCrLf
+    code = code & "    Next i" & vbCrLf
+    code = code & "    inl = Mid(inl, 2)" & vbCrLf
+    code = code & "    d = DateAdd(""m"", -35, anchor)" & vbCrLf
+    code = code & "    lo = Year(d) * 100 + Month(d)" & vbCrLf
+    code = code & "    Set rs = CurrentDb.OpenRecordset(""SELECT mwloanno, pd, Sum(amount) AS amt FROM tblPayHistory WHERE pd >= "" & lo & "" AND mwloanno IN ("" & inl & "") GROUP BY mwloanno, pd"", dbOpenSnapshot)" & vbCrLf
+    code = code & "    Do While Not rs.EOF" & vbCrLf
+    code = code & "        py = Nz(rs!pd, 0) \ 100" & vbCrLf
+    code = code & "        pmn = Nz(rs!pd, 0) Mod 100" & vbCrLf
+    code = code & "        idx = (Year(anchor) - py) * 12 + (Month(anchor) - pmn)" & vbCrLf
+    code = code & "        If idx >= 0 And idx <= 35 Then" & vbCrLf
+    code = code & "            For i = 1 To cnt" & vbCrLf
+    code = code & "                If lnos(i) = Nz(rs!mwloanno, """") Then amounts(i, idx) = amounts(i, idx) + Nz(rs!amt, 0)" & vbCrLf
+    code = code & "            Next i" & vbCrLf
+    code = code & "        End If" & vbCrLf
+    code = code & "        rs.MoveNext" & vbCrLf
+    code = code & "    Loop" & vbCrLf
+    code = code & "    rs.Close" & vbCrLf
+    code = code & "    ' Stats list (trails computed from the matrix window)" & vbCrLf
+    code = code & "    s = ""Loan No;Orig;PMT;Int PMT;Trail 3;Trail 6;Trail 12;Trail 24""" & vbCrLf
+    code = code & "    For i = 1 To cnt" & vbCrLf
+    code = code & "        t3 = 0: t6 = 0: t12 = 0: t24 = 0" & vbCrLf
+    code = code & "        For j = 0 To 35" & vbCrLf
+    code = code & "            If j <= 2 Then t3 = t3 + amounts(i, j)" & vbCrLf
+    code = code & "            If j <= 5 Then t6 = t6 + amounts(i, j)" & vbCrLf
+    code = code & "            If j <= 11 Then t12 = t12 + amounts(i, j)" & vbCrLf
+    code = code & "            If j <= 23 Then t24 = t24 + amounts(i, j)" & vbCrLf
+    code = code & "        Next j" & vbCrLf
+    code = code & "        s = s & "";"" & lnos(i) & "";"" & Format(Nz(org(i), """"), ""mm/dd/yy"")" & vbCrLf
+    code = code & "        s = s & "";"" & Format(cp(i), ""$#,##0"") & "";"" & Format(ip(i), ""$#,##0"")" & vbCrLf
+    code = code & "        s = s & "";"" & TrailX(t3, 3, sel, cp(i), ip(i)) & "";"" & TrailX(t6, 6, sel, cp(i), ip(i))" & vbCrLf
+    code = code & "        s = s & "";"" & TrailX(t12, 12, sel, cp(i), ip(i)) & "";"" & TrailX(t24, 24, sel, cp(i), ip(i))" & vbCrLf
+    code = code & "    Next i" & vbCrLf
+    code = code & "    Me!lstStats.RowSource = s" & vbCrLf
+    code = code & "    ' Monthly matrix: Month | loan1..loanN | Total, newest first" & vbCrLf
+    code = code & "    Me!lstMatrix.ColumnCount = cnt + 2" & vbCrLf
+    code = code & "    w = ""700""" & vbCrLf
+    code = code & "    For i = 1 To cnt" & vbCrLf
+    code = code & "        w = w & "";950""" & vbCrLf
+    code = code & "    Next i" & vbCrLf
+    code = code & "    Me!lstMatrix.ColumnWidths = w & "";1000""" & vbCrLf
+    code = code & "    s = ""Month""" & vbCrLf
+    code = code & "    For i = 1 To cnt" & vbCrLf
+    code = code & "        s = s & "";"" & lnos(i)" & vbCrLf
+    code = code & "    Next i" & vbCrLf
+    code = code & "    s = s & "";Total""" & vbCrLf
+    code = code & "    For j = 0 To 35" & vbCrLf
+    code = code & "        s = s & "";"" & Format(DateAdd(""m"", -j, anchor), ""mm/yy"")" & vbCrLf
+    code = code & "        tot = 0" & vbCrLf
+    code = code & "        For i = 1 To cnt" & vbCrLf
+    code = code & "            s = s & "";"" & Format(amounts(i, j), ""#,##0"")" & vbCrLf
+    code = code & "            tot = tot + amounts(i, j)" & vbCrLf
+    code = code & "        Next i" & vbCrLf
+    code = code & "        s = s & "";"" & Format(tot, ""#,##0"")" & vbCrLf
+    code = code & "    Next j" & vbCrLf
+    code = code & "    Me!lstMatrix.RowSource = s" & vbCrLf
+    code = code & "End Sub" & vbCrLf
+    mdl.InsertLines mdl.CountOfLines + 1, code
+    SaveAs nm, "frmPayHistSheet"
+End Sub
+
+' ================= FORM: COLLATERAL SHEET ============================
+' The workbook's 'Collateral' sheet, transposed to rows: location/size,
+' appraisal with $/SF-$/Unit-$/Acre and months-since-appraised, taxes,
+' MwVx vs MW lien -> net values, footer totals with the sheet's 90%
+' line, plus the what-if valuation calculator (scratch only, nothing
+' saved). Entirely read-only (AllowEdits False; no module).
+Private Sub BuildFrmCollSheet()
+    Dim frm As Form, nm As String, c As Control
+    DropIfExists "frmCollSheet", acForm
+    Set frm = NewDarkForm( _
+        "SELECT * FROM CollateralInfo WHERE RelatedLoans = " & _
+        "Forms!frmBidReader!cboRelationship ORDER BY Priority", 1)
+    nm = frm.Name
+    frm.Caption = "Relationship Collateral"
+    frm.PopUp = True
+    frm.AllowEdits = False
+    frm.AllowAdditions = False
+    frm.AllowDeletions = False
+    EnsureHeader frm
+    frm.Section(acHeader).BackColor = CLR_CARD
+    frm.Section(acHeader).Height = 1# * T1
+    frm.Section(acDetail).Height = 0.66 * T1
+    frm.Section(acDetail).BackColor = CLR_CARD
+    frm.Section(acFooter).Height = 0.32 * T1
+    frm.Section(acFooter).BackColor = CLR_HEADER
+
+    ' What-if valuation calculator (current row; scratch only)
+    HeadLbl frm, "Valuation Calc:", 0.05, 1#, 0.04, False
+    Set c = CreateControl(nm, acComboBox, acHeader, "", "", _
+                          CLng(1.1 * T1), CLng(0.02 * T1), CLng(0.6 * T1), CLng(0.25 * T1))
+    c.Name = "cboUnitSel"
+    c.RowSourceType = "Value List"
+    c.RowSource = """SF"";""Unit"";""Acre"""
+    c.LimitToList = True
+    c.DefaultValue = "=""Unit"""
+    ComboLook c
+    HeadLbl frm, "Value/unit", 1.8, 0.7, 0.04, False
+    Set c = CreateControl(nm, acTextBox, acHeader, "", "", _
+                          CLng(2.5 * T1), CLng(0.02 * T1), CLng(0.7 * T1), CLng(0.25 * T1))
+    StyleInput c: c.Name = "txtUnitVal": c.Format = "$#,##0": c.FontSize = 8
+    HeadLbl frm, "= Property Value (current row):", 3.3, 1.95, 0.04, False
+    Set c = CreateControl(nm, acTextBox, acHeader, "", _
+        "=IIf([cboUnitSel]='SF',Nz([SQFT],0),IIf([cboUnitSel]='Unit',Nz([NumUnits],0),Nz([Acreage],0)))*Nz([txtUnitVal],0)", _
+        CLng(5.25 * T1), CLng(0.02 * T1), CLng(0.9 * T1), CLng(0.25 * T1))
+    StyleCell c: c.Name = "txtCalcVal": c.ForeColor = CLR_GREEN: c.FontBold = True
+    c.Format = "$#,##0": c.TextAlign = 3
+    HeadLbl frm, "(scratch only - nothing is saved)", 6.3, 2.2, 0.04, False
+
+    ' Column label bands
+    HeadLbl frm, "Prop#", 0.05, 0.7, 0.56, False
+    HeadLbl frm, "Code", 0.8, 0.85, 0.56, False
+    HeadLbl frm, "Description", 1.7, 1.5, 0.56, False
+    HeadLbl frm, "Address", 3.25, 1.85, 0.56, False
+    HeadLbl frm, "City", 5.15, 0.95, 0.56, False
+    HeadLbl frm, "St", 6.15, 0.4, 0.56, False
+    HeadLbl frm, "ZIP", 6.6, 0.6, 0.56, False
+    HeadLbl frm, "County", 7.25, 0.95, 0.56, False
+    HeadLbl frm, "SF", 8.25, 0.65, 0.56, True
+    HeadLbl frm, "Units", 8.95, 0.5, 0.56, True
+    HeadLbl frm, "Acres", 9.5, 0.55, 0.56, True
+    HeadLbl frm, "ApprDt", 0.05, 0.75, 0.78, False
+    HeadLbl frm, "Mos", 0.85, 0.45, 0.78, True
+    HeadLbl frm, "Appraised", 1.35, 0.9, 0.78, True
+    HeadLbl frm, "$/SF", 2.3, 0.6, 0.78, True
+    HeadLbl frm, "$/Unit", 2.95, 0.7, 0.78, True
+    HeadLbl frm, "$/Acre", 3.7, 0.7, 0.78, True
+    HeadLbl frm, "AnnTax", 4.45, 0.75, 0.78, True
+    HeadLbl frm, "DelqTax", 5.25, 0.8, 0.78, True
+    HeadLbl frm, "MwVx", 6.1, 0.9, 0.78, True
+    HeadLbl frm, "MwLien", 7.05, 0.85, 0.78, True
+    HeadLbl frm, "Pos", 7.95, 0.4, 0.78, True
+    HeadLbl frm, "Net MwVx", 8.4, 0.85, 0.78, True
+    HeadLbl frm, "Net Seller", 9.3, 0.85, 0.78, True
+
+    ' Row A: identity / location / size
+    RCell frm, "MWPropertyNo", 0.05, 0.02, 0.7, 1, ""
+    RCell frm, "MWCollateralCode", 0.8, 0.02, 0.85, 1, ""
+    RCell frm, "Description", 1.7, 0.02, 1.5, 1, ""
+    RCell frm, "Address", 3.25, 0.02, 1.85, 1, ""
+    RCell frm, "City", 5.15, 0.02, 0.95, 1, ""
+    RCell frm, "State", 6.15, 0.02, 0.4, 1, ""
+    RCell frm, "Zip", 6.6, 0.02, 0.6, 1, ""
+    RCell frm, "County", 7.25, 0.02, 0.95, 1, ""
+    RCell frm, "SQFT", 8.25, 0.02, 0.65, 1, "#,##0"
+    RCell frm, "NumUnits", 8.95, 0.02, 0.5, 1, ""
+    RCell frm, "Acreage", 9.5, 0.02, 0.55, 1, ""
+    ' Row B: appraisal / taxes / liens / net values
+    RCell frm, "SellerAppraisalDate", 0.05, 0.36, 0.75, 1, "mm/dd/yy"
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+        "=IIf(IsNull([SellerAppraisalDate]),Null,DateDiff('m',[SellerAppraisalDate],Date()))", _
+        CLng(0.85 * T1), CLng(0.36 * T1), CLng(0.45 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtMosAppr": c.TextAlign = 3: c.Format = "0"
+    RCell frm, "SellerAppraisedValue", 1.35, 0.36, 0.9, 1, "$#,##0"
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+        "=IIf(Nz([SQFT],0)=0,Null,[SellerAppraisedValue]/[SQFT])", _
+        CLng(2.3 * T1), CLng(0.36 * T1), CLng(0.6 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtPerSF": c.TextAlign = 3: c.Format = "$#,##0"
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+        "=IIf(Nz([NumUnits],0)=0,Null,[SellerAppraisedValue]/[NumUnits])", _
+        CLng(2.95 * T1), CLng(0.36 * T1), CLng(0.7 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtPerUnit": c.TextAlign = 3: c.Format = "$#,##0"
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+        "=IIf(Nz([Acreage],0)=0,Null,[SellerAppraisedValue]/[Acreage])", _
+        CLng(3.7 * T1), CLng(0.36 * T1), CLng(0.7 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtPerAcre": c.TextAlign = 3: c.Format = "$#,##0"
+    RCell frm, "TaxAnnualAmt", 4.45, 0.36, 0.75, 1, "$#,##0"
+    RCell frm, "TaxDelinquentAmt", 5.25, 0.36, 0.8, 1, "$#,##0"
+    RCell frm, "CurrentAppraisedValue", 6.1, 0.36, 0.9, 1, "$#,##0"
+    RCell frm, "MWTitleSrLienAmt", 7.05, 0.36, 0.85, 1, "$#,##0"
+    RCell frm, "MWTitleLienPosition", 7.95, 0.36, 0.4, 1, ""
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+        "=IIf(Nz([CurrentAppraisedValue],0)-Nz([MWTitleSrLienAmt],0)<0,0,Nz([CurrentAppraisedValue],0)-Nz([MWTitleSrLienAmt],0))", _
+        CLng(8.4 * T1), CLng(0.36 * T1), CLng(0.85 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtNetMwVx": c.ForeColor = CLR_GREEN: c.TextAlign = 3: c.Format = "$#,##0"
+    Set c = CreateControl(nm, acTextBox, acDetail, "", _
+        "=IIf(Nz([SellerAppraisedValue],0)-Nz([MWTitleSrLienAmt],0)<0,0,Nz([SellerAppraisedValue],0)-Nz([MWTitleSrLienAmt],0))", _
+        CLng(9.3 * T1), CLng(0.36 * T1), CLng(0.85 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtNetSeller": c.ForeColor = CLR_GREEN: c.TextAlign = 3: c.Format = "$#,##0"
+
+    ' Footer: totals + the sheet's 90% haircut line
+    Set c = CreateControl(nm, acLabel, acFooter, "", "", _
+                          CLng(0.05 * T1), CLng(0.06 * T1), CLng(0.6 * T1), CLng(0.2 * T1))
+    c.Caption = "Totals": c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
+    Set c = CreateControl(nm, acTextBox, acFooter, "", "=Sum([SellerAppraisedValue])", _
+                          CLng(1.35 * T1), CLng(0.04 * T1), CLng(0.9 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtTotAppr": c.Format = "$#,##0": c.TextAlign = 3
+    Set c = CreateControl(nm, acTextBox, acFooter, "", "=Sum([CurrentAppraisedValue])", _
+                          CLng(6.1 * T1), CLng(0.04 * T1), CLng(0.9 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtTotMwVx": c.Format = "$#,##0": c.TextAlign = 3
+    Set c = CreateControl(nm, acTextBox, acFooter, "", _
+        "=Sum(IIf(Nz([CurrentAppraisedValue],0)-Nz([MWTitleSrLienAmt],0)<0,0,Nz([CurrentAppraisedValue],0)-Nz([MWTitleSrLienAmt],0)))", _
+        CLng(8.4 * T1), CLng(0.04 * T1), CLng(0.85 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtTotNet": c.ForeColor = CLR_GREEN: c.FontBold = True
+    c.Format = "$#,##0": c.TextAlign = 3
+    Set c = CreateControl(nm, acLabel, acFooter, "", "", _
+                          CLng(2.4 * T1), CLng(0.06 * T1), CLng(0.9 * T1), CLng(0.2 * T1))
+    c.Caption = "Net @ 90%": c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
+    Set c = CreateControl(nm, acTextBox, acFooter, "", _
+        "=Sum(IIf(Nz([CurrentAppraisedValue],0)-Nz([MWTitleSrLienAmt],0)<0,0,Nz([CurrentAppraisedValue],0)-Nz([MWTitleSrLienAmt],0)))*0.9", _
+        CLng(3.3 * T1), CLng(0.04 * T1), CLng(0.9 * T1), CLng(0.24 * T1))
+    StyleCell c: c.Name = "txtTotNet90": c.ForeColor = CLR_GREEN
+    c.Format = "$#,##0": c.TextAlign = 3
+    SaveAs nm, "frmCollSheet"
+End Sub
+
 ' ================= THE FORM ==========================================
 Private Sub BuildFrmBidReader()
     Dim frm As Form, nm As String, c As Control
@@ -240,6 +584,14 @@ Private Sub BuildFrmBidReader()
     Set c = CreateControl(nm, acTextBox, acHeader, "", "", _
                           CLng(7.35 * T1), CLng(0.32 * T1), CLng(0.55 * T1), CLng(0.25 * T1))
     StyleInput c: c.Name = "txtYield": c.Format = "0.00%": c.FontSize = 8
+    Set c = CreateControl(nm, acCommandButton, acHeader, "", "", _
+                          CLng(8# * T1), CLng(0.31 * T1), CLng(0.9 * T1), CLng(0.26 * T1))
+    c.Name = "btnPayHist": c.Caption = "Pay History"
+    DarkBtn c
+    Set c = CreateControl(nm, acCommandButton, acHeader, "", "", _
+                          CLng(8.95 * T1), CLng(0.31 * T1), CLng(0.9 * T1), CLng(0.26 * T1))
+    c.Name = "btnColl": c.Caption = "Collateral"
+    DarkBtn c
 
     ' --- Header label bands for the three detail rows ---
     HeadLbl frm, "Loan No", 0.05, 1#, 0.64, False
@@ -378,6 +730,8 @@ Private Sub BuildFrmBidReader()
     ' --- Wiring (rename-before-wire, then procs) ---
     Dim mdl As Module, ln As Long, code As String
     frm!btnRecalc.OnClick = "[Event Procedure]"
+    frm!btnPayHist.OnClick = "[Event Procedure]"
+    frm!btnColl.OnClick = "[Event Procedure]"
     frm!cboProject.AfterUpdate = "[Event Procedure]"
     frm!cboRelationship.AfterUpdate = "[Event Procedure]"
     frm!txtYield.AfterUpdate = "[Event Procedure]"
@@ -387,6 +741,24 @@ Private Sub BuildFrmBidReader()
     Set mdl = frm.Module
     ln = mdl.CreateEventProc("Click", "btnRecalc")
     mdl.InsertLines ln + 1, "    RecalcAll"
+    ln = mdl.CreateEventProc("Click", "btnPayHist")
+    code = "    If Len(Nz(Me!cboRelationship, """")) = 0 Then" & vbCrLf
+    code = code & "        MsgBox ""Pick a relationship first.""" & vbCrLf
+    code = code & "        Exit Sub" & vbCrLf
+    code = code & "    End If" & vbCrLf
+    code = code & "    DoCmd.OpenForm ""frmPayHistSheet""" & vbCrLf
+    code = code & "    On Error Resume Next" & vbCrLf
+    code = code & "    Forms(""frmPayHistSheet"").RebuildAll"
+    mdl.InsertLines ln + 1, code
+    ln = mdl.CreateEventProc("Click", "btnColl")
+    code = "    If Len(Nz(Me!cboRelationship, """")) = 0 Then" & vbCrLf
+    code = code & "        MsgBox ""Pick a relationship first.""" & vbCrLf
+    code = code & "        Exit Sub" & vbCrLf
+    code = code & "    End If" & vbCrLf
+    code = code & "    DoCmd.OpenForm ""frmCollSheet""" & vbCrLf
+    code = code & "    On Error Resume Next" & vbCrLf
+    code = code & "    Forms(""frmCollSheet"").Requery"
+    mdl.InsertLines ln + 1, code
     ln = mdl.CreateEventProc("AfterUpdate", "Form")
     mdl.InsertLines ln + 1, "    RecalcAll"
     ln = mdl.CreateEventProc("Load", "Form")
