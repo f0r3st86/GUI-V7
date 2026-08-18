@@ -3,7 +3,13 @@ Option Compare Database
 Option Explicit
 
 ' =====================================================================
-' RELATIONSHIP PROJECTION - standalone read-only bid database (v1)
+' RELATIONSHIP PROJECTION - standalone read-only bid database (v1.2)
+'
+' v1.2 visual redesign: styled like the Bid_Project Excel workbook -
+' Calibri on white with banded rows and gridline borders, gray header
+' bands, YELLOW cells = editable (the workbook's convention), plain
+' white cells = data read from SQL, green-filled cells = computed
+' results. Header bands are color-coded the same way.
 '
 ' A minimal single-purpose Access database that does what the
 ' Bid_Project workbook's 'Relationship Projection' sheet does:
@@ -47,18 +53,24 @@ Private Const CONNECT As String = _
     "APP=Microsoft Office;Encrypt=Optional;TrustServerCertificate=Yes"
 
 Private Const T1 As Long = 1440
-Private Const FONT As String = "Segoe UI"
+Private Const FONT As String = "Calibri"
 
-Private Const CLR_MAIN As Long = 0
-Private Const CLR_HEADER As Long = 1775640
-Private Const CLR_CARD As Long = 2301984
-Private Const CLR_INPUT As Long = 1775640
-Private Const CLR_READONLY As Long = 4603711
-Private Const CLR_INBORDER As Long = 5984850
-Private Const CLR_TEXT As Long = 16777215
-Private Const CLR_TEXTSEC As Long = 14407121
-Private Const CLR_MUTED As Long = 11510684
-Private Const CLR_GREEN As Long = 8445514
+' ---- Excel-sheet palette (matches the Bid_Project workbook look) ----
+' color = R + G*256 + B*65536
+Private Const CLR_MAIN As Long = 16777215    ' white page (sheet body)
+Private Const CLR_ALT As Long = 16316664     ' #F8F8F8 banded rows
+Private Const CLR_CARD As Long = 15790320    ' #F0F0F0 header panel
+Private Const CLR_HEADER As Long = 14277081  ' #D9D9D9 band / footer strip
+Private Const CLR_INPUT As Long = 13434879   ' #FFFFCC yellow = EDITABLE (workbook convention)
+Private Const CLR_READONLY As Long = 16777215 ' white locked cells (plain sheet cells)
+Private Const CLR_INBORDER As Long = 12566463 ' #BFBFBF gridline border
+Private Const CLR_TEXT As Long = 0           ' black
+Private Const CLR_TEXTSEC As Long = 3355443  ' #333333
+Private Const CLR_MUTED As Long = 6710886    ' #666666
+Private Const CLR_GREEN As Long = 2315831    ' #375623 dark green result text
+Private Const CLR_RESBG As Long = 14348258   ' #E2EFDA Excel green fill (computed)
+Private Const CLR_TITLE As Long = 7949855    ' #1F4E79 Excel heading blue
+Private Const CLR_BTN As Long = 15132390     ' #E6E6E6 buttons
 
 ' ---------------------------------------------------------------------
 Public Sub BuildReaderDB()
@@ -199,7 +211,7 @@ Private Sub BuildFrmPayHistSheet()
     frm.NavigationButtons = False
     frm.HasModule = True
     frm.Section(acDetail).Height = 5.3 * T1
-    frm.Section(acDetail).BackColor = CLR_CARD
+    frm.Section(acDetail).BackColor = CLR_MAIN
 
     Set c = CreateControl(nm, acLabel, acDetail, "", "", _
                           CLng(0.05 * T1), CLng(0.05 * T1), CLng(1.4 * T1), CLng(0.24 * T1))
@@ -208,7 +220,8 @@ Private Sub BuildFrmPayHistSheet()
     Set c = CreateControl(nm, acTextBox, acDetail, "", _
                           "=[Forms]![frmBidReader]![cboRelationship]", _
                           CLng(1.5 * T1), CLng(0.07 * T1), CLng(1.8 * T1), CLng(0.22 * T1))
-    StyleCell c: c.Name = "txtRel": c.ForeColor = CLR_GREEN: c.FontBold = True
+    StyleCell c: c.Name = "txtRel": c.ForeColor = CLR_TITLE: c.FontBold = True
+    c.FontSize = 10
     Set c = CreateControl(nm, acLabel, acDetail, "", "", _
                           CLng(3.9 * T1), CLng(0.08 * T1), CLng(1# * T1), CLng(0.2 * T1))
     c.Caption = "Trail Selection": c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
@@ -237,10 +250,7 @@ Private Sub BuildFrmPayHistSheet()
     c.BoundColumn = 1
     c.ColumnWidths = "1450;800;950;950;850;850;850;850"
     c.ColumnHeads = True
-    On Error Resume Next
-    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
-    c.FontName = FONT: c.FontSize = 8
-    On Error GoTo 0
+    ListLook c
     Set c = CreateControl(nm, acLabel, acDetail, "", "", _
                           CLng(0.05 * T1), CLng(1.88 * T1), CLng(4.5 * T1), CLng(0.2 * T1))
     c.Caption = "Monthly payments, newest first (up to 10 loans + relationship total)"
@@ -254,10 +264,7 @@ Private Sub BuildFrmPayHistSheet()
     c.BoundColumn = 1
     c.ColumnWidths = "700;1000"
     c.ColumnHeads = True
-    On Error Resume Next
-    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
-    c.FontName = FONT: c.FontSize = 8
-    On Error GoTo 0
+    ListLook c
 
     Dim mdl As Module, ln As Long, code As String
     frm!cboTrailSel.AfterUpdate = "[Event Procedure]"
@@ -401,7 +408,7 @@ Private Sub BuildFrmCollSheet()
     frm.Section(acHeader).BackColor = CLR_CARD
     frm.Section(acHeader).Height = 1# * T1
     frm.Section(acDetail).Height = 0.66 * T1
-    frm.Section(acDetail).BackColor = CLR_CARD
+    frm.Section(acDetail).BackColor = CLR_MAIN
     frm.Section(acFooter).Height = 0.32 * T1
     frm.Section(acFooter).BackColor = CLR_HEADER
 
@@ -423,11 +430,14 @@ Private Sub BuildFrmCollSheet()
     Set c = CreateControl(nm, acTextBox, acHeader, "", _
         "=IIf([cboUnitSel]='SF',Nz([SQFT],0),IIf([cboUnitSel]='Unit',Nz([NumUnits],0),Nz([Acreage],0)))*Nz([txtUnitVal],0)", _
         CLng(5.25 * T1), CLng(0.02 * T1), CLng(0.9 * T1), CLng(0.25 * T1))
-    StyleCell c: c.Name = "txtCalcVal": c.ForeColor = CLR_GREEN: c.FontBold = True
-    c.Format = "$#,##0": c.TextAlign = 3
+    ResultLook c: c.Name = "txtCalcVal"
+    c.Format = "$#,##0": c.TextAlign = 3: c.FontSize = 9
     HeadLbl frm, "(scratch only - nothing is saved)", 6.3, 2.2, 0.04, False
 
-    ' Column label bands
+    ' Column label bands: gray = data, green = computed net values
+    HeadBand frm, 0.05, 10.1, 0.54, CLR_HEADER
+    HeadBand frm, 0.05, 8.3, 0.76, CLR_HEADER
+    HeadBand frm, 8.35, 1.8, 0.76, CLR_RESBG
     HeadLbl frm, "Prop#", 0.05, 0.7, 0.56, False
     HeadLbl frm, "Code", 0.8, 0.85, 0.56, False
     HeadLbl frm, "Description", 1.7, 1.5, 0.56, False
@@ -492,11 +502,11 @@ Private Sub BuildFrmCollSheet()
     Set c = CreateControl(nm, acTextBox, acDetail, "", _
         "=IIf(Nz([CurrentAppraisedValue],0)-Nz([MWTitleSrLienAmt],0)<0,0,Nz([CurrentAppraisedValue],0)-Nz([MWTitleSrLienAmt],0))", _
         CLng(8.4 * T1), CLng(0.36 * T1), CLng(0.85 * T1), CLng(0.24 * T1))
-    StyleCell c: c.Name = "txtNetMwVx": c.ForeColor = CLR_GREEN: c.TextAlign = 3: c.Format = "$#,##0"
+    ResultLook c: c.Name = "txtNetMwVx": c.TextAlign = 3: c.Format = "$#,##0"
     Set c = CreateControl(nm, acTextBox, acDetail, "", _
         "=IIf(Nz([SellerAppraisedValue],0)-Nz([MWTitleSrLienAmt],0)<0,0,Nz([SellerAppraisedValue],0)-Nz([MWTitleSrLienAmt],0))", _
         CLng(9.3 * T1), CLng(0.36 * T1), CLng(0.85 * T1), CLng(0.24 * T1))
-    StyleCell c: c.Name = "txtNetSeller": c.ForeColor = CLR_GREEN: c.TextAlign = 3: c.Format = "$#,##0"
+    ResultLook c: c.Name = "txtNetSeller": c.TextAlign = 3: c.Format = "$#,##0"
 
     ' Footer: totals + the sheet's 90% haircut line
     Set c = CreateControl(nm, acLabel, acFooter, "", "", _
@@ -511,7 +521,7 @@ Private Sub BuildFrmCollSheet()
     Set c = CreateControl(nm, acTextBox, acFooter, "", _
         "=Sum(IIf(Nz([CurrentAppraisedValue],0)-Nz([MWTitleSrLienAmt],0)<0,0,Nz([CurrentAppraisedValue],0)-Nz([MWTitleSrLienAmt],0)))", _
         CLng(8.4 * T1), CLng(0.04 * T1), CLng(0.85 * T1), CLng(0.24 * T1))
-    StyleCell c: c.Name = "txtTotNet": c.ForeColor = CLR_GREEN: c.FontBold = True
+    ResultLook c: c.Name = "txtTotNet"
     c.Format = "$#,##0": c.TextAlign = 3
     Set c = CreateControl(nm, acLabel, acFooter, "", "", _
                           CLng(2.4 * T1), CLng(0.06 * T1), CLng(0.9 * T1), CLng(0.2 * T1))
@@ -519,7 +529,7 @@ Private Sub BuildFrmCollSheet()
     Set c = CreateControl(nm, acTextBox, acFooter, "", _
         "=Sum(IIf(Nz([CurrentAppraisedValue],0)-Nz([MWTitleSrLienAmt],0)<0,0,Nz([CurrentAppraisedValue],0)-Nz([MWTitleSrLienAmt],0)))*0.9", _
         CLng(3.3 * T1), CLng(0.04 * T1), CLng(0.9 * T1), CLng(0.24 * T1))
-    StyleCell c: c.Name = "txtTotNet90": c.ForeColor = CLR_GREEN
+    ResultLook c: c.Name = "txtTotNet90"
     c.Format = "$#,##0": c.TextAlign = 3
     SaveAs nm, "frmCollSheet"
 End Sub
@@ -538,20 +548,20 @@ Private Sub BuildFrmBidReader()
     frm.Section(acHeader).BackColor = CLR_CARD
     frm.Section(acHeader).Height = 1.25 * T1
     frm.Section(acDetail).Height = 1.06 * T1
-    frm.Section(acDetail).BackColor = CLR_CARD
+    frm.Section(acDetail).BackColor = CLR_MAIN
     frm.Section(acFooter).Height = 1.95 * T1
     frm.Section(acFooter).BackColor = CLR_HEADER
 
     ' --- Header row 0: brand + recalc ---
     Set c = CreateControl(nm, acLabel, acHeader, "", "", _
-                          CLng(0.1 * T1), CLng(0.03 * T1), CLng(1.3 * T1), CLng(0.24 * T1))
+                          CLng(0.1 * T1), CLng(0.03 * T1), CLng(1.35 * T1), CLng(0.24 * T1))
     c.Caption = "RELATIONSHIP": c.ForeColor = CLR_TEXT
     c.FontName = FONT: c.FontSize = 11: c.FontBold = True
     Set c = CreateControl(nm, acLabel, acHeader, "", "", _
-                          CLng(1.45 * T1), CLng(0.03 * T1), CLng(1.2 * T1), CLng(0.24 * T1))
-    c.Caption = "PROJECTION": c.ForeColor = CLR_GREEN
+                          CLng(1.5 * T1), CLng(0.03 * T1), CLng(1.25 * T1), CLng(0.24 * T1))
+    c.Caption = "PROJECTION": c.ForeColor = CLR_TITLE
     c.FontName = FONT: c.FontSize = 11: c.FontBold = True
-    HeadLbl frm, "reads SQL Server only - all inputs stay local", 2.75, 3.3, 0.08, False
+    HeadLbl frm, "reads SQL Server only - all inputs stay local - yellow = editable", 2.85, 4.2, 0.08, False
     Set c = CreateControl(nm, acCommandButton, acHeader, "", "", _
                           CLng(9# * T1), CLng(0.02 * T1), CLng(0.85 * T1), CLng(0.26 * T1))
     c.Name = "btnRecalc": c.Caption = "Recalc"
@@ -593,7 +603,12 @@ Private Sub BuildFrmBidReader()
     c.Name = "btnColl": c.Caption = "Collateral"
     DarkBtn c
 
-    ' --- Header label bands for the three detail rows ---
+    ' --- Header label bands for the three detail rows: gray =
+    ' snapshot, yellow = editable parameters, green = results ---
+    HeadBand frm, 0.05, 9.9, 0.62, CLR_HEADER
+    HeadBand frm, 0.05, 9.9, 0.82, CLR_INPUT
+    HeadBand frm, 0.05, 4.97, 1.02, CLR_INPUT
+    HeadBand frm, 5.02, 4.93, 1.02, CLR_RESBG
     HeadLbl frm, "Loan No", 0.05, 1#, 0.64, False
     HeadLbl frm, "UPB", 1.1, 0.85, 0.64, True
     HeadLbl frm, "Interest", 2#, 0.8, 0.64, True
@@ -681,16 +696,16 @@ Private Sub BuildFrmBidReader()
     c.Caption = "Relationship Bid": c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
     Set c = CreateControl(nm, acTextBox, acFooter, "", "=Sum([BidNPV])", _
                           CLng(1.2 * T1), CLng(0.03 * T1), CLng(1# * T1), CLng(0.24 * T1))
-    StyleCell c: c.Name = "txtTotBid": c.ForeColor = CLR_GREEN: c.FontBold = True
-    c.Format = "$#,##0": c.TextAlign = 3
+    ResultLook c: c.Name = "txtTotBid"
+    c.Format = "$#,##0": c.TextAlign = 3: c.FontSize = 9
     Set c = CreateControl(nm, acLabel, acFooter, "", "", _
                           CLng(2.35 * T1), CLng(0.05 * T1), CLng(0.5 * T1), CLng(0.2 * T1))
     c.Caption = "Bid %": c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
     Set c = CreateControl(nm, acTextBox, acFooter, "", _
         "=IIf(Sum([UPB])=0,0,Sum([BidNPV])/Sum([UPB]))", _
         CLng(2.85 * T1), CLng(0.03 * T1), CLng(0.6 * T1), CLng(0.24 * T1))
-    StyleCell c: c.Name = "txtTotBidPct": c.ForeColor = CLR_GREEN: c.FontBold = True
-    c.Format = "0.0%": c.TextAlign = 3
+    ResultLook c: c.Name = "txtTotBidPct"
+    c.Format = "0.0%": c.TextAlign = 3: c.FontSize = 9
     Set c = CreateControl(nm, acLabel, acFooter, "", "", _
                           CLng(3.6 * T1), CLng(0.05 * T1), CLng(0.4 * T1), CLng(0.2 * T1))
     c.Caption = "UPB": c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 8
@@ -722,10 +737,7 @@ Private Sub BuildFrmBidReader()
     c.BoundColumn = 1
     c.ColumnWidths = "700;1400;900;900;900"
     c.ColumnHeads = True
-    On Error Resume Next
-    c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
-    c.FontName = FONT: c.FontSize = 8
-    On Error GoTo 0
+    ListLook c
 
     ' --- Wiring (rename-before-wire, then procs) ---
     Dim mdl As Module, ln As Long, code As String
@@ -975,6 +987,7 @@ Private Sub BuildFrmBidReader()
 End Sub
 
 ' ================= HELPERS ===========================================
+' Sheet-styled base form: white body, banded rows on continuous views
 Private Function NewDarkForm(recordSource As String, viewMode As Integer) As Form
     Dim frm As Form
     Set frm = CreateForm
@@ -986,6 +999,7 @@ Private Function NewDarkForm(recordSource As String, viewMode As Integer) As For
     frm.DividingLines = False
     On Error Resume Next
     frm.ScrollBars = 3
+    If viewMode = 1 Then frm.Section(acDetail).AlternateBackColor = CLR_ALT
     On Error GoTo 0
     Set NewDarkForm = frm
 End Function
@@ -1002,6 +1016,7 @@ Private Sub EnsureHeader(frm As Form)
     On Error GoTo 0
 End Sub
 
+' Editable input = YELLOW cell (the workbook's editability convention)
 Private Sub StyleInput(c As Control)
     c.BackStyle = 1
     c.BackColor = CLR_INPUT
@@ -1023,6 +1038,21 @@ Private Sub StyleCell(c As Control)
     c.TabStop = False
 End Sub
 
+' Computed result = Excel green fill with dark-green bold text
+Private Sub ResultLook(c As Control)
+    c.BackStyle = 1
+    c.BackColor = CLR_RESBG
+    c.ForeColor = CLR_GREEN
+    c.BorderStyle = 1
+    c.BorderColor = CLR_INBORDER
+    c.SpecialEffect = 0
+    c.FontName = FONT
+    c.FontSize = 8
+    c.FontBold = True
+    c.Locked = True
+    c.TabStop = False
+End Sub
+
 Private Sub ComboLook(c As Control)
     On Error Resume Next
     c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
@@ -1030,25 +1060,44 @@ Private Sub ComboLook(c As Control)
     On Error GoTo 0
 End Sub
 
+Private Sub ListLook(c As Control)
+    On Error Resume Next
+    c.BackColor = CLR_MAIN: c.ForeColor = CLR_TEXT: c.BorderColor = CLR_INBORDER
+    c.FontName = FONT: c.FontSize = 8
+    On Error GoTo 0
+End Sub
+
 Private Sub DarkBtn(c As Control)
     On Error Resume Next
-    c.UseTheme = False: c.BackColor = CLR_INPUT: c.ForeColor = CLR_TEXTSEC
+    c.UseTheme = False: c.BackColor = CLR_BTN: c.ForeColor = CLR_TEXT
     c.BorderColor = CLR_INBORDER: c.FontName = FONT: c.FontSize = 8
     On Error GoTo 0
 End Sub
 
-' Header label at an x/width/y with optional right alignment
+' Header label at an x/width/y with optional right alignment - bold
+' black on the band, like an Excel header row
 Private Sub HeadLbl(frm As Form, cap As String, xIn As Single, wIn As Single, _
                     yIn As Single, rightAlign As Boolean)
     Dim c As Control
     Set c = CreateControl(frm.Name, acLabel, acHeader, "", "", _
                           CLng(xIn * T1), CLng(yIn * T1), CLng(wIn * T1), CLng(0.19 * T1))
-    c.Caption = cap: c.ForeColor = CLR_MUTED: c.FontName = FONT: c.FontSize = 7
+    c.Caption = cap: c.ForeColor = CLR_TEXTSEC: c.FontName = FONT: c.FontSize = 7
+    c.FontBold = True
     If rightAlign Then c.TextAlign = 3
 End Sub
 
-' Detail cell: kind 0 = editable parameter, 1 = locked snapshot,
-' 2 = green computed result
+' Colored band behind a run of header labels (Excel group header)
+Private Sub HeadBand(frm As Form, xIn As Single, wIn As Single, _
+                     yIn As Single, clr As Long)
+    Dim c As Control
+    Set c = CreateControl(frm.Name, acRectangle, acHeader, "", "", _
+                          CLng(xIn * T1), CLng(yIn * T1), CLng(wIn * T1), CLng(0.2 * T1))
+    c.BackStyle = 1: c.BackColor = clr: c.BorderStyle = 1
+    c.BorderColor = CLR_INBORDER: c.SpecialEffect = 0
+End Sub
+
+' Detail cell: kind 0 = editable parameter (yellow), 1 = locked
+' snapshot (white sheet cell), 2 = computed result (green fill)
 Private Sub RCell(frm As Form, src As String, xIn As Single, yIn As Single, _
                   wIn As Single, kind As Integer, fmt As String)
     Dim c As Control
@@ -1062,10 +1111,9 @@ Private Sub RCell(frm As Form, src As String, xIn As Single, yIn As Single, _
             StyleInput c
             c.FontSize = 8
             c.Locked = True: c.TabStop = False
-            c.BackColor = CLR_READONLY: c.ForeColor = CLR_MUTED
+            c.BackColor = CLR_READONLY: c.ForeColor = CLR_TEXT
         Case 2
-            StyleCell c
-            c.ForeColor = CLR_GREEN
+            ResultLook c
         Case Else
             StyleInput c
             c.FontSize = 8
