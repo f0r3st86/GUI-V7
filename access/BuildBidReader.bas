@@ -393,9 +393,9 @@ Private Sub BuildFrmPayHistSheet()
     code = code & "            If j <= 23 Then t24 = t24 + amounts(i, j)" & vbCrLf
     code = code & "        Next j" & vbCrLf
     code = code & "        s = s & "";"" & lnos(i) & "";"" & Format(Nz(org(i), """"), ""mm/dd/yy"")" & vbCrLf
-    code = code & "        s = s & "";"" & Format(cp(i), ""$#,##0"") & "";"" & Format(ip(i), ""$#,##0"")" & vbCrLf
-    code = code & "        s = s & "";"" & TrailX(t3, 3, sel, cp(i), ip(i)) & "";"" & TrailX(t6, 6, sel, cp(i), ip(i))" & vbCrLf
-    code = code & "        s = s & "";"" & TrailX(t12, 12, sel, cp(i), ip(i)) & "";"" & TrailX(t24, 24, sel, cp(i), ip(i))" & vbCrLf
+    code = code & "        s = s & "";"" & Chr(34) & Format(cp(i), ""$#,##0"") & Chr(34) & "";"" & Chr(34) & Format(ip(i), ""$#,##0"") & Chr(34)" & vbCrLf
+    code = code & "        s = s & "";"" & Chr(34) & TrailX(t3, 3, sel, cp(i), ip(i)) & Chr(34) & "";"" & Chr(34) & TrailX(t6, 6, sel, cp(i), ip(i)) & Chr(34)" & vbCrLf
+    code = code & "        s = s & "";"" & Chr(34) & TrailX(t12, 12, sel, cp(i), ip(i)) & Chr(34) & "";"" & Chr(34) & TrailX(t24, 24, sel, cp(i), ip(i)) & Chr(34)" & vbCrLf
     code = code & "    Next i" & vbCrLf
     code = code & "    Me!lstStats.RowSource = s" & vbCrLf
     code = code & "    ' Monthly matrix: Month | loan1..loanN | Total, newest first" & vbCrLf
@@ -414,10 +414,10 @@ Private Sub BuildFrmPayHistSheet()
     code = code & "        s = s & "";"" & Format(DateAdd(""m"", -j, anchor), ""mm/yy"")" & vbCrLf
     code = code & "        tot = 0" & vbCrLf
     code = code & "        For i = 1 To cnt" & vbCrLf
-    code = code & "            s = s & "";"" & Format(amounts(i, j), ""#,##0"")" & vbCrLf
+    code = code & "            s = s & "";"" & Chr(34) & Format(amounts(i, j), ""#,##0"") & Chr(34)" & vbCrLf
     code = code & "            tot = tot + amounts(i, j)" & vbCrLf
     code = code & "        Next i" & vbCrLf
-    code = code & "        s = s & "";"" & Format(tot, ""#,##0"")" & vbCrLf
+    code = code & "        s = s & "";"" & Chr(34) & Format(tot, ""#,##0"") & Chr(34)" & vbCrLf
     code = code & "    Next j" & vbCrLf
     code = code & "    Me!lstMatrix.RowSource = s" & vbCrLf
     code = code & "End Sub" & vbCrLf
@@ -1025,7 +1025,7 @@ Private Sub InjectEngine(mdl As Module)
     code = code & "            rs.MoveNext" & vbCrLf
     code = code & "        Loop" & vbCrLf
     code = code & "        rs.Close" & vbCrLf
-    code = code & "        s = s & "";"" & m & "";"" & Format(tb, ""$#,##0"")" & vbCrLf
+    code = code & "        s = s & "";"" & m & "";"" & Chr(34) & Format(tb, ""$#,##0"") & Chr(34)" & vbCrLf
     code = code & "        If tu <> 0 Then s = s & "";"" & Format(tb / tu, ""0.0%"") Else s = s & "";-""" & vbCrLf
     code = code & "        If tb <> 0 Then s = s & "";"" & Format(ta / tb, ""0.00"") & "";"" & Format(t12s / tb, ""0.0%"") Else s = s & "";-;-""" & vbCrLf
     code = code & "    Next m" & vbCrLf
