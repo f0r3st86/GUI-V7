@@ -1,5 +1,14 @@
 # MidwestDDi Access Front-End Builder
 
+> **Also in this folder:** `BuildBidReader.bas` — a separate, standalone
+> **read-only** database that does exactly what the Bid_Project
+> workbook's *Relationship Projection* sheet does (per-loan bid model,
+> trailing payments, relationship rollup, exit-month sensitivity
+> table). Import it into its own blank `.accdb` and run
+> `BuildReaderDB`. It only ever reads SQL Server; all parameters live
+> in local tables. Use it when you want just the bid model without the
+> full workbench.
+
 `BuildFrontEnd.bas` generates a complete Access front-end for the MidwestDDi
 database on any machine that has the `sqlDueDiligence` DSN (i.e. anywhere the
 production Access app works). It creates **linked tables** (live, editable,
