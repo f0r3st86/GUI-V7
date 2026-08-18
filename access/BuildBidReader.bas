@@ -170,6 +170,7 @@ Private Sub EnsureReaderTables()
         td.Fields.Append td.CreateField("DPOPct", dbDouble)
         td.Fields.Append td.CreateField("ValCapPct", dbDouble)
         td.Fields.Append td.CreateField("YTMTgt", dbDouble)
+        td.Fields.Append td.CreateField("UserExit", dbCurrency)
         td.Fields.Append td.CreateField("AddAccrued", dbText, 3)
         td.Fields.Append td.CreateField("PmtPull", dbCurrency)
         td.Fields.Append td.CreateField("ExitVal", dbCurrency)
@@ -191,6 +192,22 @@ Private Sub EnsureReaderTables()
         td.Fields.Append td.CreateField("AnchorDt", dbDate)
         db.TableDefs.Append td
     End If
+    Err.Clear
+    On Error GoTo 0
+    ' Upgrade path: the scratch table persists across rebuilds, so add
+    ' any column introduced after an existing install created it
+    Dim f As DAO.Field
+    On Error Resume Next
+    Set td = db.TableDefs("xtblBidReader")
+    If Err.Number = 0 Then
+        Err.Clear
+        Set f = td.Fields("UserExit")
+        If Err.Number <> 0 Then
+            Err.Clear
+            db.Execute "ALTER TABLE xtblBidReader ADD COLUMN UserExit CURRENCY"
+        End If
+    End If
+    db.TableDefs.Refresh
     Err.Clear
     On Error GoTo 0
 End Sub
@@ -391,7 +408,8 @@ End Sub
 ' appraisal with $/SF-$/Unit-$/Acre and months-since-appraised, taxes,
 ' MwVx vs MW lien -> net values, footer totals with the sheet's 90%
 ' line, plus the what-if valuation calculator (scratch only, nothing
-' saved). Entirely read-only (AllowEdits False; no module).
+' saved). Read-only per control (every bound cell Locked) so the
+' unbound calculator inputs stay typeable; no module.
 Private Sub BuildFrmCollSheet()
     Dim frm As Form, nm As String, c As Control
     DropIfExists "frmCollSheet", acForm
@@ -401,7 +419,9 @@ Private Sub BuildFrmCollSheet()
     nm = frm.Name
     frm.Caption = "Relationship Collateral"
     frm.PopUp = True
-    frm.AllowEdits = False
+    ' No AllowEdits=False here: it would also freeze the UNBOUND
+    ' calculator inputs. Data safety comes from Locked on every bound
+    ' cell + no additions/deletions.
     frm.AllowAdditions = False
     frm.AllowDeletions = False
     EnsureHeader frm
@@ -480,20 +500,20 @@ Private Sub BuildFrmCollSheet()
     Set c = CreateControl(nm, acTextBox, acDetail, "", _
         "=IIf(IsNull([SellerAppraisalDate]),Null,DateDiff('m',[SellerAppraisalDate],Date()))", _
         CLng(0.85 * T1), CLng(0.36 * T1), CLng(0.45 * T1), CLng(0.24 * T1))
-    StyleCell c: c.Name = "txtMosAppr": c.TextAlign = 3: c.Format = "0"
+    CalcCell c: c.Name = "txtMosAppr": c.Format = "0"
     RCell frm, "SellerAppraisedValue", 1.35, 0.36, 0.9, 1, "$#,##0"
     Set c = CreateControl(nm, acTextBox, acDetail, "", _
         "=IIf(Nz([SQFT],0)=0,Null,[SellerAppraisedValue]/[SQFT])", _
         CLng(2.3 * T1), CLng(0.36 * T1), CLng(0.6 * T1), CLng(0.24 * T1))
-    StyleCell c: c.Name = "txtPerSF": c.TextAlign = 3: c.Format = "$#,##0"
+    CalcCell c: c.Name = "txtPerSF": c.Format = "$#,##0"
     Set c = CreateControl(nm, acTextBox, acDetail, "", _
         "=IIf(Nz([NumUnits],0)=0,Null,[SellerAppraisedValue]/[NumUnits])", _
         CLng(2.95 * T1), CLng(0.36 * T1), CLng(0.7 * T1), CLng(0.24 * T1))
-    StyleCell c: c.Name = "txtPerUnit": c.TextAlign = 3: c.Format = "$#,##0"
+    CalcCell c: c.Name = "txtPerUnit": c.Format = "$#,##0"
     Set c = CreateControl(nm, acTextBox, acDetail, "", _
         "=IIf(Nz([Acreage],0)=0,Null,[SellerAppraisedValue]/[Acreage])", _
         CLng(3.7 * T1), CLng(0.36 * T1), CLng(0.7 * T1), CLng(0.24 * T1))
-    StyleCell c: c.Name = "txtPerAcre": c.TextAlign = 3: c.Format = "$#,##0"
+    CalcCell c: c.Name = "txtPerAcre": c.Format = "$#,##0"
     RCell frm, "TaxAnnualAmt", 4.45, 0.36, 0.75, 1, "$#,##0"
     RCell frm, "TaxDelinquentAmt", 5.25, 0.36, 0.8, 1, "$#,##0"
     RCell frm, "CurrentAppraisedValue", 6.1, 0.36, 0.9, 1, "$#,##0"
@@ -606,7 +626,7 @@ Private Sub BuildFrmBidReader()
     ' --- Header label bands for the three detail rows: gray =
     ' snapshot, yellow = editable parameters, green = results ---
     HeadBand frm, 0.05, 9.9, 0.62, CLR_HEADER
-    HeadBand frm, 0.05, 9.9, 0.82, CLR_INPUT
+    HeadBand frm, 0.05, 8.2, 0.82, CLR_INPUT
     HeadBand frm, 0.05, 4.97, 1.02, CLR_INPUT
     HeadBand frm, 5.02, 4.93, 1.02, CLR_RESBG
     HeadLbl frm, "Loan No", 0.05, 1#, 0.64, False
@@ -1036,6 +1056,18 @@ Private Sub StyleCell(c As Control)
     c.FontSize = 8
     c.Locked = True
     c.TabStop = False
+End Sub
+
+' Derived in-grid cell on the gray (data) band: bordered white like
+' its neighbors so the sheet gridline stays unbroken
+Private Sub CalcCell(c As Control)
+    StyleInput c
+    c.FontSize = 8
+    c.Locked = True
+    c.TabStop = False
+    c.BackColor = CLR_READONLY
+    c.ForeColor = CLR_TEXT
+    c.TextAlign = 3
 End Sub
 
 ' Computed result = Excel green fill with dark-green bold text

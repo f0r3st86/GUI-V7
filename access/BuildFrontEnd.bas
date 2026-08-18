@@ -246,6 +246,7 @@ Private Sub EnsureBidModelTables()
         td.Fields.Append td.CreateField("DPOPct", dbDouble)
         td.Fields.Append td.CreateField("ValCapPct", dbDouble)
         td.Fields.Append td.CreateField("YTMTgt", dbDouble)
+        td.Fields.Append td.CreateField("UserExit", dbCurrency)
         td.Fields.Append td.CreateField("AddAccrued", dbText, 3)
         td.Fields.Append td.CreateField("PmtPull", dbCurrency)
         td.Fields.Append td.CreateField("ExitVal", dbCurrency)
@@ -266,6 +267,22 @@ Private Sub EnsureBidModelTables()
         td.Fields.Append td.CreateField("YieldTarget", dbDouble)
         db.TableDefs.Append td
     End If
+    Err.Clear
+    On Error GoTo 0
+    ' Upgrade path: the scratch table persists across rebuilds, so add
+    ' any column introduced after an existing install created it
+    Dim f As DAO.Field
+    On Error Resume Next
+    Set td = db.TableDefs("xtblBidModel")
+    If Err.Number = 0 Then
+        Err.Clear
+        Set f = td.Fields("UserExit")
+        If Err.Number <> 0 Then
+            Err.Clear
+            db.Execute "ALTER TABLE xtblBidModel ADD COLUMN UserExit CURRENCY"
+        End If
+    End If
+    db.TableDefs.Refresh
     Err.Clear
     On Error GoTo 0
 End Sub
