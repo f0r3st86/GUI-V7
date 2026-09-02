@@ -246,11 +246,12 @@ Public Sub BR_UISmoke()
 ```vb
 Public Function BR_CaseCount() As Long
 Public Function BR_CaseId(c As Long) As String
-' name/value pairs: every TLoan input field name (PmtSel, UserPmt, ... ExitMonth, BidOverride) plus
-' snapshot fields (UPB, IntBal, CRate, DRate, CPmt, MatDt, T3, T6, T12, T24) plus globals
-' (Yield, CutoffDt, AnchorDt, MinMonthsJ2, HurdleYTM, HurdleCY, HurdleMOIC, RelColl)
+' Flat Variant array (from Split) of "name|value" strings, one per input: every TLoan input field
+' name (PmtSel, UserPmt, ... ExitMonth, BidOverride) plus snapshot fields (UPB, IntBal, CRate, DRate,
+' CPmt, MatDt, T3, T6, T12, T24) plus globals (Yield, CutoffDt, AnchorDt, MinMonthsJ2, HurdleYTM,
+' HurdleCY, HurdleMOIC, RelColl). Dates are ISO yyyy-mm-dd; modBR_SelfTest.ApplyCaseInputs parses them.
 Public Function BR_CaseInputs(c As Long) As Variant
-' triplets flattened: field, expected, tol ... ; expected = Empty means "must be n/a"
+' Flat Variant array of "field|expected|tol" strings; a blank expected means "must be n/a".
 Public Function BR_CaseExpected(c As Long) As Variant
 ```
 Expected fields: PmtPull, ExitVal (ExitPull), BidNPV (BidModel), BidPct, CY12, MOIC, ImpDPO, BidMwVx,

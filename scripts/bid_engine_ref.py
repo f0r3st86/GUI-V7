@@ -46,13 +46,19 @@ def NPV(rate, flows):
     return sum(cf / (1 + rate) ** (i + 1) for i, cf in enumerate(flows))
 
 def _npv0(rate, flows):
-    return sum(cf / (1 + rate) ** i for i, cf in enumerate(flows))
+    """sum cf_i v^i with v = 1/(1+r), Horner from the end (no underflowing powers)."""
+    v = 1.0 / (1.0 + rate)
+    acc = 0.0
+    for cf in reversed(flows):
+        acc = acc * v + cf
+    return acc
 
 def IRR(flows, guess=0.1, tol=1e-10, maxit=200):
-    """Excel IRR: rate where sum(cf_i/(1+r)^i) = 0, i from 0. Bracket + bisection, Newton polish."""
+    """Excel IRR: rate where sum(cf_i/(1+r)^i) = 0, i from 0. Bracket (floored at -0.8 like the VBA
+    grid, so 5^360 stays finite) + bisection."""
     if not any(cf > 0 for cf in flows) or not any(cf < 0 for cf in flows):
         raise ValueError("IRR needs a sign change")
-    lo, hi = -0.9999, 10.0
+    lo, hi = -0.8, 10.0
     flo, fhi = _npv0(lo, flows), _npv0(hi, flows)
     if flo * fhi > 0:
         raise ValueError("IRR not bracketed")
@@ -92,6 +98,11 @@ def DAYS360(d1: date, d2: date) -> int:
     """US (NASD) method, Excel default."""
     y1, m1, dd1 = d1.year, d1.month, d1.day
     y2, m2, dd2 = d2.year, d2.month, d2.day
+    # Excel US method: a start date on the last day of February counts as the 30th;
+    # the end date is NOT adjusted for February.
+    feb_last = 29 if (y1 % 4 == 0 and (y1 % 100 != 0 or y1 % 400 == 0)) else 28
+    if m1 == 2 and dd1 == feb_last:
+        dd1 = 30
     if dd1 == 31:
         dd1 = 30
     if dd2 == 31 and dd1 == 30:
@@ -206,9 +217,11 @@ def months_to_maturity(C: Context, L: Loan) -> int:
     return sign * m
 
 def months_to_amortize(L: Loan, mr: float, pm: float) -> int | None:
-    """Sheet MTA (row 12): ROUNDDOWN(NPER(rate/12, pmt, -UPB), 0)."""
+    """Sheet MTA (row 12): ROUNDDOWN(NPER(Rate/12, PMT, -UPB), 0) on the CONTRACTUAL rate and payment
+    (the mr/pm arguments are accepted for signature compatibility; YTM_USE_PULLS=False semantics)."""
     try:
-        return int(math.floor(NPER(mr, pm, -L.upb)))
+        n = NPER(L.rate / 12, L.pmt, -L.upb)
+        return min(int(math.floor(n)), 360) if n >= 0 else 0
     except (ValueError, ZeroDivisionError):
         return None
 
@@ -233,11 +246,15 @@ def exit_pull(C: Context, L: Loan, mr: float, pm: float, mtm: int, mta: int | No
     elif xt == "DPO":
         bid = fv_at_exit * (1 - L.dpo_pct)
     elif xt == "YTM Sell Solve":
-        bid = -PV(L.ytm_tgt / 12, mat_mo - exit_m, pm, FV(mr, mat_mo, pm, -L.upb))
+        if mat_mo > exit_m:
+            bid = -PV(L.ytm_tgt / 12, mat_mo - exit_m, pm, FV(mr, mat_mo, pm, -L.upb))
+        else:
+            bid = fv_at_exit + accrued_adj          # past maturity: fall back to PIF (CONFIRM item)
     elif xt == "Value Cap":
         bid = C.rel_collateral * L.val_cap_pct
     elif xt.lower() == "liquidation":
-        bid = FV(mr, L.liq_acr_m, 0, -L.upb) + accrued_adj
+        lm = L.liq_acr_m if L.liq_acr_m >= 1 else exit_m
+        bid = FV(mr, lm, 0, -L.upb) + accrued_adj
     elif xt == "IRR Solve":
         ytm_rate = L.ytm_tgt / 12
         mtm_ytm = max(max(0, DAYS360(C.cutoff, L.maturity) / 30), 1) if L.maturity else 1
@@ -249,11 +266,9 @@ def exit_pull(C: Context, L: Loan, mr: float, pm: float, mtm: int, mta: int | No
         ytm_bal = -FV(mr, ytm_m, -pm, L.upb)
         tbid = PV(ytm_rate, ytm_m, -pm, -ytm_bal)
         pv_pmts = PV(y, exit_m - start_m, -pm) / (1 + y) ** (start_m - 1)
-        pv_legal = L.legal_init / (1 + y) ** L.legal_start if L.legal_start else 0.0
-        try:
-            pv_hold = PV(y, min(L.legal_end, exit_m - 1) - L.legal_start, -L.hold_cost) / (1 + y) ** L.legal_start
-        except Exception:
-            pv_hold = 0.0
+        pv_legal = L.legal_init / (1 + y) ** L.legal_start        # sheet: legalCost/(1+y)^legalStart (=legalCost when start 0)
+        hn = min(L.legal_end, exit_m - 1) - L.legal_start
+        pv_hold = PV(y, hn, -L.hold_cost) / (1 + y) ** L.legal_start if hn > 0 else 0.0
         bid = (tbid - pv_pmts + (pv_legal + pv_hold)) * (1 + y) ** exit_m - exp_adj
     else:
         bid = fv_at_exit + accrued_adj
