@@ -1,4 +1,4 @@
-# engine.R — Relationship Projection model in R.
+# engine.R - Relationship Projection model in R.
 #
 # Direct port of scripts/bid_engine_ref.py (the oracle) plus the relationship-level
 # totals / optimal table from access/modBR_Engine.bas. Pure base R, no packages.
@@ -38,7 +38,7 @@ nper_x <- function(rate, pmt, pv, fv = 0, type = 0) {
 # Excel NPV: first flow discounted ONE period
 npv_x <- function(rate, flows) sum(flows / (1 + rate)^(seq_along(flows)))
 
-# sum cf_i / (1+r)^i, i from 0 — computed in log space so the -0.8..10 bracket never overflows
+# sum cf_i / (1+r)^i, i from 0 - computed in log space so the -0.8..10 bracket never overflows
 npv0 <- function(rate, flows) sum(flows * exp(-(seq_along(flows) - 1) * log1p(rate)))
 
 # Excel IRR (rate where npv0 = 0). Bracket floored at -0.8 like the oracle, then bisection.
