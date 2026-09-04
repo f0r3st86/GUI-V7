@@ -182,6 +182,14 @@ with open(os.path.join(ROOT, "tools", "bidref", "vectors.csv"), "w", newline="")
     for cid, f, v, tol in rows:
         w.writerow([cid, f, "" if v is None else repr(float(v)), repr(float(tol))])
 
+# --- write inputs csv (consumed by shiny/tests/test_engine.R) ---
+with open(os.path.join(ROOT, "tools", "bidref", "vectors_inputs.csv"), "w", newline="") as fh:
+    w = csv.writer(fh)
+    w.writerow(["case_id", "name", "value"])
+    for cid, _, _ in CASES:
+        for n, v in inputs_by_case[cid]:
+            w.writerow([cid, n, repr(v) if isinstance(v, float) else str(v)])
+
 # --- write VBA ---
 def vnum(v):
     if isinstance(v, float):

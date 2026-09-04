@@ -313,13 +313,14 @@ Public Sub CalcLoan(ByRef L As TLoan, ByRef R As TRel)
     CalcYTM L, R
     ' 9 Sell YTM
     L.SellYTMok = False
-    If L.BidUsed > 0 And L.ExitMonth >= 1 Then
-        ReDim cf(0 To L.ExitMonth)
+    If L.BidUsed > 0 Then
+        ' full 60-month modeled stream (sheet: IRR over rows 1..60, so post-exit legal costs count)
+        ReDim cf(0 To 60)
         cf(0) = -L.BidUsed
-        For t = 1 To L.ExitMonth
+        For t = 1 To 60
             cf(t) = L.Net(t)
         Next t
-        L.SellYTM = 12 * IRRx(cf, L.ExitMonth, IRR_GUESS, st)
+        L.SellYTM = 12 * IRRx(cf, 60, IRR_GUESS, st)
         L.SellYTMok = (st = 0)
     End If
     ' 10 optimal + hurdles
@@ -487,10 +488,10 @@ Public Sub CalcTotals(ByRef R As TRel)
         If R.Loans(i).ExitMonth > mx Then mx = R.Loans(i).ExitMonth
     Next i
     If mx >= 1 And tot.BidUsed > 0 Then
-        ReDim cf(0 To mx)
+        ReDim cf(0 To 60)
         cf(0) = -tot.BidUsed
-        For t = 1 To mx: cf(t) = tot.Net(t): Next t
-        tot.SellYTM = 12 * IRRx(cf, mx, IRR_GUESS, st): tot.SellYTMok = (st = 0)
+        For t = 1 To 60: cf(t) = tot.Net(t): Next t
+        tot.SellYTM = 12 * IRRx(cf, 60, IRR_GUESS, st): tot.SellYTMok = (st = 0)
     End If
     R.Tot = tot
 End Sub
