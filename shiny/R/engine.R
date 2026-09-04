@@ -363,6 +363,18 @@ calc_rel <- function(rel, with_optimal = TRUE) {
   rel
 }
 
+# Recalculate one loan (after one of its inputs changed) and the relationship totals/optimal
+calc_rel_loan <- function(rel, k, with_optimal = TRUE) {
+  rel$loans[[k]] <- calc_loan(rel$loans[[k]], rel$ctx, with_optimal = with_optimal)
+  rel$tot <- calc_totals(rel$loans, rel$ctx)
+  if (with_optimal) {
+    ro <- calc_rel_optimal(rel$loans, rel$tot, rel$ctx)
+    rel$rel_opt <- ro$opt
+    rel$tot$MinHYTM <- ro$minh[1]; rel$tot$MinHCY <- ro$minh[2]; rel$tot$MinHMOIC <- ro$minh[3]; rel$tot$MinHAll <- ro$minh[4]
+  }
+  rel
+}
+
 sum_field <- function(loans, f) sum(vapply(loans, function(L) as.numeric(L[[f]]), numeric(1)), na.rm = TRUE)
 
 calc_totals <- function(loans, C) {

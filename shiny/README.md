@@ -15,6 +15,17 @@ shiny/
   tests/test_app.R      headless server smoke test (demo mode)
 ```
 
+## Two layouts, one engine
+
+- `shiny/app.R` — the **sheet** layout: the workbook grid, row for row, with the Optimal, Pay
+  History and Collateral tabs.
+- `shiny/modern/app.R` — the **modern** layout: only the Relationship Projection. One card per loan
+  with the inputs grouped into Payment / Rate / Legal / Exit sections (controls appear only when the
+  selection needs them), live result tiles, relationship value boxes, a net-cash-flow chart and the
+  bid-by-exit-month curve with hurdle markers, dark mode, and the same .xlsx sheet export.
+  Run with `shiny::runApp("shiny/modern")`. Both layouts share `R/engine.R`, `R/data.R` and the saved
+  inputs, so a relationship edited in one opens with the same inputs in the other.
+
 ## Setup (once)
 
 ```r
