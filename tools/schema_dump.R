@@ -9,9 +9,9 @@ suppressPackageStartupMessages({ library(DBI); library(odbc) })
 
 dsn <- Sys.getenv("BR_DSN", "sqlDueDiligence"); db <- Sys.getenv("BR_DB", "MidwestDDi")
 con <- dbConnect(odbc::odbc(), dsn = dsn, database = db, ApplicationIntent = "ReadOnly")
-on.exit(dbDisconnect(con))
-out <- file.path(dirname(normalizePath(sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)[1]), mustWork = FALSE)), "..", "schema")
-if (is.na(out) || !nzchar(out)) out <- "schema"
+cleanup <- function() try(dbDisconnect(con), silent = TRUE)
+f <- grep("^--file=", commandArgs(FALSE), value = TRUE)
+out <- if (length(f)) file.path(dirname(sub("^--file=", "", f[1])), "..", "schema") else "schema"   # repo_root/schema when run via Rscript, else ./schema
 dir.create(out, showWarnings = FALSE, recursive = TRUE)
 
 q <- function(sql) dbGetQuery(con, sql)
@@ -78,3 +78,5 @@ for (tb in unique(paste(columns$schema, columns$table, sep = "."))) {
 }
 writeLines(md, file.path(out, "SCHEMA.md"))
 cat(sprintf("%d tables/views, %d columns, %d keys, %d views, %d routines -> %s\n", length(unique(paste(columns$schema, columns$table))), nrow(columns), nrow(keys), nrow(views), nrow(routines), normalizePath(out)))
+
+cleanup()
